@@ -77,7 +77,6 @@ void BoxPlant<T>::DoCalcTimeDerivatives(
 
   derivative_vector[0] = state[1];
   derivative_vector[1] = (get_u(context) /* force */ - params[2] * state[1] /* damping */) * params[0] /* inv mass */ ;
-  std::cout << derivative_vector[1] << std::endl;
 }
 
 }  // namespace box

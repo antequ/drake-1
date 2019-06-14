@@ -62,7 +62,6 @@ BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph) {
   // parameters.  Ideally, it should happen in an Initialize event that
   // modifies the Context, or the output port should express the geometries
   // themselves instead of just their poses, or etc.
-  // TODO: change this to just a box of size length.
   drake::systems::BasicVector<double> params (3);
   params[0] = 1.0;
   params[1] = 1.0;
@@ -91,8 +90,8 @@ void BoxGeometry::OutputGeometryPose(
 
   const auto& input = get_input_port(0).Eval<drake::systems::BasicVector<double>>(context);
   // TODO: change this to a translation
-  const double q = input[0];
-  std::cout << "Geom: " << frame_id_ << " " << q * LENGTH_SCALE << std::endl;
+  const double q = input[0] ;
+  //std::cout << "Geom: " << frame_id_ << " " << q * LENGTH_SCALE << std::endl;
   math::RigidTransformd pose(Eigen::Vector3d(LENGTH_SCALE * q, 0.,0.));
 
   *poses = {{frame_id_, pose.GetAsIsometry3()}};

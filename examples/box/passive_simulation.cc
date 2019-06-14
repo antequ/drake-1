@@ -19,8 +19,8 @@ DEFINE_double(target_realtime_rate, 1.0,
 
 int DoMain() {
   systems::DiagramBuilder<double> builder;
-  auto source = builder.AddSystem<systems::Sine>(M_PI * M_PI * 1.0, 
-                                                  M_PI, M_PI / 2.0, 1 );
+  auto source = builder.AddSystem<systems::Sine>(4 * M_PI * M_PI * 1.0 /* amplitude */, 
+                                                  2 * M_PI /* omega */, M_PI / 2.0 /* phase */, 1 /* vector size */);
   source->set_name("source");
   auto box = builder.AddSystem<BoxPlant>();
   box->set_name("box");
