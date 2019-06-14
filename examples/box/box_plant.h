@@ -1,6 +1,7 @@
 #pragma once
 
-#include "drake/systems/framework/leaf_system.h"
+#include "drake/common/eigen_types.h"
+#include "drake/systems/framework/vector_system.h"
 
 namespace drake {
 namespace examples {
@@ -24,7 +25,7 @@ namespace box {
 /// - AutoDiffXd
 /// - symbolic::Expression
 template <typename T>
-class BoxPlant final : public systems::LeafSystem<T> {
+class BoxPlant final : public systems::VectorSystem<T> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(BoxPlant);
 
@@ -37,11 +38,11 @@ class BoxPlant final : public systems::LeafSystem<T> {
 
   ~BoxPlant() final;
 
-  /// Returns the input port to the externally applied force.
-  const systems::InputPort<T>& get_input_port() const;
-
   /// Returns the port to output state.
-  const systems::OutputPort<T>& get_state_output_port() const;
+  const systems::OutputPort<T>& get_state_output_port() const
+  {
+    return this->get_output_port();
+  }
 
   /// Calculates the kinetic + potential energy.
   T CalcTotalEnergy(const systems::Context<T>& context) const;
@@ -52,42 +53,26 @@ class BoxPlant final : public systems::LeafSystem<T> {
     return this->get_input_port().Eval(context)(0);
   }
 
-  static const systems::BasicVector<T>& get_state(
-      const systems::ContinuousState<T>& cstate) {
-    return dynamic_cast<const systems::BasicVector<T>&>(cstate.get_vector());
-  }
+  static void set_initial_state(systems::Context<T>* context,
+                                const Eigen::Ref< const VectorX<T> >& z0);
 
-  static const systems::BasicVector<T>& get_state(const systems::Context<T>& context) {
-    return get_state(context.get_continuous_state());
-  }
-
-  static systems::BasicVector<T>& get_mutable_state(
-      systems::ContinuousState<T>* cstate) {
-    return dynamic_cast<systems::BasicVector<T>&>(cstate->get_mutable_vector());
-  }
-
-  static systems::BasicVector<T>& get_mutable_state(systems::Context<T>* context) {
-    return get_mutable_state(&context->get_mutable_continuous_state());
-  }
-
-  const systems::BasicVector<T>& get_parameters(
+  const Eigen::VectorBlock< const VectorX<T> > get_parameters(
       const systems::Context<T>& context) const {
-    return this->template GetNumericParameter<systems::BasicVector>(context, 0);
-  }
-
-  systems::BasicVector<T>& get_mutable_parameters(
-      systems::Context<T>* context) const {
-    return this->template GetMutableNumericParameter<systems::BasicVector>(
-        context, 0);
+    auto& param_vector = this->GetNumericParameter(context, 0);
+    return param_vector.get_value();
   }
 
  private:
-  void CopyStateOut(const systems::Context<T>& context,
-                    systems::BasicVector<T>* output) const;
-
-  void DoCalcTimeDerivatives(
+  void DoCalcVectorOutput(
       const systems::Context<T>& context,
-      systems::ContinuousState<T>* derivatives) const final;
+      const Eigen::VectorBlock<const VectorX<T>>& input,
+      const Eigen::VectorBlock<const VectorX<T>>& state,
+      Eigen::VectorBlock<VectorX<T>>* output) const final;
+
+  void DoCalcVectorTimeDerivatives(const systems::Context< T > &context, 
+      const Eigen::VectorBlock< const VectorX< T >> &input, 
+      const Eigen::VectorBlock< const VectorX< T >> &state, 
+      Eigen::VectorBlock< VectorX< T >> *derivatives) const final;
 };
 
 }  // namespace box

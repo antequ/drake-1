@@ -35,9 +35,10 @@ int DoMain() {
   systems::Context<double>& box_context =
       diagram->GetMutableSubsystemContext(*box,
                                           &simulator.get_mutable_context());
-  drake::systems::BasicVector<double>& state = box->get_mutable_state(&box_context);
-  state[0] = 1.; // position
-  state[1] = 0.; // velocity
+  
+  drake::VectorX<double> initState(2);
+  initState << 1. /* position */, 0. /* velocity */;
+  box->set_initial_state(&box_context, initState);
 
   const double initial_energy = box->CalcTotalEnergy(box_context);
 
