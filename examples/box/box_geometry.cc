@@ -31,13 +31,13 @@ const double LENGTH_SCALE = 0.3;
 const BoxGeometry* BoxGeometry::AddToBuilder(
     systems::DiagramBuilder<double>* builder,
     const systems::OutputPort<double>& box_state_port,
-    geometry::SceneGraph<double>* scene_graph) {
+    geometry::SceneGraph<double>* scene_graph, std::string srcName) {
   DRAKE_THROW_UNLESS(builder != nullptr);
   DRAKE_THROW_UNLESS(scene_graph != nullptr);
 
   auto box_geometry = builder->AddSystem(
       std::unique_ptr<BoxGeometry>(
-          new BoxGeometry(scene_graph)));
+          new BoxGeometry(scene_graph, srcName)));
   // input is state, output is geometry
   builder->Connect(
       box_state_port,
@@ -49,10 +49,11 @@ const BoxGeometry* BoxGeometry::AddToBuilder(
   return box_geometry;
 }
 
-BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph) {
+BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph, std::string srcName) {
   DRAKE_THROW_UNLESS(scene_graph != nullptr);
-  source_id_ = scene_graph->RegisterSource("box");
-  frame_id_ = scene_graph->RegisterFrame(source_id_, GeometryFrame("arm"));
+  std::string boxname = "box" + srcName;
+  source_id_ = scene_graph->RegisterSource( boxname );
+  frame_id_ = scene_graph->RegisterFrame(source_id_, GeometryFrame("boxstate" + srcName));
 
   this->DeclareVectorInputPort("state", drake::systems::BasicVector<double>(2));
   this->DeclareAbstractOutputPort(
@@ -69,14 +70,15 @@ BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph) {
 
   const double length = params[1];
   const double mass = params[0];
+  using std::sqrt;
 
   // The base.
   GeometryId id = scene_graph->RegisterGeometry(
       source_id_,frame_id_,
-      make_unique<GeometryInstance>(Isometry3d(Translation3d(0., 0., .025)),
+      make_unique<GeometryInstance>(Isometry3d(Translation3d(0., 0., 0.5 * LENGTH_SCALE * sqrt(mass / length))),
                                     make_unique<Box>(LENGTH_SCALE * length, 
-                                    LENGTH_SCALE * std::sqrt(mass / length), 
-                                    LENGTH_SCALE * std::sqrt(mass / length)), "box"));
+                                    LENGTH_SCALE * sqrt(mass / length), 
+                                    LENGTH_SCALE * sqrt(mass / length)), boxname));
   scene_graph->AssignRole(
       source_id_, id, MakePhongIllustrationProperties(Vector4d(.3, .6, .4, 1)));
 }

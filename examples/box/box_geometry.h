@@ -32,10 +32,17 @@ class BoxGeometry final : public systems::LeafSystem<double> {
   static const BoxGeometry* AddToBuilder(
       systems::DiagramBuilder<double>* builder,
       const systems::OutputPort<double>& box_state_port,
-      geometry::SceneGraph<double>* scene_graph);
+      geometry::SceneGraph<double>* scene_graph, std::string srcName);
+  static const BoxGeometry* AddToBuilder(
+      systems::DiagramBuilder<double>* builder,
+      const systems::OutputPort<double>& box_state_port,
+      geometry::SceneGraph<double>* scene_graph)
+      {
+        return AddToBuilder(builder, box_state_port, scene_graph, "0");
+      }
 
  private:
-  explicit BoxGeometry(geometry::SceneGraph<double>*);
+  explicit BoxGeometry(geometry::SceneGraph<double>*, std::string srcName);
   void OutputGeometryPose(const systems::Context<double>&,
                           geometry::FramePoseVector<double>*) const;
 
