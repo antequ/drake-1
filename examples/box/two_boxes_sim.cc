@@ -20,9 +20,18 @@ DEFINE_double(target_realtime_rate, 1.0,
               "Playback speed.  See documentation for "
               "Simulator::set_target_realtime_rate() for details.");
 
+DEFINE_double(penalty_k, 20.0,
+              "k stiffness constant for contact penalty force");
+
+DEFINE_double(penalty_d, 0.0,
+              "d damping constant for contact penalty force");
+
+DEFINE_double(box1_init_v, 2.0,
+              "initial velocity for box 1");
+
 int DoMain() {
   systems::DiagramBuilder<double> builder;
-  auto source1 = builder.AddSystem<systems::Sine>(4 * M_PI * M_PI * 1.0 /* amplitude */, 
+  auto source1 = builder.AddSystem<systems::Sine>(4 * M_PI * M_PI * 1.0 * 0. /* amplitude */, 
                                                   2 * M_PI /* omega */, M_PI / 2.0 /* phase */, 1 /* vector size */);
   source1->set_name("source1");
   systems::BasicVector<double> sourceValue(1);
@@ -36,21 +45,22 @@ int DoMain() {
   box2->set_name("box2");
   //builder.Connect(source2->get_output_port(), box2->get_input_port());
 
-  auto spring = builder.AddSystem<SpringPlant>(10. /* k */, 0.5 /* d */, 1. /* rest length */);
+  auto spring = builder.AddSystem<SpringPlant>(FLAGS_penalty_k /* k */, 
+    FLAGS_penalty_d /* d */, 1. /* rest length */);
   // connect spring inputs
   builder.Connect(box1->get_output_port(), spring->get_first_box_input_port());
   builder.Connect(box2->get_output_port(), spring->get_second_box_input_port());
   // use spring's output in the positive for box 2
   auto adder2 = builder.AddSystem<systems::Adder>(2, 1);
   builder.Connect(source2->get_output_port(), adder2->get_input_port(0));
-  builder.Connect(spring->get_output_port(), adder2->get_input_port(1));
+  builder.Connect(spring->get_force_output_port(), adder2->get_input_port(1));
   builder.Connect(adder2->get_output_port(), box2->get_input_port());
   auto scene_graph = builder.AddSystem<geometry::SceneGraph>();
 
   // use spring's output in the negative for box 1
   auto adder1 = builder.AddSystem<systems::Adder>(2, 1);
   auto negater = builder.AddSystem<systems::Gain>(double(-1.),1);
-  builder.Connect(spring->get_output_port(), negater->get_input_port() );
+  builder.Connect(spring->get_force_output_port(), negater->get_input_port() );
   builder.Connect(source1->get_output_port(0), adder1->get_input_port(0) );
   builder.Connect(negater->get_output_port(), adder1->get_input_port(1) );
   builder.Connect(adder1->get_output_port(), box1->get_input_port());
@@ -73,7 +83,7 @@ int DoMain() {
   
   
   drake::VectorX<double> initState1(2);
-  initState1 << -1. /* position */, 0. /* velocity */;
+  initState1 << -1. /* position */, FLAGS_box1_init_v /* velocity */;
   drake::VectorX<double> initState2(2);
   initState2 << 1. /* position */, 0. /* velocity */;
   box1->set_initial_state(&box1_context, initState1);

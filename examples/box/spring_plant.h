@@ -30,7 +30,7 @@ namespace box {
 /// - AutoDiffXd
 /// - symbolic::Expression
 template <typename T>
-class SpringPlant final : public systems::VectorSystem<T> {
+class SpringPlant final : public systems::LeafSystem<T> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(SpringPlant);
 
@@ -47,10 +47,7 @@ class SpringPlant final : public systems::VectorSystem<T> {
   ~SpringPlant() final;
 
   /// Returns the port to output force.
-  const systems::OutputPort<T>& get_force_output_port() const
-  {
-    return this->get_output_port();
-  }
+  const systems::OutputPort<T>& get_force_output_port() const;
   const systems::InputPort<T>& get_first_box_input_port() const;
   const systems::InputPort<T>& get_second_box_input_port() const;
   
@@ -72,30 +69,10 @@ class SpringPlant final : public systems::VectorSystem<T> {
   }
 
  private:
-  void DoCalcVectorOutput(
+  void CalcVectorOutput(
       const systems::Context<T>& context,
-      const Eigen::VectorBlock<const VectorX<T>>& input,
-      const Eigen::VectorBlock<const VectorX<T>>& state,
-      Eigen::VectorBlock<VectorX<T>>* output) const final;
-  void DoValidateAllocatedLeafContext(
-      const systems::LeafContext<T>& context) const override {
-    // N.B. The DRAKE_THROW_UNLESS conditions can be triggered by subclass
-    // mistakes, so are part of our unit tests.  The DRAKE_DEMAND conditions
-    // should be invariants guaranteed by the framework, so are asserted.
-
-    // Exactly one input and output.
-    DRAKE_THROW_UNLESS(this->num_input_ports() == 2);
-    DRAKE_THROW_UNLESS(this->num_output_ports() <= 1);
-
-    // At most one of either continuous or discrete state.
-    DRAKE_THROW_UNLESS(context.num_abstract_states() == 0);
-    const int continuous_size = context.num_continuous_states();
-    const int num_discrete_groups = context.num_discrete_state_groups();
-    DRAKE_DEMAND(continuous_size >= 0);
-    DRAKE_DEMAND(num_discrete_groups >= 0);
-    DRAKE_THROW_UNLESS(num_discrete_groups <= 1);
-    DRAKE_THROW_UNLESS((continuous_size == 0) || (num_discrete_groups == 0));
-  } 
+      systems::BasicVector<T>* output) const;
+  
   T k_ = {1.0}; /* stiffness */
   T d_ = {0.0}; /* damping */
   T l_ = {1.0}; /* rest length */

@@ -10,8 +10,11 @@ namespace box {
 
 template <typename T>
 SpringPlant<T>::SpringPlant()
-    :  systems::VectorSystem<T>(systems::SystemTypeTag<box::SpringPlant>{},2 /* input size */, 1 /* output size */) {
-  this->DeclareVectorInputPort(systems::BasicVector<T>(2));
+    :  systems::LeafSystem<T>(systems::SystemTypeTag<box::SpringPlant>{}) {
+ 
+  this->DeclareVectorInputPort("box1state",systems::BasicVector<T>(2));
+  this->DeclareVectorInputPort("box2state",systems::BasicVector<T>(2));
+  this->DeclareVectorOutputPort("forces",systems::BasicVector<T>(1),&SpringPlant::CalcVectorOutput);
   /* params are stored in the class */
 }
 
@@ -32,14 +35,11 @@ template <typename T>
 SpringPlant<T>::~SpringPlant() = default;
 
 template <typename T>
-void SpringPlant<T>::DoCalcVectorOutput(
+void SpringPlant<T>::CalcVectorOutput(
       const systems::Context<T>& context,
-      const Eigen::VectorBlock<const VectorX<T>>& input,
-      const Eigen::VectorBlock<const VectorX<T>>& state,
-      Eigen::VectorBlock<VectorX<T>>* output) const 
+      systems::BasicVector<T>* output) const 
       {
-        unused(state);
-        const VectorX<T>& box1 = input;
+        const VectorX<T>& box1 = this->get_first_box_input_port().Eval(context);
         const VectorX<T>& box2 = this->get_second_box_input_port().Eval(context);
         T qdiff = box2(0) - box1(0);
         T vdiff = box2(1) - box1(1);
@@ -51,21 +51,26 @@ void SpringPlant<T>::DoCalcVectorOutput(
         T xdot = - sign * vdiff ;
         T k = k_ * max( T(1) + d_ * xdot, T(0));
         T f =  sign * k * xp ;
-        std::cout << qdiff << " " << vdiff << " " << f << std::endl;
+        //std::cout << qdiff << " " << vdiff << " " << f << std::endl;
         /* penalty force model */
-        (*output)(0) = f;
+        (*output)[0] = f;
       }
-
 template <typename T>
-const systems::InputPort<T>& SpringPlant<T>::get_second_box_input_port() const {
-    DRAKE_DEMAND(systems::LeafSystem<T>::num_input_ports() == 2);
-    return systems::LeafSystem<T>::get_input_port(1);
+const systems::OutputPort<T>& SpringPlant<T>::get_force_output_port() const {
+    DRAKE_DEMAND(systems::LeafSystem<T>::num_output_ports() == 1);
+    return systems::LeafSystem<T>::get_output_port(0);
   }
 
 template <typename T>
 const systems::InputPort<T>& SpringPlant<T>::get_first_box_input_port() const {
     DRAKE_DEMAND(systems::LeafSystem<T>::num_input_ports() == 2);
     return systems::LeafSystem<T>::get_input_port(0);
+  }
+
+template <typename T>
+const systems::InputPort<T>& SpringPlant<T>::get_second_box_input_port() const {
+    DRAKE_DEMAND(systems::LeafSystem<T>::num_input_ports() == 2);
+    return systems::LeafSystem<T>::get_input_port(1);
   }
 
 template <typename T>

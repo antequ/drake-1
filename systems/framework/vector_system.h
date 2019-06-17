@@ -36,7 +36,7 @@ class VectorSystem : public LeafSystem<T> {
 
   /// Returns the sole input port.
   const InputPort<T>& get_input_port() const {
-    //DRAKE_DEMAND(this->num_input_ports() == 1);
+    DRAKE_DEMAND(this->num_input_ports() == 1);
     return LeafSystem<T>::get_input_port(0);
   }
 
@@ -339,7 +339,7 @@ class VectorSystem : public LeafSystem<T> {
  private:
   // Confirms the VectorSystem invariants when allocating the context.
   void DoValidateAllocatedLeafContext(
-      const LeafContext<T>& context) const {
+      const LeafContext<T>& context) const final {
     // N.B. The DRAKE_THROW_UNLESS conditions can be triggered by subclass
     // mistakes, so are part of our unit tests.  The DRAKE_DEMAND conditions
     // should be invariants guaranteed by the framework, so are asserted.
