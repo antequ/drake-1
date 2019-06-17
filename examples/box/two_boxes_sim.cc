@@ -29,6 +29,9 @@ DEFINE_double(penalty_d, 0.0,
 DEFINE_double(box1_init_v, 2.0,
               "initial velocity for box 1");
 
+DEFINE_double(box_d, 0.2,
+              "box damping");
+
 int DoMain() {
   systems::DiagramBuilder<double> builder;
   auto source1 = builder.AddSystem<systems::Sine>(4 * M_PI * M_PI * 1.0 * 0. /* amplitude */, 
@@ -38,10 +41,10 @@ int DoMain() {
   sourceValue[0] = 0.;
   auto source2 = builder.AddSystem<systems::ConstantVectorSource>( sourceValue );
   source2->set_name("source2");
-  auto box1 = builder.AddSystem<BoxPlant>();
+  auto box1 = builder.AddSystem<BoxPlant>(1.0 /* mass */, 1.0 /* length */, FLAGS_box_d);
   box1->set_name("box1");
   //builder.Connect(source1->get_output_port(0), box1->get_input_port());
-  auto box2 = builder.AddSystem<BoxPlant>();
+  auto box2 = builder.AddSystem<BoxPlant>(1.0 /* mass */, 1.0 /* length */, FLAGS_box_d);
   box2->set_name("box2");
   //builder.Connect(source2->get_output_port(), box2->get_input_port());
 

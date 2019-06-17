@@ -9,15 +9,21 @@ namespace examples {
 namespace box {
 
 template <typename T>
-BoxPlant<T>::BoxPlant()
+BoxPlant<T>::BoxPlant(T m, T l, T d)
     :  systems::VectorSystem<T>(systems::SystemTypeTag<box::BoxPlant>{},1 /* input size */, 2 /* output size */) {
   this->DeclareContinuousState(drake::systems::BasicVector<T>(2) /* state size */, 1 /* num_q */, 1 /* num_v */,
                                0 /* num_z */);
   drake::systems::BasicVector<T> params (3);
-  params[0] = T(1.0); /* inverse mass */
-  params[1] = T(1.0); /* length */
-  params[2] = T(0.0); /* velocity damping */
+  params[0] = m; /* inverse mass */
+  params[1] = l; /* length */
+  params[2] = d; /* velocity damping */
   this->DeclareNumericParameter(params);
+}
+
+template <typename T>
+BoxPlant<T>::BoxPlant() : BoxPlant(T(1.0) /* inv mass */, 
+    T(1.0) /* length */, T(0.0) /* vel damp */) {
+
 }
 
 template <typename T>

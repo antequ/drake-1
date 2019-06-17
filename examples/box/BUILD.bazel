@@ -91,6 +91,30 @@ drake_cc_binary(
     ],
 )
 
+drake_cc_binary(
+    name = "trajectory_optimization_simulation",
+    srcs = ["trajectory_optimization_simulation.cc"],
+    add_test_rule = 1,
+    data = [":models"],
+    test_rule_args = ["--target_realtime_rate=0.0"],
+    deps = [
+        ":box_geometry",
+        ":box_plant",
+        ":spring_plant",
+        "//geometry:geometry_visualization",
+        "//systems/analysis:simulator",
+        "//systems/framework:diagram",
+        "//systems/primitives:constant_vector_source",
+        "//systems/primitives:sine",
+        "//systems/primitives:adder",
+        "//systems/primitives:gain",
+        "//systems/trajectory_optimization:direct_collocation",
+        "//solvers:solve",
+        "//systems/controllers:pid_controlled_system",
+        "//systems/primitives:trajectory_source",
+        "@gflags",
+    ],
+)
 
 #    drake_cc_binary(
 #        name = "energy_shaping_simulation",

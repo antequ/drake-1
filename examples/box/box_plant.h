@@ -32,6 +32,9 @@ class BoxPlant final : public systems::VectorSystem<T> {
   /// Constructs a default plant.
   BoxPlant();
 
+  /// Constructs a plant with inv mass m, length l, and damping d
+  BoxPlant(T m, T l, T d);
+
   /// Scalar-converting copy constructor.  See @ref system_scalar_conversion.
   template <typename U>
   explicit BoxPlant(const BoxPlant<U>&);
