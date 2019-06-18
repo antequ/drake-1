@@ -1,16 +1,13 @@
 #include <gflags/gflags.h>
 
 #include "drake/examples/box/box_geometry.h"
-#include "drake/examples/box/box_plant.h"
-#include "drake/examples/box/spring_plant.h"
 #include "drake/geometry/geometry_visualization.h"
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/diagram.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/primitives/constant_vector_source.h"
 #include "drake/systems/primitives/sine.h"
-#include "drake/systems/primitives/adder.h"
-#include "drake/systems/primitives/gain.h"
+#include "drake/examples/box/two_boxes_plant.h"
 
 namespace drake {
 namespace examples {
@@ -34,9 +31,11 @@ DEFINE_double(box_d, 0.2,
 
 int DoMain() {
   systems::DiagramBuilder<double> builder;
+
   auto source1 = builder.AddSystem<systems::Sine>(4 * M_PI * M_PI * 1.0 * 0. /* amplitude */, 
                                                   2 * M_PI /* omega */, M_PI / 2.0 /* phase */, 1 /* vector size */);
   source1->set_name("source1");
+#if 0
   systems::BasicVector<double> sourceValue(1);
   sourceValue[0] = 0.;
   auto source2 = builder.AddSystem<systems::ConstantVectorSource>( sourceValue );
@@ -68,20 +67,21 @@ int DoMain() {
   builder.Connect(negater->get_output_port(), adder1->get_input_port(1) );
   builder.Connect(adder1->get_output_port(), box1->get_input_port());
   BoxGeometry::AddToBuilder(
-      &builder, box1->get_state_output_port(), scene_graph, "1"); 
+      &builder, *box1, scene_graph, "1"); 
   BoxGeometry::AddToBuilder(
-      &builder, box2->get_state_output_port(), scene_graph, "2");
+      &builder, *box2, scene_graph, "2");
 
-
+#endif
+  auto two_boxes = builder.AddSystem<TwoBoxesPlant>(1.0 /* mass */,
+      FLAGS_box_d, 1.0 /* length */, FLAGS_penalty_k, FLAGS_penalty_d);
+  builder.Connect(source1->get_output_port(0), two_boxes->get_input_port(0));
+  auto scene_graph = builder.AddSystem<geometry::SceneGraph>();
+  AddGeometryToBuilder(&builder, *two_boxes, scene_graph);
   ConnectDrakeVisualizer(&builder, *scene_graph);
   auto diagram = builder.Build();
 
   systems::Simulator<double> simulator(*diagram);
-  systems::Context<double>& box1_context =
-      diagram->GetMutableSubsystemContext(*box1,
-                                          &simulator.get_mutable_context()); 
-  systems::Context<double>& box2_context =
-      diagram->GetMutableSubsystemContext(*box2,
+  systems::Context<double>& context = diagram->GetMutableSubsystemContext(*two_boxes,
                                           &simulator.get_mutable_context());
   
   
@@ -89,16 +89,16 @@ int DoMain() {
   initState1 << -1. /* position */, FLAGS_box1_init_v /* velocity */;
   drake::VectorX<double> initState2(2);
   initState2 << 1. /* position */, 0. /* velocity */;
-  box1->set_initial_state(&box1_context, initState1);
-  box2->set_initial_state(&box2_context, initState2);
+  two_boxes->SetBox1State(&context, initState1);
+  two_boxes->SetBox2State(&context, initState2);
 
-  const double initial_energy = box1->CalcTotalEnergy(box1_context)+box2->CalcTotalEnergy(box2_context);
+  const double initial_energy = two_boxes->CalcBoxesTotalEnergy(context);
 
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.Initialize();
   simulator.AdvanceTo(10);
 
-  const double final_energy = box1->CalcTotalEnergy(box1_context)+box2->CalcTotalEnergy(box2_context);
+  const double final_energy = two_boxes->CalcBoxesTotalEnergy(context);
 
   // Adds a numerical sanity test on total energy.
   DRAKE_DEMAND(initial_energy + 0.5 * M_PI * M_PI + 0.5 >=  final_energy);

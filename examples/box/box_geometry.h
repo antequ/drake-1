@@ -3,6 +3,7 @@
 #include "drake/geometry/scene_graph.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/framework/leaf_system.h"
+#include "drake/examples/box/box_plant.h"
 
 namespace drake {
 namespace examples {
@@ -31,18 +32,21 @@ class BoxGeometry final : public systems::LeafSystem<double> {
   /// that is owned by the `builder`.
   static const BoxGeometry* AddToBuilder(
       systems::DiagramBuilder<double>* builder,
-      const systems::OutputPort<double>& box_state_port,
-      geometry::SceneGraph<double>* scene_graph, std::string srcName);
-  static const BoxGeometry* AddToBuilder(
-      systems::DiagramBuilder<double>* builder,
-      const systems::OutputPort<double>& box_state_port,
-      geometry::SceneGraph<double>* scene_graph)
+       const BoxPlant<double>& box, 
+      geometry::SceneGraph<double>* scene_graph, std::string srcName)
       {
-        return AddToBuilder(builder, box_state_port, scene_graph, "0");
+        return AddToBuilder(builder, box, box.get_state_output_port(), scene_graph, srcName);
       }
 
+  static const BoxGeometry* AddToBuilder(
+      systems::DiagramBuilder<double>* builder,
+      const BoxPlant<double>& box, 
+      const systems::OutputPort<double>& box_state_output_port,
+      geometry::SceneGraph<double>* scene_graph, std::string srcName);
+
+
  private:
-  explicit BoxGeometry(geometry::SceneGraph<double>*, std::string srcName);
+  explicit BoxGeometry(geometry::SceneGraph<double>*, const BoxPlant<double>& box, std::string srcName);
   void OutputGeometryPose(const systems::Context<double>&,
                           geometry::FramePoseVector<double>*) const;
 

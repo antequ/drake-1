@@ -1,16 +1,13 @@
 #include <gflags/gflags.h>
 
 #include "drake/examples/box/box_geometry.h"
-#include "drake/examples/box/box_plant.h"
-#include "drake/examples/box/spring_plant.h"
+#include "drake/examples/box/two_boxes_plant.h"
 #include "drake/geometry/geometry_visualization.h"
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/diagram.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/primitives/constant_vector_source.h"
 #include "drake/systems/primitives/sine.h"
-#include "drake/systems/primitives/adder.h"
-#include "drake/systems/primitives/gain.h"
 #include "drake/systems/trajectory_optimization/direct_collocation.h"
 #include "drake/systems/primitives/trajectory_source.h"
 #include "drake/systems/controllers/pid_controlled_system.h"
@@ -42,7 +39,7 @@ DEFINE_double(box1_init_v, 2.0,
 DEFINE_double(box1_force_limit, 3.0,
               "Box1 force limit (N) ");
 
-DEFINE_double(box2_final_position, 6.0,
+DEFINE_double(box2_final_position, 3.0,
               "Goal position for box 2 ");
 
 DEFINE_double(input_cost, 10.0,
@@ -52,65 +49,15 @@ DEFINE_double(box_d, 0.2,
               "box damping");
 
 int DoMain() {
-  systems::DiagramBuilder<double> builder;
-  //auto source1 = builder.AddSystem<systems::Sine>(4 * M_PI * M_PI * 1.0 * 0. /* amplitude */, 
-  //                                                2 * M_PI /* omega */, M_PI / 2.0 /* phase */, 1 /* vector size */);
-  //source1->set_name("source1");
-  //unused(source1);
-  //systems::BasicVector<double> sourceValue(1);
-  //sourceValue[0] = 0.;
-  //auto source2 = builder.AddSystem<systems::ConstantVectorSource>( sourceValue );
-  //source2->set_name("source2");
-  auto box1 = builder.AddSystem<BoxPlant>(1.0 /* mass */, 1.0 /* length */, FLAGS_box_d);
-  box1->set_name("box1");
-  //builder.Connect(source1->get_output_port(0), box1->get_input_port());
-  auto box2 = builder.AddSystem<BoxPlant>(1.0 /* mass */, 1.0 /* length */, FLAGS_box_d);
-  box2->set_name("box2");
-  //builder.Connect(source2->get_output_port(), box2->get_input_port());
+  auto two_boxes = std::make_unique<TwoBoxesPlant<double>>(1.0 /* mass */,
+      FLAGS_box_d, 1.0 /* length */, FLAGS_penalty_k, FLAGS_penalty_d);
+  two_boxes->set_name("twoboxes");
+  auto context = two_boxes->CreateDefaultContext();
 
-  auto spring = builder.AddSystem<SpringPlant>(FLAGS_penalty_k /* k */, 
-    FLAGS_penalty_d /* d */, 1. /* rest length */);
-  // connect spring inputs
-  builder.Connect(box1->get_output_port(), spring->get_first_box_input_port());
-  builder.Connect(box2->get_output_port(), spring->get_second_box_input_port());
-  // use spring's output in the positive for box 2
-  auto adder2 = builder.AddSystem<systems::Adder>(1, 1); // (2,1 for 2 inputs)
-  //builder.Connect(source2->get_output_port(), adder2->get_input_port(1));
-  builder.Connect(spring->get_force_output_port(), adder2->get_input_port(0));
-  builder.Connect(adder2->get_output_port(), box2->get_input_port());
-
-
-  // use spring's output in the negative for box 1
-  auto adder1 = builder.AddSystem<systems::Adder>(2, 1);
-  auto negater = builder.AddSystem<systems::Gain>(double(-1.),1);
-  builder.Connect(spring->get_force_output_port(), negater->get_input_port() );
-  //builder.Connect(source1->get_output_port(0), adder1->get_input_port(0) );
-  builder.Connect(negater->get_output_port(), adder1->get_input_port(1) );
-  builder.Connect(adder1->get_output_port(), box1->get_input_port());
-
-  
-  builder.ExportInput(adder1->get_input_port(0)); // 1D force on box1
-  //builder.ExportOutput(box2->get_output_port()); // box2 state
-  
-  auto diagram = builder.Build();
-
-#if 0
-  auto box1_ad = System<double>::ToAutoDiffXd(*box1);
-  auto spring_ad = System<double>::ToAutoDiffXd(*spring);
-  System<double>::ToAutoDiffXd(*negater);
-  System<double>::ToAutoDiffXd(*adder1);
-  System<double>::ToAutoDiffXd(*adder2);
-  //System<double>::ToAutoDiffXd(*source1);
-  //System<double>::ToAutoDiffXd(*source2);
-  System<double>::ToAutoDiffXd(*box2);
-  auto diagram_ad = System<double>::ToAutoDiffXd(*diagram);  
-#endif
-
-  auto context = diagram->CreateDefaultContext();
-  const int kNumTimeSamples = 21;
+  const int kNumTimeSamples = 28;
   const double kMinimumTimeStep = 0.05;
   const double kMaximumTimeStep = 0.5;
-  systems::trajectory_optimization::DirectCollocation dircol(diagram.get(),
+  systems::trajectory_optimization::DirectCollocation dircol(two_boxes.get(),
       *context, kNumTimeSamples, kMinimumTimeStep, kMaximumTimeStep,
       systems::InputPortSelection::kUseFirstInputIfItExists,
       false /* non cont states fixed */);
@@ -119,6 +66,7 @@ int DoMain() {
 
   const double kForceLimit = FLAGS_box1_force_limit;
   const solvers::VectorXDecisionVariable& u = dircol.input();
+  const solvers::VectorXDecisionVariable& x = dircol.state();
   // for now, input is a 1D force vector on box 1
   dircol.AddConstraintToAllKnotPoints(-kForceLimit <= u(0));
   dircol.AddConstraintToAllKnotPoints(u(0) <= kForceLimit);
@@ -127,18 +75,12 @@ int DoMain() {
   initState1 << -1. /* position */, FLAGS_box1_init_v /* velocity */;
   drake::VectorX<double> initState2(2);
   initState2 << 1. /* position */, 0. /* velocity */;
-  systems::Context<double>& box1_context =
-      diagram->GetMutableSubsystemContext(*box1,
-                                          context.get()); 
-  systems::Context<double>& box2_context =
-      diagram->GetMutableSubsystemContext(*box2,
-                                          context.get());
-  box1->set_initial_state(&box1_context, initState1);
-  box2->set_initial_state(&box2_context, initState2);
+  two_boxes->SetBox1State(context.get(), initState1);
+  two_boxes->SetBox2State(context.get(), initState2);
 
   drake::VectorX<double> finalState(4);
-  finalState << FLAGS_box2_final_position /* b1 position */, FLAGS_box1_init_v /* b1 velocity */,
-                FLAGS_box2_final_position /* b2 position */, 0. /* b2 vel */ ; 
+  finalState << -FLAGS_box2_final_position /* b1 position */, 0. /* b1 velocity */,
+                FLAGS_box2_final_position /* b2 position */, 0.05 /* b2 vel */ ; 
 
 
   drake::VectorX<double> initState = context->get_continuous_state_vector().CopyToVector();
@@ -146,15 +88,24 @@ int DoMain() {
   std::cout << initState << std::endl;
   dircol.AddLinearConstraint(dircol.initial_state() ==
                              initState);
-  dircol.AddLinearConstraint(dircol.final_state()(3) /* box 2 position */ ==
-                             FLAGS_box2_final_position);
-
+  dircol.AddLinearConstraint(dircol.final_state()  ==
+                             finalState);      
+  //dircol.AddLinearConstraint(dircol.final_state()(2)  ==
+  //                           finalState(2));
+  //dircol.AddLinearConstraint(dircol.final_state()(3)  ==
+  //                           finalState(3));
   const double R = FLAGS_input_cost;  // Cost on input "effort"
-  dircol.AddRunningCost(((R * u) * u));
+  drake::VectorX<double> initU(1);
+  initU << 0.3;
+  auto xd = x.block(0,0,4,1) - finalState.block(0,0,4,1);
+  //unused(xd); //+ xd.cast<symbolic::Expression>().dot(xd)
+  dircol.AddRunningCost(((R * u) * u)(0) + xd.cast<symbolic::Expression>().dot(xd));
   const double timespan_init = 4;
   auto traj_init_x = PiecewisePolynomial<double>::FirstOrderHold(
       {0, timespan_init}, {initState, finalState});
-  dircol.SetInitialTrajectory(PiecewisePolynomial<double>(), traj_init_x);
+  auto traj_init_u = PiecewisePolynomial<double>::FirstOrderHold(
+      {0, timespan_init}, {initU, -initU});
+  dircol.SetInitialTrajectory(traj_init_u, traj_init_x);
   const auto result = solvers::Solve(dircol);
   if (!result.is_success()) {
     std::cerr << "Failed to solve optimization for the trajectory"
@@ -163,31 +114,28 @@ int DoMain() {
   }
 
   systems::DiagramBuilder<double> finalBuilder;
-  const auto* boxes = finalBuilder.AddSystem(std::move(diagram));
+  auto* boxes = finalBuilder.AddSystem(std::move(two_boxes));
   const PiecewisePolynomial<double> pp_traj =
       dircol.ReconstructInputTrajectory(result);
   auto input_trajectory = finalBuilder.AddSystem<systems::TrajectorySource>(pp_traj);
   input_trajectory->set_name("input trajectory");
   finalBuilder.Connect(input_trajectory->get_output_port(), boxes->get_input_port(0));
-
   auto scene_graph = finalBuilder.AddSystem<geometry::SceneGraph>();
-  BoxGeometry::AddToBuilder(
-      &finalBuilder, box1->get_state_output_port(), scene_graph, "1"); 
-  BoxGeometry::AddToBuilder(
-      &finalBuilder, box2->get_state_output_port(), scene_graph, "2");
+  AddGeometryToBuilder(&finalBuilder, *boxes, scene_graph);
   ConnectDrakeVisualizer(&finalBuilder, *scene_graph);
   auto finalDiagram = finalBuilder.Build();
+
   //const double initial_energy = box1->CalcTotalEnergy(box1_context)+box2->CalcTotalEnergy(box2_context);
   systems::Simulator<double> simulator(*finalDiagram);
+  systems::Context<double>& simContext = simulator.get_mutable_context();
+  systems::Context<double>& boxesContext = finalDiagram->GetMutableSubsystemContext(*boxes, &simContext);
+  boxes->SetBox1State(&boxesContext, initState1);
+  boxes->SetBox2State(&boxesContext, initState2);
 
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.Initialize();
   simulator.AdvanceTo(pp_traj.end_time());
 
-  const double final_energy = box1->CalcTotalEnergy(box1_context)+box2->CalcTotalEnergy(box2_context);
-  unused(final_energy);
-  // Adds a numerical sanity test on total energy.
-  //DRAKE_DEMAND(initial_energy + 0.5 * M_PI * M_PI + 0.5 >=  final_energy);
 
   return 0;
 }

@@ -56,14 +56,21 @@ class BoxPlant final : public systems::VectorSystem<T> {
     return this->get_input_port().Eval(context)(0);
   }
 
+  T get_length() const {
+    return l_;
+  }
+
+  T get_inv_mass() const {
+    return m_;
+  }
+
+  Eigen::VectorBlock<const VectorX<T>> GetBoxState(const systems::Context<T>& context) const {
+    return this->GetVectorState(context);
+  }
+
   static void set_initial_state(systems::Context<T>* context,
                                 const Eigen::Ref< const VectorX<T> >& z0);
 
-  const Eigen::VectorBlock< const VectorX<T> > get_parameters(
-      const systems::Context<T>& context) const {
-    auto& param_vector = this->GetNumericParameter(context, 0);
-    return param_vector.get_value();
-  }
 
  private:
   void DoCalcVectorOutput(
@@ -76,6 +83,10 @@ class BoxPlant final : public systems::VectorSystem<T> {
       const Eigen::VectorBlock< const VectorX< T >> &input, 
       const Eigen::VectorBlock< const VectorX< T >> &state, 
       Eigen::VectorBlock< VectorX< T >> *derivatives) const final;
+
+  T m_;
+  T l_;
+  T d_;
 };
 
 }  // namespace box

@@ -11,6 +11,7 @@
 #include "drake/math/rigid_transform.h"
 #include "drake/math/rotation_matrix.h"
 
+
 namespace drake {
 namespace examples {
 namespace box {
@@ -26,21 +27,32 @@ using geometry::GeometryInstance;
 using geometry::MakePhongIllustrationProperties;
 using geometry::Sphere;
 using std::make_unique;
+// CGS units
+#define CGS
+#ifdef CGS
 const double LENGTH_SCALE = 0.3;
+const double DENSITY = 1.07; /* lego ABS plastic */
+#else
+// m, kg, s
+const double LENGTH_SCALE = 3.;
+const double DENSITY = 1070.;
+#endif
 
 const BoxGeometry* BoxGeometry::AddToBuilder(
     systems::DiagramBuilder<double>* builder,
-    const systems::OutputPort<double>& box_state_port,
-    geometry::SceneGraph<double>* scene_graph, std::string srcName) {
+    const BoxPlant<double>& box, 
+    const systems::OutputPort<double>& box_state_output_port,
+    geometry::SceneGraph<double>* scene_graph, 
+    std::string srcName) {
   DRAKE_THROW_UNLESS(builder != nullptr);
   DRAKE_THROW_UNLESS(scene_graph != nullptr);
 
   auto box_geometry = builder->AddSystem(
       std::unique_ptr<BoxGeometry>(
-          new BoxGeometry(scene_graph, srcName)));
+          new BoxGeometry(scene_graph, box, srcName)));
   // input is state, output is geometry
   builder->Connect(
-      box_state_port,
+      box_state_output_port,
       box_geometry->get_input_port(0));
   builder->Connect(
       box_geometry->get_output_port(0),
@@ -49,7 +61,7 @@ const BoxGeometry* BoxGeometry::AddToBuilder(
   return box_geometry;
 }
 
-BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph, std::string srcName) {
+BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph, const BoxPlant<double>& box, std::string srcName) {
   DRAKE_THROW_UNLESS(scene_graph != nullptr);
   std::string boxname = "box" + srcName;
   source_id_ = scene_graph->RegisterSource( boxname );
@@ -59,28 +71,26 @@ BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph, std::string 
   this->DeclareAbstractOutputPort(
       "geometry_pose", &BoxGeometry::OutputGeometryPose);
 
-  // TODO(jwnimmer-tri) This registration fails to reflect any non-default
-  // parameters.  Ideally, it should happen in an Initialize event that
-  // modifies the Context, or the output port should express the geometries
-  // themselves instead of just their poses, or etc.
-  drake::systems::BasicVector<double> params (3);
-  params[0] = 1.0;
-  params[1] = 1.0;
-  params[2] = 0.0;
 
-  const double length = params[1];
-  const double mass = params[0];
+  const double length = box.get_length();
+  double volume = 1.0;
+  if (box.get_inv_mass() != 0.) 
+     volume = 1.0 / (box.get_inv_mass() * DENSITY);
   using std::sqrt;
 
   // The base.
   GeometryId id = scene_graph->RegisterGeometry(
       source_id_,frame_id_,
-      make_unique<GeometryInstance>(Isometry3d(Translation3d(0., 0., 0.5 * LENGTH_SCALE * sqrt(mass / length))),
+      make_unique<GeometryInstance>(Isometry3d(Translation3d(0., 0., 0.5 * LENGTH_SCALE * sqrt(volume / length))),
                                     make_unique<Box>(LENGTH_SCALE * length, 
-                                    LENGTH_SCALE * sqrt(mass / length), 
-                                    LENGTH_SCALE * sqrt(mass / length)), boxname));
-  scene_graph->AssignRole(
+                                    LENGTH_SCALE * sqrt(volume / length), 
+                                    LENGTH_SCALE * sqrt(volume / length)), boxname));
+  if( srcName != "2" )
+    scene_graph->AssignRole(
       source_id_, id, MakePhongIllustrationProperties(Vector4d(.3, .6, .4, 1)));
+  else
+    scene_graph->AssignRole(
+      source_id_, id, MakePhongIllustrationProperties(Vector4d(.4, .3, .6, 1)));
 }
 
 BoxGeometry::~BoxGeometry() = default;

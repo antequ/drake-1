@@ -10,7 +10,7 @@ namespace box {
 /// A model of the spring interaction force between
 ///   two boxes. The output is the force to be applied
 ///   on box 2; box one should receive the opposite.
-/// Box 1's state is passed into the normal input port.
+/// Box 1's state is passed into first_box_input
 /// Box 2's state is passed into second_box_input.
 /// @f[ u_2 = -k (q2 - q1) @f]
 ///
@@ -60,12 +60,6 @@ class SpringPlant final : public systems::LeafSystem<T> {
   T get_u2(const systems::Context<T>& context) const
   {
     return this->get_force_output_port().Eval(context)(0);
-  }
-
-  const Eigen::VectorBlock< const VectorX<T> > get_parameters(
-      const systems::Context<T>& context) const {
-    auto& param_vector = this->GetNumericParameter(context, 0);
-    return param_vector.get_value();
   }
 
  private:

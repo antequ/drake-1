@@ -27,7 +27,7 @@ int DoMain() {
   builder.Connect(source->get_output_port(0), box->get_input_port());
   auto scene_graph = builder.AddSystem<geometry::SceneGraph>();
   BoxGeometry::AddToBuilder(
-      &builder, box->get_state_output_port(), scene_graph);
+      &builder, *box, scene_graph, "0");
   ConnectDrakeVisualizer(&builder, *scene_graph);
   auto diagram = builder.Build();
 

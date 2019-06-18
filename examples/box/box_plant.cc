@@ -10,14 +10,11 @@ namespace box {
 
 template <typename T>
 BoxPlant<T>::BoxPlant(T m, T l, T d)
-    :  systems::VectorSystem<T>(systems::SystemTypeTag<box::BoxPlant>{},1 /* input size */, 2 /* output size */) {
+    :  systems::VectorSystem<T>(systems::SystemTypeTag<box::BoxPlant>{},1 /* input size */, 2 /* output size */),
+    m_(m) /* inverse mass */, l_(l) /* length */, d_(d) /* velocity damping */
+{
   this->DeclareContinuousState(drake::systems::BasicVector<T>(2) /* state size */, 1 /* num_q */, 1 /* num_v */,
                                0 /* num_z */);
-  drake::systems::BasicVector<T> params (3);
-  params[0] = m; /* inverse mass */
-  params[1] = l; /* length */
-  params[2] = d; /* velocity damping */
-  this->DeclareNumericParameter(params);
 }
 
 template <typename T>
@@ -49,11 +46,10 @@ template <typename T>
 T BoxPlant<T>::CalcTotalEnergy(const systems::Context<T>& context) const {
   using std::pow;
   const VectorX<T>& state = this->GetVectorState(context);
-  const VectorX<T>& params = get_parameters(context);
   // Kinetic energy = 1/2 m q-dot^2
   T kinetic_energy = T(0);
-  if (params(0) != 0 )
-      kinetic_energy += 0.5  * pow(state(1), 2) / params(0);
+  if (m_ != T(0) )
+      kinetic_energy += T(0.5)  * pow(state(1), T(2)) / m_;
   // no spring, so no potential energy
   return kinetic_energy;
 }
@@ -73,10 +69,9 @@ void BoxPlant<T>::DoCalcVectorTimeDerivatives(const systems::Context< T > &conte
       const Eigen::VectorBlock< const VectorX< T >> &input, 
       const Eigen::VectorBlock< const VectorX< T >> &state, 
       Eigen::VectorBlock< VectorX< T >> *derivatives) const  {
-  const VectorX<T>& params = get_parameters(context);
-
+  unused(context);
   (*derivatives)[0] = state[1];
-  (*derivatives)[1] = (input[0] /* force */ - params[2] * state[1] /* damping */) * params[0] /* inv mass */ ;
+  (*derivatives)[1] = (input[0] /* force */ - d_ * state[1] /* damping */) * m_ /* inv mass */ ;
 }
 
 }  // namespace box
