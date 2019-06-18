@@ -3,10 +3,7 @@
 #include "drake/geometry/scene_graph.h"
 #include "drake/systems/framework/diagram.h"
 #include "drake/systems/framework/diagram_builder.h"
-#include "drake/systems/primitives/adder.h"
-#include "drake/systems/primitives/gain.h"
 #include "drake/examples/box/box_plant.h"
-#include "drake/examples/box/spring_plant.h"
 #include <experimental/memory>
 
 namespace drake{
@@ -68,23 +65,26 @@ class TwoBoxesPlant final : public systems::Diagram<T> {
     T GetBox2Position(const systems::Context<T>& context) const;
     T GetBox2Velocity(const systems::Context<T>& context) const;
 
-    BoxPlant<T>&    Box1()   { return *pBox1; }
-    BoxPlant<T>&    Box2()   { return *pBox2; }
-    SpringPlant<T>& Spring() { return *pSpring; }
+    BoxPlant<T>&    Box1()   { return *pBox1_; }
+    BoxPlant<T>&    Box2()   { return *pBox2_; }
 
-    const BoxPlant<T>&    Box1()   const { return *pBox1; }
-    const BoxPlant<T>&    Box2()   const { return *pBox2; }
-    const SpringPlant<T>& Spring() const { return *pSpring; }
+    const BoxPlant<T>&    Box1()   const { return *pBox1_; }
+    const BoxPlant<T>&    Box2()   const { return *pBox2_; }
 
     T CalcBoxesTotalEnergy(const systems::Context<T>& context) const;
 
     const systems::OutputPort<T>& get_box1_output() const {
-        DRAKE_DEMAND(box1output >= 0);
-        return this->get_output_port(box1output);
+        DRAKE_DEMAND(box1output_ >= 0);
+        return this->get_output_port(box1output_);
     }
     const systems::OutputPort<T>& get_box2_output() const {
-        DRAKE_DEMAND(box2output >= 0);
-        return this->get_output_port(box2output);
+        DRAKE_DEMAND(box2output_ >= 0);
+        return this->get_output_port(box2output_);
+    }
+
+    const systems::OutputPort<T>& get_log_output() const {
+        DRAKE_DEMAND(logport_ >= 0);
+        return this->get_output_port(logport_);
     }
 
     private:
@@ -95,14 +95,11 @@ class TwoBoxesPlant final : public systems::Diagram<T> {
     const systems::Context<T>& GetBox2Context(const systems::Context<T>& context) const;
 
     /* these are observer pointers; the diagram (parent) owns all of these */
-    BoxPlant<T>*       pBox1;
-    BoxPlant<T>*       pBox2;
-    SpringPlant<T>*    pSpring;
-    systems::Adder<T>* pAdder1;
-    systems::Adder<T>* pAdder2;
-    systems::Gain<T>*  pNegater;
-    int box1output {-1};
-    int box2output {-1};
+    BoxPlant<T>*       pBox1_;
+    BoxPlant<T>*       pBox2_;
+    int box1output_ {-1};
+    int box2output_ {-1};
+    int logport_ {-1};
 };
 
 void AddGeometryToBuilder(systems::DiagramBuilder<double>* builder, 

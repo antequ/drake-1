@@ -8,6 +8,9 @@
 #include "drake/systems/primitives/constant_vector_source.h"
 #include "drake/systems/primitives/sine.h"
 #include "drake/examples/box/two_boxes_plant.h"
+#include "drake/systems/primitives/signal_logger.h"
+
+#include <fstream>
 
 namespace drake {
 namespace examples {
@@ -35,45 +38,11 @@ int DoMain() {
   auto source1 = builder.AddSystem<systems::Sine>(4 * M_PI * M_PI * 1.0 * 0. /* amplitude */, 
                                                   2 * M_PI /* omega */, M_PI / 2.0 /* phase */, 1 /* vector size */);
   source1->set_name("source1");
-#if 0
-  systems::BasicVector<double> sourceValue(1);
-  sourceValue[0] = 0.;
-  auto source2 = builder.AddSystem<systems::ConstantVectorSource>( sourceValue );
-  source2->set_name("source2");
-  auto box1 = builder.AddSystem<BoxPlant>(1.0 /* mass */, 1.0 /* length */, FLAGS_box_d);
-  box1->set_name("box1");
-  //builder.Connect(source1->get_output_port(0), box1->get_input_port());
-  auto box2 = builder.AddSystem<BoxPlant>(1.0 /* mass */, 1.0 /* length */, FLAGS_box_d);
-  box2->set_name("box2");
-  //builder.Connect(source2->get_output_port(), box2->get_input_port());
 
-  auto spring = builder.AddSystem<SpringPlant>(FLAGS_penalty_k /* k */, 
-    FLAGS_penalty_d /* d */, 1. /* rest length */);
-  // connect spring inputs
-  builder.Connect(box1->get_output_port(), spring->get_first_box_input_port());
-  builder.Connect(box2->get_output_port(), spring->get_second_box_input_port());
-  // use spring's output in the positive for box 2
-  auto adder2 = builder.AddSystem<systems::Adder>(2, 1);
-  builder.Connect(source2->get_output_port(), adder2->get_input_port(0));
-  builder.Connect(spring->get_force_output_port(), adder2->get_input_port(1));
-  builder.Connect(adder2->get_output_port(), box2->get_input_port());
-  auto scene_graph = builder.AddSystem<geometry::SceneGraph>();
-
-  // use spring's output in the negative for box 1
-  auto adder1 = builder.AddSystem<systems::Adder>(2, 1);
-  auto negater = builder.AddSystem<systems::Gain>(double(-1.),1);
-  builder.Connect(spring->get_force_output_port(), negater->get_input_port() );
-  builder.Connect(source1->get_output_port(0), adder1->get_input_port(0) );
-  builder.Connect(negater->get_output_port(), adder1->get_input_port(1) );
-  builder.Connect(adder1->get_output_port(), box1->get_input_port());
-  BoxGeometry::AddToBuilder(
-      &builder, *box1, scene_graph, "1"); 
-  BoxGeometry::AddToBuilder(
-      &builder, *box2, scene_graph, "2");
-
-#endif
   auto two_boxes = builder.AddSystem<TwoBoxesPlant>(1.0 /* mass */,
       FLAGS_box_d, 1.0 /* length */, FLAGS_penalty_k, FLAGS_penalty_d);
+
+      // ADD AND CONNECT LOGGER TO SYSTEM
   builder.Connect(source1->get_output_port(0), two_boxes->get_input_port(0));
   auto scene_graph = builder.AddSystem<geometry::SceneGraph>();
   AddGeometryToBuilder(&builder, *two_boxes, scene_graph);

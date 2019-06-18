@@ -64,6 +64,7 @@ drake_cc_library(
         "//systems/framework:diagram_builder",
         "//systems/primitives:adder",
         "//systems/primitives:gain",
+        "//systems/primitives:multiplexer",
     ],
 )
 
@@ -101,6 +102,7 @@ drake_cc_binary(
         "//systems/framework:diagram",
         "//systems/primitives:constant_vector_source",
         "//systems/primitives:sine",
+        "//systems/primitives:signal_logger",
         "@gflags",
     ],
 )

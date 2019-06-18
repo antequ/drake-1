@@ -2,6 +2,10 @@
 #include "drake/common/eigen_types.h"
 #include "drake/common/default_scalars.h"
 #include "drake/examples/box/box_geometry.h"
+#include "drake/systems/primitives/adder.h"
+#include "drake/systems/primitives/gain.h"
+#include "drake/systems/primitives/multiplexer.h"
+#include "drake/examples/box/spring_plant.h"
 namespace drake{
 namespace examples{
 namespace box{
@@ -20,38 +24,46 @@ namespace box{
     {
         systems::DiagramBuilder<T> builder;
 
-        pBox1 = builder.template AddSystem<BoxPlant<T>>(T(1.0) / m, l, d);
-        pBox1->set_name("box1");
+        pBox1_ = builder.template AddSystem<BoxPlant<T>>(T(1.0) / m, l, d);
+        pBox1_->set_name("box1");
 
-        pBox2 = builder.template AddSystem<BoxPlant<T>>(T(1.0) / m, l, d);
-        pBox2->set_name("box2");
+        pBox2_ = builder.template AddSystem<BoxPlant<T>>(T(1.0) / m, l, d);
+        pBox2_->set_name("box2");
 
-        pSpring = builder.template AddSystem<SpringPlant<T>>(sk, sd, l);
+        auto pSpring = builder.template AddSystem<SpringPlant<T>>(sk, sd, l);
         pSpring->set_name("spring");
 
-        pAdder1 = builder.template AddSystem<systems::Adder<T>>(2, 1); // 2 input, 1 output
-        pAdder2 = builder.template AddSystem<systems::Adder<T>>(1, 1);
-        pNegater = builder.template AddSystem<systems::Gain<T>>(-1., 1);
+        auto pAdder1 = builder.template AddSystem<systems::Adder<T>>(2, 1); // 2 input, 1 output
+        auto pAdder2 = builder.template AddSystem<systems::Adder<T>>(1, 1);
+        auto pNegater = builder.template AddSystem<systems::Gain<T>>(-1., 1);
+
+        auto pMultiplexer = builder.template AddSystem<systems::Multiplexer<T>>(std::vector<int>{2,2,1});
 
         // connect spring inputs
-        builder.Connect(pBox1->get_output_port(), pSpring->get_first_box_input_port());
-        builder.Connect(pBox2->get_output_port(), pSpring->get_second_box_input_port());
+        builder.Connect(pBox1_->get_output_port(), pSpring->get_first_box_input_port());
+        builder.Connect(pBox2_->get_output_port(), pSpring->get_second_box_input_port());
 
         // use spring's output in the positive for box 2
         //builder.Connect(source2->get_output_port(), adder2->get_input_port(1));
         builder.Connect(pSpring->get_force_output_port(), pAdder2->get_input_port(0));
-        builder.Connect(pAdder2->get_output_port(), pBox2->get_input_port());
+        builder.Connect(pAdder2->get_output_port(), pBox2_->get_input_port());
 
         // use spring's output in the negative for box 1
         builder.Connect(pSpring->get_force_output_port(), pNegater->get_input_port() );
         builder.Connect(pNegater->get_output_port(), pAdder1->get_input_port(0) );
-        builder.Connect(pAdder1->get_output_port(), pBox1->get_input_port());
+        builder.Connect(pAdder1->get_output_port(), pBox1_->get_input_port());
+
+        // combine states and force into one output port for logger
+        builder.Connect(pBox1_->get_output_port(), pMultiplexer->get_input_port(0));
+        builder.Connect(pBox2_->get_output_port(), pMultiplexer->get_input_port(1));
+        builder.Connect(pSpring->get_force_output_port(), pMultiplexer->get_input_port(2));
 
         // export the 1D force on box1
         builder.ExportInput(pAdder1->get_input_port(1));
 
-        box1output = builder.ExportOutput(pBox1->get_state_output_port());
-        box2output = builder.ExportOutput(pBox2->get_state_output_port());
+        box1output_ = builder.ExportOutput(pBox1_->get_state_output_port());
+        box2output_ = builder.ExportOutput(pBox2_->get_state_output_port());
+        logport_ = builder.ExportOutput(pMultiplexer->get_output_port(0));
 
         builder.BuildInto(this);
     }
@@ -70,7 +82,7 @@ namespace box{
     void TwoBoxesPlant<T>::SetBox1State(systems::Context<T>* context, const drake::VectorX<T>& state)
     {
         DRAKE_DEMAND(state.rows() * state.cols() == 2);
-        pBox1->set_initial_state(&(this->GetMutableBox1Context(context)), state);
+        pBox1_->set_initial_state(&(this->GetMutableBox1Context(context)), state);
     }
     
 
@@ -78,7 +90,7 @@ namespace box{
     void TwoBoxesPlant<T>::SetBox2State(systems::Context<T>* context, const drake::VectorX<T>& state)
     {
         DRAKE_DEMAND(state.rows() * state.cols() == 2);
-        pBox2->set_initial_state(&(this->GetMutableBox2Context(context)), state);
+        pBox2_->set_initial_state(&(this->GetMutableBox2Context(context)), state);
     }
     
     template <typename T> 
@@ -91,61 +103,61 @@ namespace box{
     drake::VectorX<T> TwoBoxesPlant<T>::GetBox1State(const systems::Context<T>& context) const
     {
     
-        return pBox1->GetBoxState(this->GetBox1Context(context));
+        return pBox1_->GetBoxState(this->GetBox1Context(context));
     }
     
     template <typename T> 
     drake::VectorX<T> TwoBoxesPlant<T>::GetBox2State(const systems::Context<T>& context) const
     {
-        return pBox2->GetBoxState(this->GetBox2Context(context));
+        return pBox2_->GetBoxState(this->GetBox2Context(context));
     }
     
     template <typename T> 
     T TwoBoxesPlant<T>::GetBox1Position(const systems::Context<T>& context) const
     {
-        return  (pBox1->GetBoxState(this->GetBox1Context(context)))(0);
+        return  (pBox1_->GetBoxState(this->GetBox1Context(context)))(0);
     }
 
     template <typename T> 
     T TwoBoxesPlant<T>::GetBox1Velocity(const systems::Context<T>& context) const
     {
-        return  (pBox1->GetBoxState(this->GetBox1Context(context)))(1);
+        return  (pBox1_->GetBoxState(this->GetBox1Context(context)))(1);
     }
 
     template <typename T> 
     T TwoBoxesPlant<T>::GetBox2Position(const systems::Context<T>& context) const
     {
-        return (pBox2->GetBoxState(this->GetBox2Context(context)))(1);
+        return (pBox2_->GetBoxState(this->GetBox2Context(context)))(1);
     }
 
     template <typename T> 
     T TwoBoxesPlant<T>::GetBox2Velocity(const systems::Context<T>& context) const
     {
-        return (pBox2->GetBoxState(this->GetBox2Context(context)))(1);
+        return (pBox2_->GetBoxState(this->GetBox2Context(context)))(1);
     }
 
     template <typename T> 
     systems::Context<T>&  TwoBoxesPlant<T>::GetMutableBox1Context(systems::Context<T>* context)
     {
-        return this->GetMutableSubsystemContext( *pBox1, context);
+        return this->GetMutableSubsystemContext( *pBox1_, context);
     }
 
     template <typename T> 
     systems::Context<T>&  TwoBoxesPlant<T>::GetMutableBox2Context(systems::Context<T>* context)
     {
-        return this->GetMutableSubsystemContext( *pBox2, context);
+        return this->GetMutableSubsystemContext( *pBox2_, context);
     }
 
     template <typename T> 
     const systems::Context<T>&  TwoBoxesPlant<T>::GetBox1Context(const systems::Context<T>& context) const
     {
-        return this->GetSubsystemContext( *pBox1, context);
+        return this->GetSubsystemContext( *pBox1_, context);
     }
 
     template <typename T> 
     const systems::Context<T>&  TwoBoxesPlant<T>::GetBox2Context(const systems::Context<T>& context) const
     {
-        return this->GetSubsystemContext( *pBox2, context);
+        return this->GetSubsystemContext( *pBox2_, context);
     }
 
     template <typename T>
@@ -153,7 +165,7 @@ namespace box{
     {
         const systems::Context<T>& box1context = this->GetBox1Context(context);
         const systems::Context<T>& box2context = this->GetBox2Context(context);
-        return pBox1->CalcTotalEnergy(box1context) + pBox2->CalcTotalEnergy(box2context);
+        return pBox1_->CalcTotalEnergy(box1context) + pBox2_->CalcTotalEnergy(box2context);
     }
     void AddGeometryToBuilder(systems::DiagramBuilder<double>* builder, 
                           const TwoBoxesPlant<double>& plant, 
