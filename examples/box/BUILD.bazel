@@ -125,6 +125,7 @@ drake_cc_binary(
         "//solvers:solve",
         "//systems/controllers:pid_controlled_system",
         "//systems/primitives:trajectory_source",
+        "//systems/primitives:signal_logger",
         "@gflags",
     ],
 )

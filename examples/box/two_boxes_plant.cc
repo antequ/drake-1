@@ -12,22 +12,22 @@ namespace box{
 
     /// Constructs a default plant.
     template <typename T> 
-    TwoBoxesPlant<T>::TwoBoxesPlant() : TwoBoxesPlant( T(1.0) /* box m */, T(0.0) /* box vis */, 
-                                                T(1.0) /* box l */, T(1.0) /* sk */, T(0.0) /* sd */ )
+    TwoBoxesPlant<T>::TwoBoxesPlant() : TwoBoxesPlant( (1.0) /* box m */, (0.0) /* box vis */, 
+                                                (1.0) /* box l */, (1.0) /* sk */, (0.0) /* sd */ )
     {
     }
     /// constructs a plant with box mass (m), box visc (d), box length (l),
     ///               spring stiffness (sk), spring damping (sd)
     template <typename T> 
-    TwoBoxesPlant<T>::TwoBoxesPlant(T m, T d, T l, T sk, T sd) : 
-      systems::Diagram<T>(systems::SystemTypeTag<box::TwoBoxesPlant>{})
+    TwoBoxesPlant<T>::TwoBoxesPlant(double m, double d, double l, double sk, double sd) : 
+      systems::Diagram<T>(systems::SystemTypeTag<box::TwoBoxesPlant>{}), m_(m), d_(d), l_(l), sk_(sk), sd_(sd)
     {
         systems::DiagramBuilder<T> builder;
 
-        pBox1_ = builder.template AddSystem<BoxPlant<T>>(T(1.0) / m, l, d);
+        pBox1_ = builder.template AddSystem<BoxPlant<T>>((1.0) / m, l, d);
         pBox1_->set_name("box1");
 
-        pBox2_ = builder.template AddSystem<BoxPlant<T>>(T(1.0) / m, l, d);
+        pBox2_ = builder.template AddSystem<BoxPlant<T>>((1.0) / m, l, d);
         pBox2_->set_name("box2");
 
         auto pSpring = builder.template AddSystem<SpringPlant<T>>(sk, sd, l);

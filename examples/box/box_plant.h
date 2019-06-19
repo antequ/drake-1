@@ -33,7 +33,7 @@ class BoxPlant final : public systems::VectorSystem<T> {
   BoxPlant();
 
   /// Constructs a plant with inv mass m, length l, and damping d
-  BoxPlant(T m, T l, T d);
+  BoxPlant(double m, double l, double d);
 
   /// Scalar-converting copy constructor.  See @ref system_scalar_conversion.
   template <typename U>
@@ -73,6 +73,10 @@ class BoxPlant final : public systems::VectorSystem<T> {
 
 
  private:
+
+  // BoxPlant of one scalar type is friends with all other scalar types.
+  template <typename>
+  friend class BoxPlant;
   void DoCalcVectorOutput(
       const systems::Context<T>& context,
       const Eigen::VectorBlock<const VectorX<T>>& input,
@@ -84,9 +88,9 @@ class BoxPlant final : public systems::VectorSystem<T> {
       const Eigen::VectorBlock< const VectorX< T >> &state, 
       Eigen::VectorBlock< VectorX< T >> *derivatives) const final;
 
-  T m_;
-  T l_;
-  T d_;
+  double m_;
+  double l_;
+  double d_;
 };
 
 }  // namespace box

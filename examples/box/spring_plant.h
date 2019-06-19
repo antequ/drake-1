@@ -38,7 +38,7 @@ class SpringPlant final : public systems::LeafSystem<T> {
   SpringPlant();
 
   /// constructs a plant with stiffness (k), damping (d), rest length (l),
-  SpringPlant(T k, T d, T l);
+  SpringPlant(double k, double d, double l);
 
   /// Scalar-converting copy constructor.  See @ref system_scalar_conversion.
   template <typename U>
@@ -63,13 +63,16 @@ class SpringPlant final : public systems::LeafSystem<T> {
   }
 
  private:
+   // SpringPlant of one scalar type is friends with all other scalar types.
+  template <typename>
+  friend class SpringPlant;
   void CalcVectorOutput(
       const systems::Context<T>& context,
       systems::BasicVector<T>* output) const;
   
-  T k_ = {1.0}; /* stiffness */
-  T d_ = {0.0}; /* damping */
-  T l_ = {1.0}; /* rest length */
+  double k_ = {1.0}; /* stiffness */
+  double d_ = {0.0}; /* damping */
+  double l_ = {1.0}; /* rest length */
 };
 
 }  // namespace box

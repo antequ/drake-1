@@ -9,7 +9,7 @@ namespace examples {
 namespace box {
 
 template <typename T>
-BoxPlant<T>::BoxPlant(T m, T l, T d)
+BoxPlant<T>::BoxPlant(double m, double l, double d)
     :  systems::VectorSystem<T>(systems::SystemTypeTag<box::BoxPlant>{},1 /* input size */, 2 /* output size */),
     m_(m) /* inverse mass */, l_(l) /* length */, d_(d) /* velocity damping */
 {
@@ -18,14 +18,14 @@ BoxPlant<T>::BoxPlant(T m, T l, T d)
 }
 
 template <typename T>
-BoxPlant<T>::BoxPlant() : BoxPlant(T(1.0) /* inv mass */, 
-    T(1.0) /* length */, T(0.0) /* vel damp */) {
+BoxPlant<T>::BoxPlant() : BoxPlant(1.0 /* inv mass */, 
+    1.0 /* length */, 0.0 /* vel damp */) {
 
 }
 
 template <typename T>
 template <typename U>
-BoxPlant<T>::BoxPlant(const BoxPlant<U>&) : BoxPlant() {}
+BoxPlant<T>::BoxPlant(const BoxPlant<U>& other) : BoxPlant(other.m_, other.l_, other.d_) {}
 
 template <typename T>
 BoxPlant<T>::~BoxPlant() = default;
@@ -47,9 +47,9 @@ T BoxPlant<T>::CalcTotalEnergy(const systems::Context<T>& context) const {
   using std::pow;
   const VectorX<T>& state = this->GetVectorState(context);
   // Kinetic energy = 1/2 m q-dot^2
-  T kinetic_energy = T(0);
-  if (m_ != T(0) )
-      kinetic_energy += T(0.5)  * pow(state(1), T(2)) / m_;
+  T kinetic_energy = 0.;
+  if (m_ != 0. )
+      kinetic_energy += 0.5  * pow(state(1), 2) / m_;
   // no spring, so no potential energy
   return kinetic_energy;
 }

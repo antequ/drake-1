@@ -20,7 +20,7 @@ SpringPlant<T>::SpringPlant()
 
 
 template <typename T>
-SpringPlant<T>::SpringPlant(T k, T d, T l)
+SpringPlant<T>::SpringPlant(double k, double d, double l)
     :  SpringPlant() {
   k_ = k;
   d_ = d;
@@ -29,7 +29,7 @@ SpringPlant<T>::SpringPlant(T k, T d, T l)
 
 template <typename T>
 template <typename U>
-SpringPlant<T>::SpringPlant(const SpringPlant<U>&) : SpringPlant() {}
+SpringPlant<T>::SpringPlant(const SpringPlant<U>& other) : SpringPlant(other.k_, other.d_, other.l_) {}
 
 template <typename T>
 SpringPlant<T>::~SpringPlant() = default;
@@ -45,11 +45,11 @@ void SpringPlant<T>::CalcVectorOutput(
         T vdiff = box2(1) - box1(1);
         using std::max;
         using std::abs;
-        T xp = max( l_ - abs(qdiff), T(0));
-        T eps = T(1e-13);
+        T xp = max( l_ - abs(qdiff), 0.);
+        double eps = 1e-13;
         T sign = qdiff / (abs(qdiff) + eps);
         T xdot = - sign * vdiff ;
-        T k = k_ * max( T(1) + d_ * xdot, T(0));
+        T k = k_ * max( 1. + d_ * xdot, 0.);
         T f =  sign * k * xp ;
         //std::cout << qdiff << " " << vdiff << " " << f << std::endl;
         /* penalty force model */

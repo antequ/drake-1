@@ -41,11 +41,11 @@ class TwoBoxesPlant final : public systems::Diagram<T> {
     TwoBoxesPlant();
     /// constructs a plant with box mass (m), box visc (d), box length (l),
     ///               spring stiffness (sk), spring damping (sd)
-    TwoBoxesPlant(T m, T d, T l, T sk, T sd);
+    TwoBoxesPlant(double m, double d, double l, double sk, double sd);
 
     /// Scalar-converting copy constructor.  See @ref system_scalar_conversion.
     template <typename U>
-    explicit TwoBoxesPlant(const TwoBoxesPlant<U>&) : TwoBoxesPlant() {};
+    explicit TwoBoxesPlant(const TwoBoxesPlant<U>& other) : TwoBoxesPlant(other.m_, other.d_, other.l_, other.sk_, other.sd_) {}
 
     ~TwoBoxesPlant() final = default;
 
@@ -88,7 +88,9 @@ class TwoBoxesPlant final : public systems::Diagram<T> {
     }
 
     private:
-
+// TwoBoxesPlant of one scalar type is friends with all other scalar types.
+  template <typename>
+  friend class TwoBoxesPlant;
     systems::Context<T>& GetMutableBox1Context(systems::Context<T>* context);
     systems::Context<T>& GetMutableBox2Context(systems::Context<T>* context);
     const systems::Context<T>& GetBox1Context(const systems::Context<T>& context) const;
@@ -100,6 +102,12 @@ class TwoBoxesPlant final : public systems::Diagram<T> {
     int box1output_ {-1};
     int box2output_ {-1};
     int logport_ {-1};
+    /* for copy construction */
+    double m_;
+    double d_;
+    double l_;
+    double sk_;
+    double sd_;
 };
 
 void AddGeometryToBuilder(systems::DiagramBuilder<double>* builder, 
