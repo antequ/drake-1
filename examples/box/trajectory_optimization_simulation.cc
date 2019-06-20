@@ -71,9 +71,10 @@ DEFINE_double(box2_target_x, 0.284,
 DEFINE_double(box2_target_v, 0.000349791,
               "box2 target velocity (m/s)");
 
-/* this works with the following line:
+/* this works with the following lines:
 
-bazel run --config snopt //examples/box:trajectory_optimization_simulation -- --box1_force_limit 500 --penalty_k 50 --penalty_d 0.5 --box_d 0.2 --box2_final_position 1.5 --box1_init_v 1
+ extreme:  bazel run --config snopt //examples/box:trajectory_optimization_simulation -- --box1_target_x -0.2 --box2_target_x 0.5 --input_cost 1 --box1_force_limit 1000 --penalty_k 20 --box1_init_v 0.
+ well:     bazel run --config snopt //examples/box:trajectory_optimization_simulation -- --box1_target_x 0.2 --box2_target_x 0.4 --input_cost 3. --box1_force_limit 1000 --penalty_k 30
 
  */
 
