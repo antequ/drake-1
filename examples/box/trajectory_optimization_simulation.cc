@@ -29,27 +29,47 @@ namespace {
 DEFINE_double(target_realtime_rate, 1.0,
               "Playback speed.  See documentation for "
               "Simulator::set_target_realtime_rate() for details.");
-
-DEFINE_double(penalty_k, 20.0,
-              "k stiffness constant for contact penalty force");
-
-DEFINE_double(penalty_d, 0.0,
-              "d damping constant for contact penalty force");
-
-DEFINE_double(box1_init_v, 2.0,
-              "initial velocity for box 1");
-
-DEFINE_double(box1_force_limit, 3.0,
-              "Box1 force limit (N) ");
-
-DEFINE_double(box2_final_position, 3.0,
-              "Goal position for box 2 ");
-
 DEFINE_double(input_cost, 10.0,
               "Input cost ");
+DEFINE_double(box1_force_limit, 100.0,
+              "Box1 force limit (N) ");
+
+DEFINE_double(penalty_k, 300.0,
+              "k stiffness constant for contact penalty force (N/m)");
+
+DEFINE_double(penalty_d, 10.0,
+              "d damping constant for contact penalty force (s/m)");
+
+DEFINE_double(box1_init_x, -0.1,
+              "initial position for box 1 (m)");
+DEFINE_double(box1_init_v, 0.2,
+              "initial velocity for box 1 (m/s)");
+
+DEFINE_double(box2_init_x, 0.1,
+              "initial position for box 2 (m)");
+DEFINE_double(box2_init_v, 0.,
+              "initial velocity for box 2 (m/s)");
+DEFINE_double(box_m, 0.33,
+              "box mass (kg)");
 
 DEFINE_double(box_d, 0.2,
-              "box damping");
+              "box damping (s^-1)");
+
+DEFINE_double(box_l, 0.12,
+              "box length (m)");
+
+
+DEFINE_double(box1_target_x, 0.045,
+              "box1 target position (m)");
+
+DEFINE_double(box1_target_v, 0.000116806,
+              "box1 target velocity (m/s)");
+
+DEFINE_double(box2_target_x, 0.284,
+              "box2 target position (m)");
+
+DEFINE_double(box2_target_v, 0.000349791,
+              "box2 target velocity (m/s)");
 
 /* this works with the following line:
 
@@ -102,8 +122,8 @@ void StorePolyCSV(const std::string& filename, double t0, double tend, double dt
 #endif
 
 int DoMain() {
-  auto two_boxes = std::make_unique<TwoBoxesPlant<double>>(1.0 /* mass */,
-      FLAGS_box_d, 1.0 /* length */, FLAGS_penalty_k, FLAGS_penalty_d);
+  auto two_boxes = std::make_unique<TwoBoxesPlant<double>>(FLAGS_box_m,
+      FLAGS_box_d, FLAGS_box_l, FLAGS_penalty_k, FLAGS_penalty_d);
   two_boxes->set_name("twoboxes");
   auto context = two_boxes->CreateDefaultContext();
 
@@ -126,15 +146,15 @@ int DoMain() {
   // box 1 should be to the left of box 2
   dircol.AddConstraintToAllKnotPoints(x(0)<= x(2));
   drake::VectorX<double> initState1(2);
-  initState1 << -1. /* position */, FLAGS_box1_init_v /* velocity */;
+  initState1 << FLAGS_box1_init_x /* position */, FLAGS_box1_init_v /* velocity */;
   drake::VectorX<double> initState2(2);
-  initState2 << 1. /* position */, 0.05 /* velocity */;
+  initState2 << FLAGS_box2_init_x /* position */, FLAGS_box2_init_v /* velocity */;
   two_boxes->SetBox1State(context.get(), initState1);
   two_boxes->SetBox2State(context.get(), initState2);
 
   drake::VectorX<double> finalState(4);
-  finalState << -FLAGS_box2_final_position /* b1 position */, 0.05 /* b1 velocity */,
-                FLAGS_box2_final_position /* b2 position */, 0.05 /* b2 vel */ ; 
+  finalState << FLAGS_box1_target_x /* b1 position */, FLAGS_box1_target_v /* b1 velocity */,
+                FLAGS_box2_target_x /* b2 position */, FLAGS_box2_target_v /* b2 vel */ ; 
 
 
   drake::VectorX<double> initState = context->get_continuous_state_vector().CopyToVector();
@@ -145,21 +165,34 @@ int DoMain() {
   
   //dircol.AddLinearConstraint(dircol.final_state()  ==
   //                           finalState);      
-  //dircol.AddLinearConstraint(dircol.final_state()(0) == finalState(0));
-  //dircol.AddLinearConstraint(dircol.final_state()(1) == finalState(1));
+  dircol.AddLinearConstraint(dircol.final_state()(0) == finalState(0));
+  dircol.AddLinearConstraint(dircol.final_state()(1) == finalState(1));
   dircol.AddLinearConstraint(dircol.final_state()(2)  == finalState(2));
   dircol.AddLinearConstraint(dircol.final_state()(3)  == finalState(3));
   const double R = FLAGS_input_cost;  // Cost on input "effort"
   drake::VectorX<double> initU(1);
-  initU << 0.3;
+  initU << 0.;
   auto xd = x.block(0,0,4,1) - finalState.block(0,0,4,1);
   //unused(xd); //+ xd.cast<symbolic::Expression>().dot(xd)
   dircol.AddRunningCost(((R * u) * u)(0) + xd.cast<symbolic::Expression>().dot(xd));
-  const double timespan_init = 10;
+  /* set these based on two boxes sim */
+  double knot1t = 0.46184;
+  double knot2t = 0.522649;
+  double knot3t = 2.55;
+  double knot4t = 6.;
+  double endTime = 10.;
+  drake::VectorX<double> knot1x(4);
+  drake::VectorX<double> knot2x(4);
+  drake::VectorX<double> knot3x(4);
+  drake::VectorX<double> knot4x(4);
+  knot1x << -0.0194361,	0.148709,	0.100003,	0.0024622;
+  knot2x << -0.0147425,	0.0380937,	0.104335,	0.107608;
+  knot3x << 0.0278335,	0.0106751,	0.231806,	0.0319679;
+  knot4x << 0.0432708,	0.00131917,	0.278034,	0.00395042;
   auto traj_init_x = PiecewisePolynomial<double>::FirstOrderHold(
-      {0, timespan_init}, {initState, finalState});
+      {0, knot1t, knot2t, knot3t, knot4t, endTime}, {initState, knot1x, knot2x, knot3x, knot4x, finalState});
   auto traj_init_u = PiecewisePolynomial<double>::FirstOrderHold(
-      {0, timespan_init}, {initU, -initU});
+      {0, endTime}, {initU, -initU});
   dircol.SetInitialTrajectory(traj_init_u, traj_init_x);
   const auto result = solvers::Solve(dircol);
   if (!result.is_success()) {
@@ -170,7 +203,12 @@ int DoMain() {
 
   systems::DiagramBuilder<double> finalBuilder;
   auto* boxes = finalBuilder.AddSystem(std::move(two_boxes));
+  auto target1 = finalBuilder.AddSystem<BoxPlant>(0.0 /* mass */, FLAGS_box_l /* length */, 0.0 /* damping */);
+  auto target2 = finalBuilder.AddSystem<BoxPlant>(0.0 /* mass */, FLAGS_box_l /* length */, 0.0 /* damping */);
 
+  auto source1 = finalBuilder.AddSystem<systems::Sine>(4 * M_PI * M_PI * 1.0 * 0. /* amplitude */, 
+                                                  2 * M_PI /* omega */, M_PI / 2.0 /* phase */, 1 /* vector size */);
+  source1->set_name("source1");
   auto logger = LogOutput(boxes->get_log_output(), &finalBuilder);
   const PiecewisePolynomial<double> pp_traj =
       dircol.ReconstructInputTrajectory(result);
@@ -184,8 +222,14 @@ int DoMain() {
   auto input_trajectory = finalBuilder.AddSystem<systems::TrajectorySource>(pp_traj);
   input_trajectory->set_name("input trajectory");
   finalBuilder.Connect(input_trajectory->get_output_port(), boxes->get_input_port(0));
+  // connect empty source to targets
+  finalBuilder.Connect(source1->get_output_port(0), target1->get_input_port());
+  finalBuilder.Connect(source1->get_output_port(0), target2->get_input_port());
   auto scene_graph = finalBuilder.AddSystem<geometry::SceneGraph>();
+  // add targets last
   AddGeometryToBuilder(&finalBuilder, *boxes, scene_graph);
+  BoxGeometry::AddToBuilder(&finalBuilder, *target1, scene_graph,"3");
+  BoxGeometry::AddToBuilder(&finalBuilder, *target2, scene_graph,"4");
   ConnectDrakeVisualizer(&finalBuilder, *scene_graph);
   auto finalDiagram = finalBuilder.Build();
 
@@ -193,9 +237,19 @@ int DoMain() {
   systems::Simulator<double> simulator(*finalDiagram);
   systems::Context<double>& simContext = simulator.get_mutable_context();
   systems::Context<double>& boxesContext = finalDiagram->GetMutableSubsystemContext(*boxes, &simContext);
+  systems::Context<double>& t1context = finalDiagram->GetMutableSubsystemContext(*target1,
+                                          &simContext);
+  systems::Context<double>& t2context = finalDiagram->GetMutableSubsystemContext(*target2,
+                                          &simContext);
+  
   boxes->SetBox1State(&boxesContext, initState1);
   boxes->SetBox2State(&boxesContext, initState2);
-
+  drake::VectorX<double> targetState1(2);
+  targetState1 << FLAGS_box1_target_x - FLAGS_box1_target_v * endTime, FLAGS_box1_target_v;
+  drake::VectorX<double> targetState2(2);
+  targetState2 << FLAGS_box2_target_x- FLAGS_box2_target_v * endTime, FLAGS_box2_target_v;
+  target1->set_initial_state(&t1context, targetState1);
+  target2->set_initial_state(&t2context, targetState2);
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.Initialize();
   simulator.AdvanceTo(pp_traj.end_time());

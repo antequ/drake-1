@@ -22,17 +22,42 @@ DEFINE_double(target_realtime_rate, 1.0,
               "Playback speed.  See documentation for "
               "Simulator::set_target_realtime_rate() for details.");
 
-DEFINE_double(penalty_k, 20.0,
-              "k stiffness constant for contact penalty force");
+DEFINE_double(penalty_k, 300.0,
+              "k stiffness constant for contact penalty force (N/m)");
 
-DEFINE_double(penalty_d, 0.0,
-              "d damping constant for contact penalty force");
+DEFINE_double(penalty_d, 10.0,
+              "d damping constant for contact penalty force (s/m)");
 
-DEFINE_double(box1_init_v, 2.0,
-              "initial velocity for box 1");
+DEFINE_double(box1_init_x, -0.1,
+              "initial position for box 1 (m)");
+DEFINE_double(box1_init_v, 0.2,
+              "initial velocity for box 1 (m/s)");
+
+DEFINE_double(box2_init_x, 0.1,
+              "initial position for box 2 (m)");
+DEFINE_double(box2_init_v, 0.,
+              "initial velocity for box 2 (m/s)");
+DEFINE_double(box_m, 0.33,
+              "box mass (kg)");
 
 DEFINE_double(box_d, 0.2,
-              "box damping");
+              "box damping (s^-1)");
+
+DEFINE_double(box_l, 0.12,
+              "box length (m)");
+
+
+DEFINE_double(box1_target_x, 0.045,
+              "box1 target position (m)");
+
+DEFINE_double(box1_target_v, 0.0,
+              "box1 target velocity (m/s)");
+
+DEFINE_double(box2_target_x, 0.284,
+              "box2 target position (m)");
+
+DEFINE_double(box2_target_v, 0.0,
+              "box2 target velocity (m/s)");
 
 void StoreTwoBoxesEigenCSV(const std::string& filename, const VectorX<double>& times, const MatrixX<double>& data)
 {
@@ -75,28 +100,44 @@ int DoMain() {
   auto source1 = builder.AddSystem<systems::Sine>(4 * M_PI * M_PI * 1.0 * 0. /* amplitude */, 
                                                   2 * M_PI /* omega */, M_PI / 2.0 /* phase */, 1 /* vector size */);
   source1->set_name("source1");
-
-  auto two_boxes = builder.AddSystem<TwoBoxesPlant>(1.0 /* mass */,
-      FLAGS_box_d, 1.0 /* length */, FLAGS_penalty_k, FLAGS_penalty_d);
+  /* target box location */
+  auto target1 = builder.AddSystem<BoxPlant>(0.0 /* mass */, FLAGS_box_l /* length */, 0.0 /* damping */);
+  auto target2 = builder.AddSystem<BoxPlant>(0.0 /* mass */, FLAGS_box_l /* length */, 0.0 /* damping */);
+  auto two_boxes = builder.AddSystem<TwoBoxesPlant>(FLAGS_box_m,
+      FLAGS_box_d, FLAGS_box_l, FLAGS_penalty_k, FLAGS_penalty_d);
   auto logger = LogOutput(two_boxes->get_log_output(), &builder);
       // ADD AND CONNECT LOGGER TO SYSTEM
   builder.Connect(source1->get_output_port(0), two_boxes->get_input_port(0));
+  builder.Connect(source1->get_output_port(0), target1->get_input_port());
+  builder.Connect(source1->get_output_port(0), target2->get_input_port());
   auto scene_graph = builder.AddSystem<geometry::SceneGraph>();
+  // add targets last
   AddGeometryToBuilder(&builder, *two_boxes, scene_graph);
+  BoxGeometry::AddToBuilder(&builder, *target1, scene_graph,"3");
+  BoxGeometry::AddToBuilder(&builder, *target2, scene_graph,"4");
   ConnectDrakeVisualizer(&builder, *scene_graph);
   auto diagram = builder.Build();
 
   systems::Simulator<double> simulator(*diagram);
   systems::Context<double>& context = diagram->GetMutableSubsystemContext(*two_boxes,
                                           &simulator.get_mutable_context());
-  
+  systems::Context<double>& t1context = diagram->GetMutableSubsystemContext(*target1,
+                                          &simulator.get_mutable_context());
+  systems::Context<double>& t2context = diagram->GetMutableSubsystemContext(*target2,
+                                          &simulator.get_mutable_context());
   
   drake::VectorX<double> initState1(2);
-  initState1 << -1. /* position */, FLAGS_box1_init_v /* velocity */;
+  initState1 << FLAGS_box1_init_x, FLAGS_box1_init_v ;
   drake::VectorX<double> initState2(2);
-  initState2 << 1. /* position */, 0. /* velocity */;
+  initState2 << FLAGS_box2_init_x, FLAGS_box2_init_v;
   two_boxes->SetBox1State(&context, initState1);
   two_boxes->SetBox2State(&context, initState2);
+  drake::VectorX<double> targetState1(2);
+  targetState1 << FLAGS_box1_target_x, FLAGS_box1_target_v;
+  drake::VectorX<double> targetState2(2);
+  targetState2 << FLAGS_box2_target_x, FLAGS_box2_target_v;
+  target1->set_initial_state(&t1context, targetState1);
+  target2->set_initial_state(&t2context, targetState2);
 
   const double initial_energy = two_boxes->CalcBoxesTotalEnergy(context);
 

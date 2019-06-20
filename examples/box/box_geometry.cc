@@ -28,7 +28,7 @@ using geometry::MakePhongIllustrationProperties;
 using geometry::Sphere;
 using std::make_unique;
 // CGS units
-#define CGS
+//#define CGS
 #ifdef CGS
 const double LENGTH_SCALE = 0.3;
 const double DENSITY = 1.07; /* lego ABS plastic */
@@ -73,7 +73,7 @@ BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph, const BoxPla
 
 
   const double length = box.get_length();
-  double volume = 1.0;
+  double volume = 0.33 / DENSITY; /* hack to initialize it to coco water size */
   if (box.get_inv_mass() != 0.) 
      volume = 1.0 / (box.get_inv_mass() * DENSITY);
   using std::sqrt;
@@ -85,11 +85,17 @@ BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph, const BoxPla
                                     make_unique<Box>(LENGTH_SCALE * length, 
                                     LENGTH_SCALE * sqrt(volume / length), 
                                     LENGTH_SCALE * sqrt(volume / length)), boxname));
-  if( srcName != "2" )
-    scene_graph->AssignRole(
+  if( srcName == "1" )
+    scene_graph->AssignRole( /* green */
       source_id_, id, MakePhongIllustrationProperties(Vector4d(.3, .6, .4, 1)));
+  else if (srcName == "4" )
+    scene_graph->AssignRole( /* red */
+      source_id_, id, MakePhongIllustrationProperties(Vector4d(.8, .2, .2, 1)));
+  else if (srcName == "3" )
+    scene_graph->AssignRole( /* dark red */
+      source_id_, id, MakePhongIllustrationProperties(Vector4d(.4, .1, .1, 1)));
   else
-    scene_graph->AssignRole(
+    scene_graph->AssignRole( /* purple */
       source_id_, id, MakePhongIllustrationProperties(Vector4d(.4, .3, .6, 1)));
 }
 
