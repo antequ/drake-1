@@ -150,7 +150,8 @@ std::vector<std::tuple<double, double, double>> read_obj_v(std::string filename)
 // @param[in] finger the Body representing the finger
 void AddGripperPads(MultibodyPlant<double>* plant,
                     const double bubble_radius, const double x_offset, const Body<double>& bubble,
-                    const std::vector<std::tuple<double, double, double>>& vertices) {
+                    const std::vector<std::tuple<double, double, double>>& vertices, bool incl_left,
+                    bool incl_right) {
   const int sample_count = vertices.size();
   
 
@@ -161,26 +162,32 @@ void AddGripperPads(MultibodyPlant<double>* plant,
   //  - z axis points up.
   //  - It's origin Fo is right at the geometric center of the finger.
   for (int i = 0; i < sample_count; ++i) {
-    // The y-offset of the center of the torus in the finger frame F.
-    const double torus_center_y_position_F = 0.00;
-    p_FSo(0) = std::get<0>(vertices.at(i)) * bubble_radius + x_offset;
-    p_FSo(1) = std::get<1>(vertices.at(i)) * bubble_radius +
-            torus_center_y_position_F;
-    p_FSo(2) = std::get<2>(vertices.at(i)) * bubble_radius;
+    const auto& vertex = vertices.at(i);
+    double x_coord = std::get<0>(vertex);
+    if( (x_coord >= 0 && incl_right) || (x_coord <= 0 && incl_left))
+    {
 
-    // Pose of the sphere frame S in the finger frame F.
-    const RigidTransformd X_FS(p_FSo);
+      // The y-offset of the center of the torus in the finger frame F.
+      const double torus_center_y_position_F = 0.00;
+      p_FSo(0) = std::get<0>(vertex) * bubble_radius + x_offset;
+      p_FSo(1) = std::get<1>(vertex) * bubble_radius +
+              torus_center_y_position_F;
+      p_FSo(2) = std::get<2>(vertex) * bubble_radius;
 
-    CoulombFriction<double> friction(
-        FLAGS_ring_static_friction, FLAGS_ring_static_friction);
+      // Pose of the sphere frame S in the finger frame F.
+      const RigidTransformd X_FS(p_FSo);
 
-    plant->RegisterCollisionGeometry(bubble, X_FS, Sphere(kSphereScaledRadius*bubble_radius),
-                                     "collision" + std::to_string(i), friction);
+      CoulombFriction<double> friction(
+          FLAGS_ring_static_friction, FLAGS_ring_static_friction);
 
-    // don't need fully saturated red
-    const Vector4<double> red(0.8, 0.2, 0.2, 1.0);
-    plant->RegisterVisualGeometry(bubble, X_FS, Sphere(kSphereScaledRadius*bubble_radius),
-                                  "visual" + std::to_string(i), red);
+      plant->RegisterCollisionGeometry(bubble, X_FS, Sphere(kSphereScaledRadius*bubble_radius),
+                                      "collision" + std::to_string(i), friction);
+
+      // don't need fully saturated red
+      const Vector4<double> red(0.8, 0.2, 0.2, 1.0);
+      plant->RegisterVisualGeometry(bubble, X_FS, Sphere(kSphereScaledRadius*bubble_radius),
+                                    "visual" + std::to_string(i), red);
+    }
   }
 }
 
@@ -241,13 +248,17 @@ int do_main() {
     // "free" with no applied forces (thus we see it not moving).
     // ANTE TODO: change bubble width to that in the file
     const double bubble_width = 0.007;  // From the visual in the SDF file.
-    AddGripperPads(&plant, bubble_radius,0.0 /*xoffset */, right_bubble, vert);
+    AddGripperPads(&plant, bubble_radius,0.0 /*xoffset */, right_bubble, vert, 
+                    true /* incl_left */, false /* incl_right */);
     AddGripperPads(&plant,
                     bubble_radius, -(FLAGS_grip_width + bubble_width),
-                   right_bubble, vert);
+                   right_bubble, vert, 
+                    false /* incl_left */, true /* incl_right */);
   } else {
-    AddGripperPads(&plant, bubble_radius, 0.0 /*xoffset */, right_bubble, vert);
-    AddGripperPads(&plant, bubble_radius, 0.0 /*xoffset */, left_bubble, vert);
+    AddGripperPads(&plant, bubble_radius, 0.0 /*xoffset */, right_bubble, vert,
+                    true /* incl_left */, false /* incl_right */);
+    AddGripperPads(&plant, bubble_radius, 0.0 /*xoffset */, left_bubble, vert,
+                    false /* incl_left */, true /* incl_right */);
   }
 
   // Now the model is complete.
@@ -355,12 +366,12 @@ int do_main() {
       plant_context, right_bubble).translation();
   const Vector3d& p_WBl = plant.EvalBodyPoseInWorld(
       plant_context, left_bubble).translation();
-  const double box_y_W = (p_WBr(1) + p_WBl(1)) / 2.0;
+  const double box_x_W = (p_WBr(0) + p_WBl(0)) / 2.0;
 
   RigidTransformd X_WM(
       RollPitchYawd(FLAGS_rx * M_PI / 180, FLAGS_ry * M_PI / 180,
                     (FLAGS_rz * M_PI / 180) + M_PI),
-      Vector3d(0.0, box_y_W, FLAGS_boxz));
+      Vector3d(box_x_W, 0.0 , FLAGS_boxz));
   plant.SetFreeBodyPose(&plant_context, box, X_WM);
 
   // Set the initial height of the gripper and its initial velocity so that with
@@ -426,6 +437,23 @@ int do_main() {
     }
   }
 
+  std::cout << "\nBox Rotation: \n" << box.EvalPoseInWorld(plant_context).rotation().ToQuaternionAsVector4() << std::endl;
+  std::cout << "\nBox Translation: \n" << box.EvalPoseInWorld(plant_context).translation() << " m" << std::endl;
+  std::cout << "\nGripper Width: \n" << bubble_slider.get_translation(plant_context) << " m" << std::endl;
+  std::cout << "\nZ Translation: \n" << translate_joint.get_translation(plant_context) << " m" << std::endl;
+  
+  std::cout << "\nPosition states: " << std::endl<< plant.GetPositions(plant_context) << std::endl;
+  
+  
+  std::cout << "\nBox Ang Vel: \n" << box.EvalSpatialVelocityInWorld(plant_context).rotational() << " Hz" << std::endl;
+  std::cout << "\nBox Velocity: \n" << box.EvalSpatialVelocityInWorld(plant_context).translational() << " m/s" << std::endl;
+  std::cout << "\nGripper Width Velocity: \n" << bubble_slider.get_translation_rate(plant_context) << " m/s" << std::endl;
+  
+  std::cout << "\nZ Velocity: \n" << translate_joint.get_translation_rate(plant_context) << " m/s" << std::endl;
+  std::cout << "\nVelocity states: " << std::endl<< plant.GetVelocities(plant_context) << std::endl;
+  
+  std::cout << "\nState vector: \n" <<  plant.GetPositionsAndVelocities(plant_context) << std::endl;
+  
   return 0;
 }
 

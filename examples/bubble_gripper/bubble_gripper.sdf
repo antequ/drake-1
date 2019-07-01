@@ -17,7 +17,7 @@
   -->
   <model name='bubble_gripper'>
     <!-- Pose X_WG of the gripper model frame G in the world frame W. -->
-    <pose>0.0555 0 0.0505 0 0 0.</pose> <!-- set the last to 1.57 to match simple gripper -->
+    <pose>0.0555 0 0.0 0 0 0.</pose> <!-- set the last to 1.57 to match simple gripper -->
 
     <joint name='weld_base' type='fixed'>
       <parent>world</parent>
