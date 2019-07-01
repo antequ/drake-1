@@ -110,10 +110,29 @@ DEFINE_double(gripper_force, 5, "The force to be applied by the gripper. [N]. "
               "grip_width.");
 
 // Parameters for shaking the mug.
-DEFINE_double(amplitude, 0.15, "The amplitude of the harmonic oscillations "
+DEFINE_double(amplitude, 0.0, "The amplitude of the harmonic oscillations "
               "carried out by the gripper. [m].");
 DEFINE_double(frequency, 2.0, "The frequency of the harmonic oscillations "
               "carried out by the gripper. [Hz].");
+
+
+// default assumes that timescale is 0.5 s and box char length is 1-2 cm
+// must square costs. 
+DEFINE_double(state_box_rot_cost, 0.0004,"LQR cost for box rotation." );
+DEFINE_double(state_box_transl_cost, 1.0,"LQR cost for box translation." );
+
+DEFINE_double(state_grip_width_cost, 1.0, "LQR cost for gripper width." );
+DEFINE_double(state_z_transl_cost, 1.0, "LQR cost for z translation." );
+
+DEFINE_double(state_box_angvel_cost, 0.0016, "LQR cost for box ang velocity." );
+DEFINE_double(state_box_vel_cost, 4.0, "LQR cost for box translational velocity." );
+DEFINE_double(state_x_vel_cost, 4.0, "LQR cost for gripper width velocity." );
+DEFINE_double(state_z_vel_cost, 4.0, "LQR cost for z velocity." );
+
+
+DEFINE_double(input_z_force_cost, 16.0,"LQR cost for z gripper force." );
+DEFINE_double(input_x_force_cost, 16.0,"LQR cost for x gripper clench force." );
+
 
 // isosphere has vertices that are 0.14628121 units apart so 
 const double kSphereScaledRadius = 0.048760403;
@@ -192,14 +211,16 @@ void AddGripperPads(MultibodyPlant<double>* plant,
 }
 
 int do_main() {
+   // TODO Ante : split subroutine up!!
 
+   /* PHASE 1: RUN SIMULATOR TO FIXED POINT */
   systems::DiagramBuilder<double> builder;
 
   SceneGraph<double>& scene_graph = *builder.AddSystem<SceneGraph>();
   scene_graph.set_name("scene_graph");
 
   DRAKE_DEMAND(FLAGS_max_time_step > 0);
-
+  
   MultibodyPlant<double>& plant =
       FLAGS_time_stepping ?
       *builder.AddSystem<MultibodyPlant>(FLAGS_max_time_step) :
@@ -327,12 +348,14 @@ int do_main() {
   const double f0 = mass * a0;  // Force amplitude, Newton.
   fmt::print("Acceleration amplitude = {:8.4f} m/s²\n", a0);
 
+  // START WITH a0 = 0 for fixed point simulation.
+
   // Notice we are using the same Sine source to:
   //   1. Generate a harmonic forcing of the gripper with amplitude f0 and
   //      angular frequency omega.
   //   2. Impose a constant force to the left finger. That is, a harmonic
   //      forcing with "zero" frequency.
-  const Vector2<double> amplitudes(f0, FLAGS_gripper_force);
+  const Vector2<double> amplitudes(0.0, FLAGS_gripper_force);
   const Vector2<double> frequencies(omega, 0.0);
   const Vector2<double> phases(0.0, M_PI_2);
   const auto& harmonic_force = *builder.AddSystem<Sine>(
@@ -436,25 +459,59 @@ int do_main() {
                  integrator->get_num_step_shrinkages_from_error_control());
     }
   }
+  /* PHASE 2: get state vectors. Set Q and R matrices */
+  auto plantState = plant.get_state_output_port().Eval(plant_context);
+  drake::VectorX<double> s1rot = box.EvalPoseInWorld(plant_context).rotation().ToQuaternionAsVector4();
+  drake::VectorX<double> s2trans = box.EvalPoseInWorld(plant_context).translation();
+  double s3gripwidth = bubble_slider.get_translation(plant_context);
+  double s4ztrans = translate_joint.get_translation(plant_context);
+  /* cost function for LQR state */
+  Eigen::MatrixXd Q(17,17);
+  Q = Eigen::MatrixXd::Identity(17,17);
+  Q(0,0)   = FLAGS_state_box_rot_cost;
+  Q(1,1)   = FLAGS_state_box_rot_cost;
+  Q(2,2)   = FLAGS_state_box_rot_cost;
+  Q(3,3)   = FLAGS_state_box_rot_cost;
+  Q(4,4)   = FLAGS_state_box_transl_cost;
+  Q(5,5)   = FLAGS_state_box_transl_cost;
+  Q(6,6)   = FLAGS_state_box_transl_cost;
+  Q(7,7)   = FLAGS_state_z_transl_cost;
+  Q(8,8)   = FLAGS_state_grip_width_cost;
+  Q(9,9)   = FLAGS_state_box_angvel_cost;
+  Q(10,10) = FLAGS_state_box_angvel_cost;
+  Q(11,11) = FLAGS_state_box_angvel_cost;
+  Q(12,12) = FLAGS_state_box_vel_cost;
+  Q(13,13) = FLAGS_state_box_vel_cost;
+  Q(14,14) = FLAGS_state_box_vel_cost;
+  Q(15,15) = FLAGS_state_z_vel_cost;
+  Q(16,16) = FLAGS_state_x_vel_cost;
 
+
+  /* cost function for LQR input force */
+  Eigen::MatrixXd R(2,2);
+  R << FLAGS_input_z_force_cost, 0, 0, FLAGS_input_x_force_cost;
+  int in_port_index = plant.get_actuation_input_port().get_index();
+
+  systems::DiagramBuilder<double> finalBuilder;
+  // can't do this: auto* newplant = finalBuilder.AddSystem(std::move(&plant));
+  
   std::cout << "\nBox Rotation: \n" << box.EvalPoseInWorld(plant_context).rotation().ToQuaternionAsVector4() << std::endl;
   std::cout << "\nBox Translation: \n" << box.EvalPoseInWorld(plant_context).translation() << " m" << std::endl;
-  std::cout << "\nZ Translation: \n" << translate_joint.get_translation(plant_context) << " m" << std::endl;
   std::cout << "\nGripper Width: \n" << bubble_slider.get_translation(plant_context) << " m" << std::endl;
+  std::cout << "\nZ Translation: \n" << translate_joint.get_translation(plant_context) << " m" << std::endl;
   
   std::cout << "\nPosition states: " << std::endl<< plant.GetPositions(plant_context) << std::endl;
   
   
   std::cout << "\nBox Ang Vel: \n" << box.EvalSpatialVelocityInWorld(plant_context).rotational() << " Hz" << std::endl;
   std::cout << "\nBox Velocity: \n" << box.EvalSpatialVelocityInWorld(plant_context).translational() << " m/s" << std::endl;
-  std::cout << "\nZ Velocity: \n" << translate_joint.get_translation_rate(plant_context) << " m/s" << std::endl;
   std::cout << "\nGripper Width Velocity: \n" << bubble_slider.get_translation_rate(plant_context) << " m/s" << std::endl;
   
+  std::cout << "\nZ Velocity: \n" << translate_joint.get_translation_rate(plant_context) << " m/s" << std::endl;
   std::cout << "\nVelocity states: " << std::endl<< plant.GetVelocities(plant_context) << std::endl;
   
   std::cout << "\nState vector: \n" <<  plant.GetPositionsAndVelocities(plant_context) << std::endl;
-  std::cout << "\nNumber of input ports: " << plant.num_input_ports() << std::endl;
-  std::cout << "\nActuation input vector: \n" << plant.get_actuation_input_port().Eval(plant_context) << std::endl;
+  
   return 0;
 }
 
