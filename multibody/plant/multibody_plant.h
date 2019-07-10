@@ -1762,9 +1762,6 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   /// have the same size as the input array `p_FP_list`.
   /// @throws std::exception if `Jq_WFp` is nullptr or if it does not have the
   /// appropriate size, see documentation for `Jq_WFp` for details.
-  // TODO(amcastro-tri): provide the Jacobian-times-vector operation, since for
-  // most applications it is all we need and it is more efficient to compute.
-  // TODO(amcastro-tri): Rework this method as per issue #10155.
   DRAKE_DEPRECATED("2019-10-01", "Use CalcJacobianTranslationalVelocity().")
   void CalcPointsAnalyticalJacobianExpressedInWorld(
       const systems::Context<T>& context,
@@ -1772,6 +1769,9 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
       const Eigen::Ref<const MatrixX<T>>& p_FP_list,
       EigenPtr<MatrixX<T>> p_WP_list,
       EigenPtr<MatrixX<T>> Jq_WFp) const {
+    // TODO(amcastro-tri): provide the Jacobian-times-vector operation.  For
+    // most applications it is all we need and it is more efficient to compute.
+    // TODO(amcastro-tri): Rework this method as per issue #10155.
     internal_tree().CalcPointsAnalyticalJacobianExpressedInWorld(
         context, frame_F, p_FP_list, p_WP_list, Jq_WFp);
   }
