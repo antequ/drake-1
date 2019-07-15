@@ -7,7 +7,10 @@ namespace drake {
 namespace examples {
 namespace box {
 
-/// A model of a simple box, where q is the center point
+/// A model of a simple box, where q is the center point. This box
+/// is assumed to rest on a plane with normal force f_n and
+/// Stribeck friction in the q direction.
+///
 /// @f[ m \ddot q = u @f]
 ///
 /// @system{BoxPlant,
@@ -15,7 +18,9 @@ namespace box {
 ///    @output_port{q}
 /// }
 ///
-/// @params: inverse mass (1/m), length (l), velocity damping (d)
+/// @params: inverse mass (1/m), length (l), velocity damping (d), 
+///          normal force (f_n), friction coefficients (mu_s, mu_k),
+///          stiction velocity tolerance (v_s)
 ///
 /// @tparam T The vector element type, which must be a valid Eigen scalar.
 ///
