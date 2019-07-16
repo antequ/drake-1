@@ -108,6 +108,11 @@ class TwoBoxesPlant final : public systems::Diagram<T> {
     double l_;
     double sk_;
     double sd_;
+    /* friction - not enabled yet
+    double f_n_;
+    double mu_s_;
+    double mu_k_;
+    double v_s_;*/
 };
 
 void AddGeometryToBuilder(systems::DiagramBuilder<double>* builder, 

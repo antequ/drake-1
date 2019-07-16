@@ -3,19 +3,34 @@
 #include <cmath>
 
 #include "drake/common/default_scalars.h"
+#include <fstream>
+#include <type_traits>
 
 namespace drake {
 namespace examples {
 namespace box {
 
 template <typename T>
-BoxPlant<T>::BoxPlant(double m, double l, double d)
+BoxPlant<T>::BoxPlant(double i_m, double l, double d, double f_n,
+    double mu_s, double mu_k, double v_s)
     :  systems::VectorSystem<T>(systems::SystemTypeTag<box::BoxPlant>{},1 /* input size */, 2 /* output size */),
-    m_(m) /* inverse mass */, l_(l) /* length */, d_(d) /* velocity damping */
+    i_m_(i_m) /* inverse mass */, l_(l) /* length */, d_(d) /* velocity damping */, f_n_(f_n) /* normal force */,
+    mu_s_(mu_s) /* stiction coeff */, mu_k_(mu_k) /* kinetic friction coeff */, v_s_(v_s) /* stiction tolerance */
 {
+  DRAKE_DEMAND(v_s >= 0.0);
+  DRAKE_DEMAND(f_n >= 0.0);
   this->DeclareContinuousState(drake::systems::BasicVector<T>(2) /* state size */, 1 /* num_q */, 1 /* num_v */,
                                0 /* num_z */);
 }
+template <typename T>
+BoxPlant<T>::BoxPlant(double i_m, double l, double d) : BoxPlant(i_m, l, d, 0.0 /* normal force */,
+  0. /* mu_s */, 0. /* mu_k */, 0.01 /* v_s */) {
+    if (i_m > 0)
+    {
+      f_n_ = 9.8 / i_m;
+    }
+}
+
 
 template <typename T>
 BoxPlant<T>::BoxPlant() : BoxPlant(1.0 /* inv mass */, 
@@ -25,7 +40,8 @@ BoxPlant<T>::BoxPlant() : BoxPlant(1.0 /* inv mass */,
 
 template <typename T>
 template <typename U>
-BoxPlant<T>::BoxPlant(const BoxPlant<U>& other) : BoxPlant(other.m_, other.l_, other.d_) {}
+BoxPlant<T>::BoxPlant(const BoxPlant<U>& other) : BoxPlant(other.i_m_, other.l_,
+   other.d_, other.f_n_, other.mu_s_, other.mu_k_, other.v_s_) {}
 
 template <typename T>
 BoxPlant<T>::~BoxPlant() = default;
@@ -48,10 +64,30 @@ T BoxPlant<T>::CalcTotalEnergy(const systems::Context<T>& context) const {
   const VectorX<T>& state = this->GetVectorState(context);
   // Kinetic energy = 1/2 m q-dot^2
   T kinetic_energy = 0.;
-  if (m_ != 0. )
-      kinetic_energy += 0.5  * pow(state(1), 2) / m_;
+  if (i_m_ != 0. )
+      kinetic_energy += 0.5  * pow(state(1), 2) / i_m_;
   // no spring, so no potential energy
   return kinetic_energy;
+}
+
+template <typename T>
+T BoxPlant<T>::CalcFrictionFromVelocity(T velocity) const {
+  using std::sqrt;
+  using std::min;
+  using std::max;
+  double rel_tolerance = 0.01; /* from implicit stribeck solver code */
+  double eps = rel_tolerance * v_s_;
+  T v_t = velocity;
+  T v_t_eps = sqrt( v_t * v_t + eps * eps ) ;
+  T x = v_t_eps / v_s_;
+  T mu = mu_s_ * max(min(x, 1.0), x * (2.0 - x));
+  return - mu * v_t / v_t_eps * f_n_;
+}
+
+template <typename T>
+T BoxPlant<T>::CalcFriction(const systems::Context<T>& context) const {
+  const VectorX<T>& state = this->GetVectorState(context);
+  return BoxPlant<T>::CalcFrictionFromVelocity(state[1]);
 }
 
 template <typename T>
@@ -63,6 +99,39 @@ void BoxPlant<T>::set_initial_state(
   state_vector.SetFromVector(z0);
 }
 
+template <>
+void BoxPlant<double>::StoreEigenCSVwFriction(const std::string& filename, const VectorX<double>& times, const MatrixX<double>& data, const VectorX<double>& input_vector) const {
+  /* csv format from  https://stackoverflow.com/questions/18400596/how-can-a-eigen-matrix-be-written-to-file-in-csv-format */
+  const static Eigen::IOFormat CSVFormat(Eigen::StreamPrecision,
+                                  Eigen::DontAlignCols, ", ", "\n");
+  DRAKE_DEMAND(times.rows() == input_vector.rows());
+  DRAKE_DEMAND(times.rows() == data.cols());
+  std::ofstream file(filename);
+  file << "t, input u, box_x, box_v, friction, timestep size" << std::endl;
+  VectorX<double> friction(data.cols());
+  for( int i = 0; i < data.cols(); i++)
+  {
+    double velocity = data(1,i);
+    friction(i) = CalcFrictionFromVelocity(velocity);
+  }
+
+  VectorX<double> tssize(times.rows());
+  tssize << times.tail(times.rows()-1) - times.head(times.rows()-1), 0.0;
+  
+  /* horizontally concatenate times and data */
+  MatrixX<double> OutMatrix(times.rows(), times.cols() + input_vector.cols()
+                            + data.rows() + friction.cols() + tssize.cols());
+  OutMatrix << times, input_vector, data.transpose(), friction, tssize; /* can also do this with blocks */
+  file << OutMatrix.format(CSVFormat);
+  file.close();
+}
+
+
+template <typename T>
+void BoxPlant<T>::StoreEigenCSVwFriction(const std::string&, const VectorX<double>& , const MatrixX<double>&, const VectorX<double>& ) const {
+  throw new std::runtime_error("CSV Output is only supported for BoxPlant<double>.");
+}
+
 // Compute the actual physics.
 template <typename T>
 void BoxPlant<T>::DoCalcVectorTimeDerivatives(const systems::Context< T > &context, 
@@ -71,7 +140,7 @@ void BoxPlant<T>::DoCalcVectorTimeDerivatives(const systems::Context< T > &conte
       Eigen::VectorBlock< VectorX< T >> *derivatives) const  {
   unused(context);
   (*derivatives)[0] = state[1];
-  (*derivatives)[1] = (input[0] /* force */ - d_ * state[1] /* damping */) * m_ /* inv mass */ ;
+  (*derivatives)[1] = (input[0] /* force */ - d_ * state[1] /* damping */ + CalcFrictionFromVelocity(state[1])) * i_m_ /* inv mass */ ;
 }
 
 }  // namespace box
