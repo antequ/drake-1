@@ -39,6 +39,9 @@ DEFINE_double(max_time_step, 1.0e-3,
               "If negative, a value based on parameter penetration_allowance "
               "is used.");
 
+DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
+DEFINE_bool(autodiff, true, "Set true to use AutoDiff in Jacobian computation (also disables visualization).");
+
 DEFINE_double(accuracy, 1.0e-2, "Sets the simulation accuracy for variable step"
               "size integrators with error control.");
 
@@ -85,9 +88,12 @@ int DoMain() {
   auto scene_graph = builder.AddSystem<geometry::SceneGraph>();
   auto logger = systems::LogOutput(box->get_state_output_port(), &builder);
   auto input_logger = systems::LogOutput(source->get_output_port(0), &builder);
-  BoxGeometry::AddToBuilder(
-      &builder, *box, scene_graph, "0");
-  ConnectDrakeVisualizer(&builder, *scene_graph);
+  if( !FLAGS_autodiff )
+  {
+    BoxGeometry::AddToBuilder(
+        &builder, *box, scene_graph, "0");
+    ConnectDrakeVisualizer(&builder, *scene_graph);
+  }
   auto diagram = builder.Build();
 
   systems::Simulator<double> simulator(*diagram);
@@ -108,6 +114,11 @@ int DoMain() {
     integrator =
         simulator.reset_integrator<systems::ImplicitEulerIntegrator<double>>(
             *diagram, &simulator.get_mutable_context());
+    if(FLAGS_autodiff)
+    {
+      static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_jacobian_computation_scheme(
+        systems::ImplicitIntegrator<double>::JacobianComputationScheme::kAutomatic);
+    }
   } else if (FLAGS_integration_scheme == "runge_kutta2") {
     integrator =
         simulator.reset_integrator<systems::RungeKutta2Integrator<double>>(
@@ -124,16 +135,29 @@ int DoMain() {
     integrator =
         simulator.reset_integrator<systems::RadauIntegrator<double,1>>(
             *diagram, &simulator.get_mutable_context());
+    if(FLAGS_autodiff)
+    {
+      static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_jacobian_computation_scheme(
+        systems::ImplicitIntegrator<double>::JacobianComputationScheme::kAutomatic);
+    }
   } else if (FLAGS_integration_scheme == "radau") {
     integrator =
         simulator.reset_integrator<systems::RadauIntegrator<double>>(
             *diagram, &simulator.get_mutable_context());
+    if(FLAGS_autodiff)
+    {
+      static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_jacobian_computation_scheme(
+        systems::ImplicitIntegrator<double>::JacobianComputationScheme::kAutomatic);
+    }
   } else {
     throw std::runtime_error(
         "Integration scheme '" + FLAGS_integration_scheme +
             "' not supported for this example.");
   }
+  
   integrator->set_maximum_step_size(FLAGS_max_time_step);
+  if (integrator->supports_error_estimation())
+    integrator->set_fixed_step_mode( FLAGS_fixed_step );
   if (!integrator->get_fixed_step_mode())
     integrator->set_target_accuracy(FLAGS_accuracy);
 
