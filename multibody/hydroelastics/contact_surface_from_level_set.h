@@ -290,10 +290,6 @@ std::unique_ptr<geometry::SurfaceMesh<T>> CalcZeroLevelSetInMeshDomain(
   DRAKE_ASSERT(phi_gradient_N != nullptr);
   std::vector<geometry::SurfaceVertex<T>> vertices_N;
   std::vector<geometry::SurfaceFace> faces;
-  /*vertices_N.reserve(256);
-  faces.reserve(256);
-  e_m_surface->reserve(256); */
-
   e_m_surface->clear();
 
   // We scan each tetrahedron in the mesh and compute the zero level set with
