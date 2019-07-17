@@ -4,6 +4,7 @@
 #include "drake/examples/box/box_plant.h"
 #include "drake/geometry/geometry_visualization.h"
 #include "drake/systems/analysis/implicit_euler_integrator.h"
+#include "drake/systems/analysis/radau_integrator.h"
 #include "drake/systems/analysis/runge_kutta2_integrator.h"
 #include "drake/systems/analysis/runge_kutta3_integrator.h"
 #include "drake/systems/analysis/semi_explicit_euler_integrator.h"
@@ -27,8 +28,8 @@ DEFINE_double(simulation_time, 10.0,
 // Integration parameters:
 DEFINE_string(integration_scheme, "implicit_euler",
               "Integration scheme to be used. Available options are: "
-              "'semi_explicit_euler','runge_kutta2','runge_kutta3',"
-              "'implicit_euler'");
+              "'fixed_implicit_euler', 'implicit_euler' (ec), 'semi_explicit_euler',"
+              "'runge_kutta2', 'runge_kutta3' (ec), 'radau'");
 
 DEFINE_string(run_filename, "boxout",
               "Filename for output. \".csv\" will be postpended.");
@@ -101,6 +102,8 @@ int DoMain() {
 
   systems::IntegratorBase<double>* integrator{nullptr};
 
+  // (ANTE TODO): set Jacobian scheme to kAutomatic via set_jacobian_computation_scheme
+  // Ante TODO: investigate target accuracy
   if (FLAGS_integration_scheme == "implicit_euler") {
     integrator =
         simulator.reset_integrator<systems::ImplicitEulerIntegrator<double>>(
@@ -117,6 +120,14 @@ int DoMain() {
     integrator =
         simulator.reset_integrator<systems::SemiExplicitEulerIntegrator<double>>(
             *diagram, FLAGS_max_time_step, &simulator.get_mutable_context());
+  } else if (FLAGS_integration_scheme == "fixed_implicit_euler") {
+    integrator =
+        simulator.reset_integrator<systems::RadauIntegrator<double,1>>(
+            *diagram, &simulator.get_mutable_context());
+  } else if (FLAGS_integration_scheme == "radau") {
+    integrator =
+        simulator.reset_integrator<systems::RadauIntegrator<double>>(
+            *diagram, &simulator.get_mutable_context());
   } else {
     throw std::runtime_error(
         "Integration scheme '" + FLAGS_integration_scheme +
