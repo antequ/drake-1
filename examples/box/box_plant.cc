@@ -102,7 +102,7 @@ void BoxPlant<T>::set_initial_state(
 template <>
 void BoxPlant<double>::StoreEigenCSVwFriction(const std::string& filename, const VectorX<double>& times, const MatrixX<double>& data, const VectorX<double>& input_vector) const {
   /* csv format from  https://stackoverflow.com/questions/18400596/how-can-a-eigen-matrix-be-written-to-file-in-csv-format */
-  const static Eigen::IOFormat CSVFormat(Eigen::StreamPrecision,
+  const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision,
                                   Eigen::DontAlignCols, ", ", "\n");
   DRAKE_DEMAND(times.rows() == input_vector.rows());
   DRAKE_DEMAND(times.rows() == data.cols());

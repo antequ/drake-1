@@ -17,6 +17,7 @@ display = false;
 one_plot = false;
 
 ground_truth = true;
+compare_one_against_truth = true;
 
 exec_name = 'passive_simulation';
 out_folder = 'outputs/resultcsv';
@@ -31,14 +32,16 @@ specific_v_s_ind = 4;
 accuracy_opts = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6];
 specific_acc_ind = 4;
 
+if(ground_truth)
 out_folder = 'outputs/truthcsv';
 runout_folder = 'outputs/truthrunouts';
 figures_folder = 'outputs/truthfigures';
 pdfs_folder = 'outputs/truthfigurepdfs';
 args = '--target_realtime_rate="0" --max_time_step="1e-5"';
 integration_schemes = {'runge_kutta3', 'implicit_euler'};
-accuracy_opts=[1e-10, 1e-12];
+accuracy_opts=[1e-8, 1e-10, 1e-12];
 v_s_opts = [1e-4];
+end
 
 %% procedures
 if(build)
@@ -97,8 +100,8 @@ for integration_scheme_cell_index = 1:length(integration_schemes)
             fric = result(:,5);
             ts_size = result(:,6);
             filetitle = [ strrep(integration_scheme, '_',' ') ', v_s ' num2str(v_s, '%.0e') ', acc ' num2str(target_accuracy, '%.0e')];
-            nsteps = size(result);
-            nsteps = nsteps(1);
+            nsteps = size(result,1);
+
             Nsteps_vs_acc(v_s_index, acc_index) = nsteps;
             if(make_plot)
                 savestr = [getenv('DRAKE_PATH') '/' figures_folder '/' getfname(integration_scheme, v_s, target_accuracy) 'iu.fig'];
@@ -186,7 +189,7 @@ nsteps_rk3 = Nsteps_values{5}(specific_v_s_ind, :);
         xlabel('acc')
 end
 
-
+end
 %% ground truth computation for v_s = 1e-4
 % use RK3 with 1e-5 timesteps, 1e-12 error desired
 if(ground_truth)
@@ -198,12 +201,66 @@ if(ground_truth)
     gtbox_v   = gtresult(:,4);
     gtfric    = gtresult(:,5);
     gtts_size = gtresult(:,6);
-    gtnsteps  = size(gtresult);
+    gtnsteps  = size(gtresult,1);
+    
+end
+
+%% Compare one integrator against ground truth
+if(compare_one_against_truth)
+    infile = '/home/antequ/code/github/drake/outputs/resultcsv/implicit_euler_vs40_acc30.csv'
+    result = csvread(infile, 1, 0);
+    time    = result(:,1);
+    input_u = result(:,2);
+    box_x   = result(:,3);
+    box_v   = result(:,4);
+    fric    = result(:,5);
+    ts_size = result(:,6);
+    nsteps  = size(result,1);
+    uniontimes = union(time, gttime);
+    our_iu = interp1(time, input_u, uniontimes);
+    our_bx = interp1(time, box_x, uniontimes);
+    our_bv = interp1(time, box_v, uniontimes);
+    our_ft = interp1(time, fric, uniontimes);
+    our_ts = interp1(time, ts_size, uniontimes);
+    gt_iu  = interp1(gttime, gtinput_u, uniontimes);
+    gt_bx  = interp1(gttime, gtbox_x, uniontimes);
+    gt_bv  = interp1(gttime, gtbox_v, uniontimes);
+    gt_ft  = interp1(gttime, gtfric, uniontimes);
+    gt_ts  = interp1(gttime, gtts_size, uniontimes);
+    e_iu = (our_iu - gt_iu); %./ abs(gt_iu);
+    e_bx = (our_bx - gt_bx); %./ abs(gt_bx);
+    e_bv = (our_bv - gt_bv); %./ abs(gt_bv);
+    e_ft = (our_ft - gt_ft); %./ abs(gt_ft);
+    desc = 'implicit euler, v_s=1e-4, acc=1e-3'
+    f = figure();
+    plot(uniontimes, e_ft);
+    title(['input force error, ' desc]);
+    ylabel('error (N)')
+    xlabel('time (s)')
+    hold on
+    %plot(uniontimes, e_bx);
+    %plot(uniontimes, e_bv);
+    
+    plot(uniontimes, gt_ft);
+    plot(uniontimes, our_ft);
+    plot(uniontimes, -gt_iu);
+    
+    f = figure();
+    plot(uniontimes, e_bv);
+    title(['input force error, ' desc]);
+    ylabel('error (N)')
+    xlabel('time (s)')
+    hold on
+    %plot(uniontimes, e_bx);
+    %plot(uniontimes, e_bv);
+    
+    plot(uniontimes, gt_bv);
+    plot(uniontimes, our_bv);
     
 end
 
 
-end
+
 
 function [f] = makeplot(time, y,  title_s, ylabel_s, show, save, savestr, savepdf)
 if(show)
