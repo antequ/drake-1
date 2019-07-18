@@ -13,6 +13,7 @@
 /.project/
 /.settings/
 /.clwb/
+/output*
 
 # (Possible) CMake build artifacts
 /build/

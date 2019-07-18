@@ -342,6 +342,8 @@ class ImplicitIntegrator : public IntegratorBase<T> {
   int64_t num_iter_factorizations_{0};
   int64_t num_jacobian_evaluations_{0};
   int64_t num_jacobian_function_evaluations_{0};
+
+  /* std::vector<int> per_step_; */
 };
 
 template <class T>
