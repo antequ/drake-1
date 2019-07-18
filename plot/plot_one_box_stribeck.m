@@ -16,8 +16,9 @@ saveplot = true;
 display = false;
 one_plot = false;
 
-ground_truth = true;
+ground_truth = false;
 compare_one_against_truth = true;
+compare_integ_scheme_against_gt = true;
 
 exec_name = 'passive_simulation';
 out_folder = 'outputs/resultcsv';
@@ -207,7 +208,7 @@ end
 
 %% Compare one integrator against ground truth
 if(compare_one_against_truth)
-    infile = '/home/antequ/code/github/drake/outputs/resultcsv/implicit_euler_vs40_acc30.csv'
+    infile = '/home/antequ/code/github/drake/outputs/resultcsv/implicit_euler_vs40_acc50.csv';
     result = csvread(infile, 1, 0);
     time    = result(:,1);
     input_u = result(:,2);
@@ -215,23 +216,22 @@ if(compare_one_against_truth)
     box_v   = result(:,4);
     fric    = result(:,5);
     ts_size = result(:,6);
-    nsteps  = size(result,1);
-    uniontimes = union(time, gttime);
-    our_iu = interp1(time, input_u, uniontimes);
-    our_bx = interp1(time, box_x, uniontimes);
-    our_bv = interp1(time, box_v, uniontimes);
-    our_ft = interp1(time, fric, uniontimes);
-    our_ts = interp1(time, ts_size, uniontimes);
-    gt_iu  = interp1(gttime, gtinput_u, uniontimes);
-    gt_bx  = interp1(gttime, gtbox_x, uniontimes);
-    gt_bv  = interp1(gttime, gtbox_v, uniontimes);
-    gt_ft  = interp1(gttime, gtfric, uniontimes);
-    gt_ts  = interp1(gttime, gtts_size, uniontimes);
+    [uniontimes, our_interp, gt_interp, integ_errors] = compute_errors(gtresult, result, 2);
+    our_iu = our_interp(:,2);
+    our_bx = our_interp(:,3);
+    our_bv = our_interp(:,4);
+    our_ft = our_interp(:,5);
+    our_ts = our_interp(:,6);
+    gt_iu  = gt_interp(:,2);
+    gt_bx  = gt_interp(:,3);
+    gt_bv  = gt_interp(:,4);
+    gt_ft  = gt_interp(:,5);
+    gt_ts  = gt_interp(:,6);
     e_iu = (our_iu - gt_iu); %./ abs(gt_iu);
     e_bx = (our_bx - gt_bx); %./ abs(gt_bx);
     e_bv = (our_bv - gt_bv); %./ abs(gt_bv);
     e_ft = (our_ft - gt_ft); %./ abs(gt_ft);
-    desc = 'implicit euler, v_s=1e-4, acc=1e-3'
+    desc = 'implicit euler, v_s=1e-4, acc=1e-5'
     f = figure();
     plot(uniontimes, e_ft);
     title(['input force error, ' desc]);
@@ -246,20 +246,84 @@ if(compare_one_against_truth)
     plot(uniontimes, -gt_iu);
     
     f = figure();
-    plot(uniontimes, e_bv);
-    title(['input force error, ' desc]);
-    ylabel('error (N)')
+    plot(uniontimes, e_bx);
+    title(['box position error, ' desc]);
+    ylabel('error (m)')
     xlabel('time (s)')
     hold on
     %plot(uniontimes, e_bx);
     %plot(uniontimes, e_bv);
     
-    plot(uniontimes, gt_bv);
-    plot(uniontimes, our_bv);
+    plot(uniontimes, gt_bx);
+    plot(uniontimes, our_bx);
     
 end
+%%
 
+agg_integ_errors = zeros(length(accuracy_opts), size(gtresult,2));
+if(compare_integ_scheme_against_gt)
+    out_folder = 'outputs/resultcsv';
+    integration_scheme = 'runge_kutta3';
+    v_s = 1e-4;
+    for target_accuracy_ind = 1:length(accuracy_opts)
+        target_accuracy = accuracy_opts(target_accuracy_ind);
+        filename = [getenv('DRAKE_PATH') '/' out_folder '/' getfname(integration_scheme, v_s, target_accuracy) '.csv'];
+        result = csvread(filename, 1, 0);
+        [uniontimes, our_interp, gt_interp, integ_errors] = compute_errors(gtresult, result, 2);
+        agg_integ_errors(target_accuracy_ind, :) = integ_errors;
+    end
+    
+%%
+    agg_iu = agg_integ_errors(:, 2); 
+    agg_bx = agg_integ_errors(:, 3);
+    agg_bv = agg_integ_errors(:, 4);
+    agg_ft = agg_integ_errors(:, 5);
+    f = figure();
+    plot(accuracy_opts, agg_ft);
+    title(['average friction errors, ' strrep(integration_scheme,'_',' ') ', v_s=' num2str(v_s)]);
+    ylabel('friction error (N)')
+    xlabel('acc tolerance')
+    hold on
+    set(gca, 'xscale', 'log')
+    set(gca, 'yscale', 'log')
+    f2 = figure();
+    plot(accuracy_opts, agg_bv);
+    title(['average velocity errors, ' strrep(integration_scheme,'_',' ') ', v_s=' num2str(v_s)]);
+    ylabel('velocity error (m/s)')
+    xlabel('acc tolerance')
+    hold on
+    set(gca, 'xscale', 'log')
+    set(gca, 'yscale', 'log')
+    
+    f3 = figure();
+    plot(accuracy_opts, agg_bx);
+    title(['average displacement errors, ' strrep(integration_scheme,'_',' ') ', v_s=' num2str(v_s)]);
+    ylabel('position error (m)')
+    xlabel('acc tolerance')
+    hold on
+    set(gca, 'xscale', 'log')
+    set(gca, 'yscale', 'log')
+    
+    f4 = figure();
+    plot(accuracy_opts, agg_iu);
+    title(['average input force errors, ' strrep(integration_scheme,'_',' ') ', v_s=' num2str(v_s)]);
+    ylabel('input force error (N)')
+    xlabel('acc tolerance')
+    hold on
+    set(gca, 'xscale', 'log')
+    set(gca, 'yscale', 'log')
+end
 
+function [uniontimes, our_interp, gt_interp, integ_errors] = compute_errors(gtresult, result, p)
+   time    = result(:,1);
+   gttime  = gtresult(:,1);
+   uniontimes = union(time, gttime);
+   our_interp = interp1(time, result, uniontimes);
+   gt_interp = interp1(gttime, gtresult, uniontimes);
+   diff = gt_interp - our_interp;
+   integ_errors = (trapz(uniontimes,abs(diff).^p) / (uniontimes(end) - uniontimes(1))).^(1./p);
+
+end
 
 
 function [f] = makeplot(time, y,  title_s, ylabel_s, show, save, savestr, savepdf)
