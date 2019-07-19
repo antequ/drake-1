@@ -38,18 +38,34 @@ const double LENGTH_SCALE = 3.;
 const double DENSITY = 1070.;
 #endif
 
-const BoxGeometry* BoxGeometry::AddToBuilder(
-    systems::DiagramBuilder<double>* builder,
-    const BoxPlant<double>& box, 
-    const systems::OutputPort<double>& box_state_output_port,
-    geometry::SceneGraph<double>* scene_graph, 
+template <>
+void BoxGeometryTemplate<double>::OutputGeometryPose(
+    const systems::Context<double>& context,
+    geometry::FramePoseVector<double>* poses) const {
+  DRAKE_DEMAND(frame_id_.is_valid());
+
+  auto& input = this->get_input_port(0).Eval<drake::systems::BasicVector<double>>(context);
+  // TODO: change this to a translation
+  const double q = input[0] ;
+  //std::cout << "Geom: " << frame_id_ << " " << q * LENGTH_SCALE << std::endl;
+  math::RigidTransformd pose(Eigen::Vector3d(LENGTH_SCALE * q, 0.,0.));
+
+  *poses = {{frame_id_, pose.GetAsIsometry3()}};
+}
+
+template <typename T>
+const BoxGeometryTemplate<T>* BoxGeometryTemplate<T>::AddToBuilder(
+    systems::DiagramBuilder<T>* builder,
+    const BoxPlant<T>& box, 
+    const systems::OutputPort<T>& box_state_output_port,
+    geometry::SceneGraph<T>* scene_graph, 
     std::string srcName) {
   DRAKE_THROW_UNLESS(builder != nullptr);
   DRAKE_THROW_UNLESS(scene_graph != nullptr);
 
   auto box_geometry = builder->AddSystem(
-      std::unique_ptr<BoxGeometry>(
-          new BoxGeometry(scene_graph, box, srcName)));
+      std::unique_ptr<BoxGeometryTemplate<T>>(
+          new BoxGeometryTemplate<T>(scene_graph, box, srcName)));
   // input is state, output is geometry
   builder->Connect(
       box_state_output_port,
@@ -60,16 +76,18 @@ const BoxGeometry* BoxGeometry::AddToBuilder(
 
   return box_geometry;
 }
-
-BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph, const BoxPlant<double>& box, std::string srcName) {
+template <typename T>
+BoxGeometryTemplate<T>::BoxGeometryTemplate(geometry::SceneGraph<T>* scene_graph, const BoxPlant<T>& box, std::string srcName)
+  : systems::LeafSystem<T>(systems::SystemTypeTag<box::BoxGeometryTemplate>{}), scene_graph_(scene_graph)
+  {
   DRAKE_THROW_UNLESS(scene_graph != nullptr);
   std::string boxname = "box" + srcName;
   source_id_ = scene_graph->RegisterSource( boxname );
   frame_id_ = scene_graph->RegisterFrame(source_id_, GeometryFrame("boxstate" + srcName));
 
-  this->DeclareVectorInputPort("state", drake::systems::BasicVector<double>(2));
+  this->DeclareVectorInputPort("state", drake::systems::BasicVector<T>(2));
   this->DeclareAbstractOutputPort(
-      "geometry_pose", &BoxGeometry::OutputGeometryPose);
+      "geometry_pose", &BoxGeometryTemplate<T>::OutputGeometryPose);
 
 
   const double length = box.get_length();
@@ -99,22 +117,31 @@ BoxGeometry::BoxGeometry(geometry::SceneGraph<double>* scene_graph, const BoxPla
       source_id_, id, MakePhongIllustrationProperties(Vector4d(.4, .3, .6, 1)));
 }
 
-BoxGeometry::~BoxGeometry() = default;
+template <typename T>
+template <typename U>
+  BoxGeometryTemplate<T>::BoxGeometryTemplate(const BoxGeometryTemplate<U>& other) 
+  : systems::LeafSystem<T>(systems::SystemTypeTag<box::BoxGeometryTemplate>{})
+  {
+    unused(other);
+    
+    this->DeclareVectorInputPort("state", drake::systems::BasicVector<T>(2));
+    this->DeclareAbstractOutputPort(
+        "geometry_pose", &BoxGeometryTemplate<T>::OutputGeometryPose);
+    
+  }
 
-void BoxGeometry::OutputGeometryPose(
-    const systems::Context<double>& context,
-    geometry::FramePoseVector<double>* poses) const {
-  DRAKE_DEMAND(frame_id_.is_valid());
+template <typename T>
+BoxGeometryTemplate<T>::~BoxGeometryTemplate() = default;
 
-  const auto& input = get_input_port(0).Eval<drake::systems::BasicVector<double>>(context);
-  // TODO: change this to a translation
-  const double q = input[0] ;
-  //std::cout << "Geom: " << frame_id_ << " " << q * LENGTH_SCALE << std::endl;
-  math::RigidTransformd pose(Eigen::Vector3d(LENGTH_SCALE * q, 0.,0.));
-
-  *poses = {{frame_id_, pose.GetAsIsometry3()}};
+template <typename T>
+void BoxGeometryTemplate<T>::OutputGeometryPose(
+    const systems::Context<T>& ,
+    geometry::FramePoseVector<T>* poses) const {
+  *poses = {{frame_id_, math::RigidTransform<T>().GetAsIsometry3()}};
 }
-
 }  // namespace box
 }  // namespace examples
 }  // namespace drake
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_NONSYMBOLIC_SCALARS(
+    class ::drake::examples::box::BoxGeometryTemplate)
