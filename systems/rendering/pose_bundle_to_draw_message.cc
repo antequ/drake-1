@@ -7,16 +7,8 @@ namespace drake {
 namespace systems {
 namespace rendering {
 
-PoseBundleToDrawMessage::PoseBundleToDrawMessage() {
-  this->DeclareAbstractInputPort(
-      kUseDefaultName, Value<PoseBundle<double>>());
-  this->DeclareAbstractOutputPort(
-      &PoseBundleToDrawMessage::CalcViewerDrawMessage);
-}
-
-PoseBundleToDrawMessage::~PoseBundleToDrawMessage() {}
-
-void PoseBundleToDrawMessage::CalcViewerDrawMessage(
+template <>
+void PoseBundleToDrawMessageTemplated<double>::CalcViewerDrawMessage(
     const Context<double>& context, lcmt_viewer_draw* output) const {
   const PoseBundle<double>& poses =
       this->get_input_port(0).Eval<PoseBundle<double>>(context);
@@ -52,6 +44,29 @@ void PoseBundleToDrawMessage::CalcViewerDrawMessage(
   }
 }
 
+template<typename T>
+PoseBundleToDrawMessageTemplated<T>::PoseBundleToDrawMessageTemplated()
+    : systems::LeafSystem<T>(systems::SystemTypeTag<PoseBundleToDrawMessageTemplated>{}) {
+  this->DeclareAbstractInputPort(
+      kUseDefaultName, Value<PoseBundle<T>>());
+  this->DeclareAbstractOutputPort(
+      &PoseBundleToDrawMessageTemplated<T>::CalcViewerDrawMessage);
+}
+
+template<typename T>
+PoseBundleToDrawMessageTemplated<T>::~PoseBundleToDrawMessageTemplated() {}
+
+
+template <typename T>
+void PoseBundleToDrawMessageTemplated<T>::CalcViewerDrawMessage(
+    const Context<T>&, lcmt_viewer_draw*) const {
+  throw std::runtime_error("PoseBundleToDrawMessageTemplated<T> is only active for scalar type double.");
+}
+
 }  // namespace rendering
 }  // namespace systems
 }  // namespace drake
+
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_NONSYMBOLIC_SCALARS(
+    class ::drake::systems::rendering::PoseBundleToDrawMessageTemplated)

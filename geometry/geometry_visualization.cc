@@ -276,12 +276,15 @@ systems::lcm::LcmPublisherSystem* ConnectDrakeVisualizer(
 
   PoseBundleToDrawMessage* converter =
       builder->template AddSystem<PoseBundleToDrawMessage>();
+  converter->set_name("converter");
+  converter->ToAutoDiffXd();
 
   LcmPublisherSystem* publisher =
       builder->template AddSystem<LcmPublisherSystem>(
           "DRAKE_VIEWER_DRAW",
           std::make_unique<Serializer<drake::lcmt_viewer_draw>>(),
           lcm_optional, 1 / 60.0 /* publish period */);
+  publisher->set_name("publisher");
 
   // The functor we create in publisher here holds a reference to scene_graph,
   // which must therefore live as long as publisher does. We can count on that

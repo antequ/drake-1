@@ -43,9 +43,11 @@ using TriggerTypeSet = std::unordered_set<TriggerType, DefaultHash>;
  *
  * @ingroup message_passing
  */
-class LcmPublisherSystem : public LeafSystem<double> {
+
+template <typename T>
+class LcmPublisherTemplatedSystem final : public LeafSystem<T> {
  public:
-  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(LcmPublisherSystem)
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(LcmPublisherTemplatedSystem);
 
   /**
    * A factory method that returns an %LcmPublisherSystem that takes
@@ -71,11 +73,11 @@ class LcmPublisherSystem : public LeafSystem<double> {
    * @pre publish_period is non-negative.
    */
   template <typename LcmMessage>
-  static std::unique_ptr<LcmPublisherSystem> Make(
+  static std::unique_ptr<LcmPublisherTemplatedSystem<double>> Make(
       const std::string& channel,
       drake::lcm::DrakeLcmInterface* lcm,
       double publish_period = 0.0) {
-    return std::make_unique<LcmPublisherSystem>(
+    return std::make_unique<LcmPublisherTemplatedSystem<double>>(
         channel, std::make_unique<Serializer<LcmMessage>>(), lcm,
         publish_period);
   }
@@ -108,12 +110,12 @@ class LcmPublisherSystem : public LeafSystem<double> {
    * @pre publish_period > 0 if and only if trigger_types contains kPeriodic.
    */
   template <typename LcmMessage>
-  static std::unique_ptr<LcmPublisherSystem> Make(
+  static std::unique_ptr<LcmPublisherTemplatedSystem<double>> Make(
       const std::string& channel,
       drake::lcm::DrakeLcmInterface* lcm,
       const TriggerTypeSet& publish_triggers,
       double publish_period = 0.0) {
-    return std::make_unique<LcmPublisherSystem>(
+    return std::make_unique<LcmPublisherTemplatedSystem<double>>(
         channel, std::make_unique<Serializer<LcmMessage>>(), lcm,
         publish_triggers, publish_period);
   }
@@ -140,7 +142,7 @@ class LcmPublisherSystem : public LeafSystem<double> {
    *
    * @pre publish_period is non-negative.
    */
-  LcmPublisherSystem(const std::string& channel,
+  LcmPublisherTemplatedSystem(const std::string& channel,
                      std::unique_ptr<SerializerInterface> serializer,
                      drake::lcm::DrakeLcmInterface* lcm,
                      double publish_period = 0.0);
@@ -172,13 +174,17 @@ class LcmPublisherSystem : public LeafSystem<double> {
    * @pre publish_period > 0 iff trigger_types contains kPeriodic.
    * @pre trigger_types contains a subset of {kForced, kPeriodic, kPerStep}.
    */
-  LcmPublisherSystem(const std::string& channel,
+  LcmPublisherTemplatedSystem(const std::string& channel,
       std::unique_ptr<SerializerInterface> serializer,
       drake::lcm::DrakeLcmInterface* lcm,
       const TriggerTypeSet& publish_triggers,
       double publish_period = 0.0);
 
-  ~LcmPublisherSystem() override;
+  /// Scalar-converting copy constructor.  See @ref system_scalar_conversion.
+  template <typename U>
+  explicit LcmPublisherTemplatedSystem(const LcmPublisherTemplatedSystem<U>& other);
+
+  ~LcmPublisherTemplatedSystem() override;
 
   /**
    * This is the type of an initialization message publisher that can be
@@ -216,16 +222,16 @@ class LcmPublisherSystem : public LeafSystem<double> {
    * internally-maintained object of type drake::lcm::DrakeLcm.
    */
   drake::lcm::DrakeLcmInterface& lcm() {
-    DRAKE_DEMAND(lcm_ != nullptr);
+    throw std::runtime_error("LcmPublisherTemplatedSystem<T> is only active for scalar type double.");
     return *lcm_;
   }
 
   /**
    * Returns the sole input port.
    */
-  const InputPort<double>& get_input_port() const {
+  const InputPort<T>& get_input_port() const {
     DRAKE_THROW_UNLESS(this->num_input_ports() == 1);
-    return LeafSystem<double>::get_input_port(0);
+    return LeafSystem<T>::get_input_port(0);
   }
 
   // Don't use the indexed overload; use the no-arg overload.
@@ -235,7 +241,11 @@ class LcmPublisherSystem : public LeafSystem<double> {
   void get_output_port(int) = delete;
 
  private:
-  EventStatus PublishInputAsLcmMessage(const Context<double>& context) const;
+  // LcmPublisherTemplatedSystem of one scalar type is friends with all other scalar types.
+  template <typename>
+  friend class LcmPublisherTemplatedSystem;
+
+  EventStatus PublishInputAsLcmMessage(const Context<T>& context) const;
 
   // The channel on which to publish LCM messages.
   const std::string channel_;
@@ -259,6 +269,8 @@ class LcmPublisherSystem : public LeafSystem<double> {
   // TODO(edrumwri) Remove this when set_publish_period() is removed.
   bool disable_internal_per_step_publish_events_{false};
 };
+
+typedef LcmPublisherTemplatedSystem<double> LcmPublisherSystem;
 
 }  // namespace lcm
 }  // namespace systems

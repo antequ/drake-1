@@ -15,13 +15,46 @@ namespace lcm {
 using drake::lcm::DrakeLcmInterface;
 using drake::lcm::DrakeLcm;
 
-LcmPublisherSystem::LcmPublisherSystem(
+// Template Specialization requires these two functions to be declared before
+// their usage.
+
+// Takes the VectorBase from the input port of the context and publishes
+// it onto an LCM channel. This function is called automatically, as
+// necessary, at the requisite publishing period (if a positive publish period
+// was passed to the constructor) or per a simulation step (if no publish
+// period or publish period = 0.0 was passed to the constructor).
+template <>
+EventStatus LcmPublisherTemplatedSystem<double>::PublishInputAsLcmMessage(
+    const Context<double>& context) const {
+  SPDLOG_TRACE(drake::log(), "Publishing LCM {} message", channel_);
+  DRAKE_ASSERT(serializer_ != nullptr);
+
+  // Converts the input into LCM message bytes.
+  const AbstractValue& input = get_input_port().Eval<AbstractValue>(context);
+  std::vector<uint8_t> message_bytes;
+  serializer_->Serialize(input, &message_bytes);
+
+  // Publishes onto the specified LCM channel.
+  lcm_->Publish(channel_, message_bytes.data(), message_bytes.size(),
+                context.get_time());
+
+  return EventStatus::Succeeded();
+}
+
+
+template <>
+std::string LcmPublisherTemplatedSystem<double>::make_name(const std::string& channel) {
+  return "LcmPublisherSystem(" + channel + ")";
+}
+
+template <>
+LcmPublisherTemplatedSystem<double>::LcmPublisherTemplatedSystem(
     const std::string& channel,
     std::unique_ptr<SerializerInterface> serializer,
     DrakeLcmInterface* lcm,
     const TriggerTypeSet& publish_triggers,
     double publish_period)
-    : channel_(channel),
+    : systems::LeafSystem<double>(systems::SystemTypeTag<LcmPublisherTemplatedSystem>{}), channel_(channel),
       serializer_(std::move(serializer)),
       owned_lcm_(lcm ? nullptr : new DrakeLcm()),
       lcm_(lcm ? lcm : owned_lcm_.get()) {
@@ -41,7 +74,7 @@ LcmPublisherSystem::LcmPublisherSystem(
   // system (or a Diagram containing it), a message is emitted.
   if (publish_triggers.find(TriggerType::kForced) != publish_triggers.end()) {
     this->DeclareForcedPublishEvent(
-      &LcmPublisherSystem::PublishInputAsLcmMessage);
+      &LcmPublisherTemplatedSystem<double>::PublishInputAsLcmMessage);
   }
 
   DeclareAbstractInputPort("lcm_message", *serializer_->CreateDefaultValue());
@@ -52,7 +85,7 @@ LcmPublisherSystem::LcmPublisherSystem(
     const double offset = 0.0;
     this->DeclarePeriodicPublishEvent(
         publish_period, offset,
-        &LcmPublisherSystem::PublishInputAsLcmMessage);
+        &LcmPublisherTemplatedSystem<double>::PublishInputAsLcmMessage);
   } else {
     // publish_period > 0 without TriggerType::kPeriodic has no meaning and is
     // likely a mistake.
@@ -76,19 +109,35 @@ LcmPublisherSystem::LcmPublisherSystem(
   }
 }
 
-LcmPublisherSystem::LcmPublisherSystem(
+template <typename T>
+LcmPublisherTemplatedSystem<T>::LcmPublisherTemplatedSystem(
     const std::string& channel,
     std::unique_ptr<SerializerInterface> serializer,
     DrakeLcmInterface* lcm, double publish_period)
-    : LcmPublisherSystem(channel, std::move(serializer), lcm,
+    : LcmPublisherTemplatedSystem(channel, std::move(serializer), lcm,
       (publish_period > 0.0) ?
       TriggerTypeSet({TriggerType::kForced, TriggerType::kPeriodic}) :
       TriggerTypeSet({TriggerType::kForced, TriggerType::kPerStep}),
       publish_period) {}
 
-LcmPublisherSystem::~LcmPublisherSystem() {}
 
-void LcmPublisherSystem::AddInitializationMessage(
+
+
+template <typename T>
+template <typename U>
+LcmPublisherTemplatedSystem<T>::LcmPublisherTemplatedSystem(const LcmPublisherTemplatedSystem<U>& other) :
+      LcmPublisherTemplatedSystem("",
+      nullptr,
+      nullptr) {
+        auto value = other.serializer_->CreateDefaultValue();
+        this->DeclareAbstractInputPort("lcm_message", *value);
+      }
+
+template<typename T>
+LcmPublisherTemplatedSystem<T>::~LcmPublisherTemplatedSystem() {}
+
+template<>
+void LcmPublisherTemplatedSystem<double>::AddInitializationMessage(
     InitializationPublisher initialization_publisher) {
   DRAKE_DEMAND(!!initialization_publisher);
 
@@ -102,36 +151,58 @@ void LcmPublisherSystem::AddInitializationMessage(
       }));
 }
 
-std::string LcmPublisherSystem::make_name(const std::string& channel) {
-  return "LcmPublisherSystem(" + channel + ")";
-}
 
-const std::string& LcmPublisherSystem::get_channel_name() const {
+template <>
+const std::string& LcmPublisherTemplatedSystem<double>::get_channel_name() const {
   return channel_;
 }
 
-// Takes the VectorBase from the input port of the context and publishes
-// it onto an LCM channel. This function is called automatically, as
-// necessary, at the requisite publishing period (if a positive publish period
-// was passed to the constructor) or per a simulation step (if no publish
-// period or publish period = 0.0 was passed to the constructor).
-EventStatus LcmPublisherSystem::PublishInputAsLcmMessage(
-    const Context<double>& context) const {
-  SPDLOG_TRACE(drake::log(), "Publishing LCM {} message", channel_);
-  DRAKE_ASSERT(serializer_ != nullptr);
+template <>
+drake::lcm::DrakeLcmInterface& LcmPublisherTemplatedSystem<double>::lcm()
+{
+  DRAKE_DEMAND(lcm_ != nullptr);
+  return *lcm_;
+}
 
-  // Converts the input into LCM message bytes.
-  const AbstractValue& input = get_input_port().Eval<AbstractValue>(context);
-  std::vector<uint8_t> message_bytes;
-  serializer_->Serialize(input, &message_bytes);
+template <typename T>
+LcmPublisherTemplatedSystem<T>::LcmPublisherTemplatedSystem(
+    const std::string& channel,
+    std::unique_ptr<SerializerInterface>,
+    DrakeLcmInterface*,
+    const TriggerTypeSet&,
+    double): systems::LeafSystem<T>(systems::SystemTypeTag<LcmPublisherTemplatedSystem>{}),
+    channel_(channel), serializer_(nullptr), owned_lcm_(nullptr), lcm_(nullptr) 
+    {  
+    }
 
-  // Publishes onto the specified LCM channel.
-  lcm_->Publish(channel_, message_bytes.data(), message_bytes.size(),
-                context.get_time());
+template<typename T>
+void LcmPublisherTemplatedSystem<T>::AddInitializationMessage(
+    InitializationPublisher) {
+  throw std::runtime_error("LcmPublisherTemplatedSystem<T> is only active for scalar type double.");
+}
 
+template <typename T>
+EventStatus LcmPublisherTemplatedSystem<T>::PublishInputAsLcmMessage(
+    const Context<T>&) const {
+  throw std::runtime_error("LcmPublisherTemplatedSystem<T> is only active for scalar type double.");
   return EventStatus::Succeeded();
+}
+
+template <typename T>
+const std::string& LcmPublisherTemplatedSystem<T>::get_channel_name() const {
+  throw std::runtime_error("LcmPublisherTemplatedSystem<T> is only active for scalar type double.");
+  return channel_;
+}
+
+template <typename T>
+std::string LcmPublisherTemplatedSystem<T>::make_name(const std::string& channel) {
+  throw std::runtime_error("LcmPublisherTemplatedSystem<T> is only active for scalar type double.");
+  return "LcmPublisherSystem(" + channel + ")";
 }
 
 }  // namespace lcm
 }  // namespace systems
 }  // namespace drake
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_NONSYMBOLIC_SCALARS(
+    class ::drake::systems::lcm::LcmPublisherTemplatedSystem)
