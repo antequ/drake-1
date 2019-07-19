@@ -2,7 +2,7 @@
 
 build = false;
 collect_data = false;
-run_plot = false;
+run_plot = true;
 make_plot = true;
 showiuplot = false;
 showbxplot = false;
@@ -17,17 +17,23 @@ display = false;
 one_plot = false;
 
 ground_truth = false;
-compare_one_against_truth = true;
-compare_integ_scheme_against_gt = true;
+compare_one_against_truth = false;
+compare_integ_scheme_against_gt = false;
 
 exec_name = 'passive_simulation';
-out_folder = 'outputs/resultcsv';
-runout_folder = 'outputs/runouts';
-figures_folder = 'outputs/figures';
-pdfs_folder = 'outputs/figurepdfs';
-args = '--target_realtime_rate="0" --max_time_step="1e-3"'; % '--autodiff="true"'
+orig_out_folder = 'outputs/resultcsv';
+orig_out_folder = 'outputs/lsresultcsv';
+out_folder = orig_out_folder;
+runout_folder = 'outputs/lsrunouts';
+figures_folder = 'outputs/lsfigures';
+pdfs_folder = 'outputs/lsfigurepdfs';
+args = '--target_realtime_rate="0" --max_time_step="1e-1"'; % '--box_mu_s 0. --autodiff="true"'
 integration_schemes = {'fixed_implicit_euler', 'implicit_euler', 'semi_explicit_euler', 'runge_kutta2', 'runge_kutta3', 'radau'};
+
 v_s_opts = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6];
+
+integration_schemes = {'bogacki_shampine3', 'implicit_euler', 'runge_kutta3', 'radau'};
+%v_s_opts = [1e-4];
 specific_v_s_ind = 4;
 %v_s_opts = [1e-3, 1e-4];
 accuracy_opts = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6];
@@ -194,7 +200,7 @@ end
 %% ground truth computation for v_s = 1e-4
 % use RK3 with 1e-5 timesteps, 1e-12 error desired
 if(ground_truth)
-    infile = '/home/antequ/code/github/drake/outputs/truthcsv/runge_kutta3_vs40_acc120.csv'
+    infile = '/home/antequ/code/github/drake/outputs/nofttruthcsv/runge_kutta3_vs40_acc120.csv'
     gtresult = csvread(infile, 1, 0);
     gttime    = gtresult(:,1);
     gtinput_u = gtresult(:,2);
@@ -208,7 +214,7 @@ end
 
 %% Compare one integrator against ground truth
 if(compare_one_against_truth)
-    infile = '/home/antequ/code/github/drake/outputs/resultcsv/implicit_euler_vs40_acc50.csv';
+    infile = '/home/antequ/code/github/drake/outputs/noftlsresultcsv/implicit_euler_vs40_acc50.csv';
     result = csvread(infile, 1, 0);
     time    = result(:,1);
     input_u = result(:,2);
@@ -258,12 +264,12 @@ if(compare_one_against_truth)
     plot(uniontimes, our_bx);
     
 end
-%%
+%% Aggregately compare a scheme against GT
 
 agg_integ_errors = zeros(length(accuracy_opts), size(gtresult,2));
 if(compare_integ_scheme_against_gt)
-    out_folder = 'outputs/resultcsv';
-    integration_scheme = 'runge_kutta3';
+    out_folder = orig_out_folder;
+    integration_scheme = 'implicit_euler';
     v_s = 1e-4;
     for target_accuracy_ind = 1:length(accuracy_opts)
         target_accuracy = accuracy_opts(target_accuracy_ind);
@@ -279,7 +285,7 @@ if(compare_integ_scheme_against_gt)
     agg_bv = agg_integ_errors(:, 4);
     agg_ft = agg_integ_errors(:, 5);
     f = figure();
-    plot(accuracy_opts, agg_ft);
+    plot(accuracy_opts, agg_ft, '-o');
     title(['average friction errors, ' strrep(integration_scheme,'_',' ') ', v_s=' num2str(v_s)]);
     ylabel('friction error (N)')
     xlabel('acc tolerance')
@@ -287,7 +293,7 @@ if(compare_integ_scheme_against_gt)
     set(gca, 'xscale', 'log')
     set(gca, 'yscale', 'log')
     f2 = figure();
-    plot(accuracy_opts, agg_bv);
+    plot(accuracy_opts, agg_bv, '-o');
     title(['average velocity errors, ' strrep(integration_scheme,'_',' ') ', v_s=' num2str(v_s)]);
     ylabel('velocity error (m/s)')
     xlabel('acc tolerance')
@@ -296,7 +302,7 @@ if(compare_integ_scheme_against_gt)
     set(gca, 'yscale', 'log')
     
     f3 = figure();
-    plot(accuracy_opts, agg_bx);
+    plot(accuracy_opts, agg_bx, '-o');
     title(['average displacement errors, ' strrep(integration_scheme,'_',' ') ', v_s=' num2str(v_s)]);
     ylabel('position error (m)')
     xlabel('acc tolerance')
@@ -305,7 +311,7 @@ if(compare_integ_scheme_against_gt)
     set(gca, 'yscale', 'log')
     
     f4 = figure();
-    plot(accuracy_opts, agg_iu);
+    plot(accuracy_opts, agg_iu, '-o');
     title(['average input force errors, ' strrep(integration_scheme,'_',' ') ', v_s=' num2str(v_s)]);
     ylabel('input force error (N)')
     xlabel('acc tolerance')

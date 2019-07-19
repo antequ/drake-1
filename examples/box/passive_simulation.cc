@@ -7,6 +7,7 @@
 #include "drake/systems/analysis/radau_integrator.h"
 #include "drake/systems/analysis/runge_kutta2_integrator.h"
 #include "drake/systems/analysis/runge_kutta3_integrator.h"
+#include "drake/systems/analysis/bogacki_shampine3_integrator.h"
 #include "drake/systems/analysis/semi_explicit_euler_integrator.h"
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/diagram.h"
@@ -22,14 +23,14 @@ namespace {
 DEFINE_double(target_realtime_rate, 1.0,
               "Playback speed.  See documentation for "
               "Simulator::set_target_realtime_rate() for details.");
-DEFINE_double(simulation_time, 10.0,
+DEFINE_double(simulation_time, 4.0,
               "Desired duration of the simulation. [s].");
 
 // Integration parameters:
 DEFINE_string(integration_scheme, "implicit_euler",
               "Integration scheme to be used. Available options are: "
               "'fixed_implicit_euler', 'implicit_euler' (ec), 'semi_explicit_euler',"
-              "'runge_kutta2', 'runge_kutta3' (ec), 'radau'");
+              "'runge_kutta2', 'runge_kutta3' (ec), 'bogacki_shampine3' (ec), 'radau'");
 
 DEFINE_string(run_filename, "boxout",
               "Filename for output. \".csv\" will be postpended.");
@@ -96,6 +97,7 @@ int DoMain() {
   }
   auto diagram = builder.Build();
 
+
   systems::Simulator<double> simulator(*diagram);
   systems::Context<double>& box_context =
       diagram->GetMutableSubsystemContext(*box,
@@ -126,6 +128,10 @@ int DoMain() {
   } else if (FLAGS_integration_scheme == "runge_kutta3") {
     integrator =
         simulator.reset_integrator<systems::RungeKutta3Integrator<double>>(
+            *diagram, &simulator.get_mutable_context());
+  } else if (FLAGS_integration_scheme == "bogacki_shampine3") {
+    integrator =
+        simulator.reset_integrator<systems::BogackiShampine3Integrator<double>>(
             *diagram, &simulator.get_mutable_context());
   } else if (FLAGS_integration_scheme == "semi_explicit_euler") {
     integrator =
