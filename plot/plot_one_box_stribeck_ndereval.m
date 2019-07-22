@@ -22,18 +22,21 @@ compare_integ_scheme_against_gt = true;
 
 exec_name = 'passive_simulation';
 orig_out_folder = 'outputs/resultcsv';
-orig_out_folder = 'outputs/lsresultcsv';
+orig_out_folder = 'outputs/nd_resultcsv';
 out_folder = orig_out_folder;
-runout_folder = 'outputs/lsrunouts';
-figures_folder = 'outputs/lsfigures';
-pdfs_folder = 'outputs/lsfigurepdfs';
+runout_folder = 'outputs/nd_runouts';
+outmeta_folder = 'outputs/nd_metacsv';
+figures_folder = 'outputs/nd_figures';
+pdfs_folder = 'outputs/nd_figurepdfs';
 args = '--target_realtime_rate="0" --max_time_step="1e-1"'; % '--box_mu_s 0. --autodiff="true"'
 integration_schemes = {'fixed_implicit_euler', 'implicit_euler', 'semi_explicit_euler', 'runge_kutta2', 'runge_kutta3', 'radau'};
 
 v_s_opts = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6];
 
 integration_schemes = {'bogacki_shampine3', 'implicit_euler', 'runge_kutta3', 'radau'};
-%v_s_opts = [1e-4];
+integration_schemes = {'runge_kutta3'};
+fixed_step = {'true','false'};
+v_s_opts = [1e-4];
 specific_v_s_ind = 4;
 %v_s_opts = [1e-3, 1e-4];
 accuracy_opts = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6];
@@ -354,8 +357,14 @@ end
 end
 
 
-function [output] = getfname(integration_scheme, v_s, target_accuracy) 
-output = [integration_scheme '_vs' num2fname(v_s) '_acc' num2fname(target_accuracy)];
+function [output] = getfname(integration_scheme, v_s, target_accuracy, fixed_step) 
+integ = [];
+if(fixed_step == true)
+    integ = [integration_scheme '_fixed'];
+else
+    integ = [integration_scheme '_var'];
+end
+output = [integ '_vs' num2fname(v_s) '_acc' num2fname(target_accuracy)];
 end
 
 function [output] = num2fname(num) 

@@ -24,7 +24,7 @@ namespace {
 DEFINE_double(target_realtime_rate, 1.0,
               "Playback speed.  See documentation for "
               "Simulator::set_target_realtime_rate() for details.");
-DEFINE_double(simulation_time, 4.0,
+DEFINE_double(simulation_time, 2.5,
               "Desired duration of the simulation. [s].");
 
 // Integration parameters:
@@ -39,13 +39,31 @@ DEFINE_string(run_filename, "boxout",
 DEFINE_string(meta_filename, "boxsim",
                 "Filename for meta output. \".csv\" will be postpended.");
 
+DEFINE_string(errors_filename, "boxlerr",
+                "Filename for local error output. \".csv\" will be postpended.");
+
 DEFINE_double(max_time_step, 1.0e-3,
               "Maximum time step used for the integrators. [s]. "
-              "If negative, a value based on parameter penetration_allowance "
-              "is used.");
+              "Must be at most error_reporting_step.");
 
 DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
-DEFINE_bool(autodiff, true, "Set true to use AutoDiff in Jacobian computation (also disables visualization).");
+DEFINE_bool(autodiff, true, "Set true to use AutoDiff in Jacobian computation.");
+
+
+DEFINE_string(truth_integration_scheme, "runge_kutta3",
+              "Integration scheme for computing truth (fixed). Available options are: "
+              "'fixed_implicit_euler', 'implicit_euler' (ec), 'semi_explicit_euler',"
+              "'runge_kutta2', 'runge_kutta3' (ec), 'bogacki_shampine3' (ec), 'radau'");
+DEFINE_bool(truth_autodiff, true, "Set true to use AutoDiff in Jacobian computation in truth.");
+DEFINE_double(truth_integration_step, 1.0e-5,
+              "Timestep size for integrating the truth.");
+
+DEFINE_double(error_reporting_step, 1.0e-2,
+              "Period between which local error is calculated.");
+
+
+DEFINE_bool(visualize, false, "Set true to visualize");
+DEFINE_bool(log_values, false, "Set true to log");
 
 DEFINE_double(accuracy, 1.0e-2, "Sets the simulation accuracy for variable step"
               "size integrators with error control.");
@@ -79,6 +97,34 @@ DEFINE_double(box_mu_s, 1.0,
 DEFINE_double(box_v_s, 1.0e-2,
               "The maximum slipping speed allowed during stiction. (m/s)");
 
+
+void StoreEigenCSV(const std::string& filename, const Eigen::VectorXd& times, const Eigen::MatrixXd& data,
+                const Eigen::MatrixXi& metadata, const BoxPlant<double>& box) {
+  /* csv format from  https://stackoverflow.com/questions/18400596/how-can-a-eigen-matrix-be-written-to-file-in-csv-format */
+  const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision,
+                                  Eigen::DontAlignCols, ", ", "\n");
+  DRAKE_DEMAND(times.rows() == data.rows());
+  DRAKE_DEMAND(times.rows() == metadata.rows());
+   VectorX<double> sim_friction(data.rows());
+   VectorX<double> truth_friction(data.rows());
+  for( int i = 0; i < data.rows(); i++)
+  {
+    double sim_velocity = data(i, 1);
+    double truth_velocity = data(i, 3);
+    sim_friction(i) = box.CalcFrictionFromVelocity(sim_velocity);
+    truth_friction(i) = box.CalcFrictionFromVelocity(truth_velocity);
+  } 
+  std::ofstream file(filename);
+  file << "t, n_der, n_steps, sim box_x, sim box_v, sim f_t, box_x, box_v, f_t" << std::endl;
+  /* horizontally concatenate times and data */
+  MatrixX<double> OutMatrix(times.rows(), times.cols() + metadata.cols() + data.cols()
+                            + sim_friction.cols() + truth_friction.cols());
+  OutMatrix << times, metadata.cast<double>(), data.block(0,0,data.rows(), 2),
+     sim_friction, data.block(0,2,data.rows(), 2) , truth_friction; 
+     /* can also do this with blocks */
+  file << OutMatrix.format(CSVFormat);
+  file.close();
+}
 int DoMain() {
   systems::DiagramBuilder<double> builder;
   auto source = builder.AddSystem<systems::Sine>(FLAGS_force_amplitude /* amplitude */, 
@@ -91,10 +137,14 @@ int DoMain() {
   box->set_name("box");
   builder.Connect(source->get_output_port(0), box->get_input_port());
   auto scene_graph = builder.AddSystem<geometry::SceneGraph>();
-  auto logger = systems::LogOutput(box->get_state_output_port(), &builder);
-  auto input_logger = systems::LogOutput(source->get_output_port(0), &builder);
-  if( false )
-  //if( !FLAGS_autodiff )
+  systems::SignalLogger<double>* logger = nullptr;
+  systems::SignalLogger<double>* input_logger = nullptr;
+  if( FLAGS_log_values )
+  {
+    logger = systems::LogOutput(box->get_state_output_port(), &builder);
+    input_logger = systems::LogOutput(source->get_output_port(0), &builder);
+  }
+  if( FLAGS_visualize )
   {
     BoxGeometry::AddToBuilder(
         &builder, *box, scene_graph, "0");
@@ -104,6 +154,7 @@ int DoMain() {
 
 
   systems::Simulator<double> simulator(*diagram);
+  systems::Simulator<double> truth_simulator(*diagram);
   systems::Context<double>& box_context =
       diagram->GetMutableSubsystemContext(*box,
                                           &simulator.get_mutable_context());
@@ -112,11 +163,15 @@ int DoMain() {
   initState << FLAGS_box_x0 /* position */, FLAGS_box_v0 /* velocity */;
   box->set_initial_state(&box_context, initState);
 
+  systems::Context<double>& truth_context = truth_simulator.get_mutable_context();
+  truth_context.get_mutable_state().SetFrom(simulator.get_context().get_state());
 
+  std::cout << "initial state: \n" << truth_context.get_continuous_state_vector().CopyToVector() << std::endl;
+  std::cout << "box friction: " << box->CalcFrictionFromVelocity(truth_context.get_continuous_state_vector().GetAtIndex(1)) << std::endl;
   systems::IntegratorBase<double>* integrator{nullptr};
+  systems::IntegratorBase<double>* truth_integrator{nullptr}; unused(truth_integrator);
 
-  // (ANTE TODO): set Jacobian scheme to kAutomatic via set_jacobian_computation_scheme
-  // Ante TODO: investigate target accuracy
+
   if (FLAGS_integration_scheme == "implicit_euler") {
     integrator =
         simulator.reset_integrator<systems::ImplicitEulerIntegrator<double>>(
@@ -172,13 +227,108 @@ int DoMain() {
   if (!integrator->get_fixed_step_mode())
     integrator->set_target_accuracy(FLAGS_accuracy);
 
-  // The error controlled integrators might need to take very small time steps
-  // to compute a solution to the desired accuracy. Therefore, to visualize
-  // these very short transients, we publish every time step.
-  simulator.set_publish_every_time_step(true);
+  if (FLAGS_visualize || FLAGS_log_values)
+  {
+    // The error controlled integrators might need to take very small time steps
+    // to compute a solution to the desired accuracy. Therefore, to visualize
+    // these very short transients, we publish every time step.
+    simulator.set_publish_every_time_step(true);
+  }
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.Initialize();
-  simulator.AdvanceTo(FLAGS_simulation_time);
+
+
+
+  if (FLAGS_truth_integration_scheme == "implicit_euler") {
+    truth_integrator =
+        truth_simulator.reset_integrator<systems::ImplicitEulerIntegrator<double>>(
+            *diagram, &truth_simulator.get_mutable_context());
+    if(FLAGS_truth_autodiff)
+    {
+      static_cast<systems::ImplicitIntegrator<double>*>(truth_integrator)->set_jacobian_computation_scheme(
+        systems::ImplicitIntegrator<double>::JacobianComputationScheme::kAutomatic);
+    }
+  } else if (FLAGS_truth_integration_scheme == "runge_kutta2") {
+    truth_integrator =
+        truth_simulator.reset_integrator<systems::RungeKutta2Integrator<double>>(
+            *diagram, FLAGS_truth_integration_step,
+            &truth_simulator.get_mutable_context());
+  } else if (FLAGS_truth_integration_scheme == "runge_kutta3") {
+    truth_integrator =
+        truth_simulator.reset_integrator<systems::RungeKutta3Integrator<double>>(
+            *diagram, &truth_simulator.get_mutable_context());
+  } else if (FLAGS_truth_integration_scheme == "bogacki_shampine3") {
+    truth_integrator =
+        truth_simulator.reset_integrator<systems::BogackiShampine3Integrator<double>>(
+            *diagram, &truth_simulator.get_mutable_context());
+  } else if (FLAGS_truth_integration_scheme == "semi_explicit_euler") {
+    truth_integrator =
+        truth_simulator.reset_integrator<systems::SemiExplicitEulerIntegrator<double>>(
+            *diagram, FLAGS_truth_integration_step, &truth_simulator.get_mutable_context());
+  } else if (FLAGS_truth_integration_scheme == "fixed_implicit_euler") {
+    truth_integrator =
+        truth_simulator.reset_integrator<systems::RadauIntegrator<double,1>>(
+            *diagram, &truth_simulator.get_mutable_context());
+    if(FLAGS_truth_autodiff)
+    {
+      static_cast<systems::ImplicitIntegrator<double>*>(truth_integrator)->set_jacobian_computation_scheme(
+        systems::ImplicitIntegrator<double>::JacobianComputationScheme::kAutomatic);
+    }
+  } else if (FLAGS_truth_integration_scheme == "radau") {
+    truth_integrator =
+        truth_simulator.reset_integrator<systems::RadauIntegrator<double>>(
+            *diagram, &truth_simulator.get_mutable_context());
+    if(FLAGS_truth_autodiff)
+    {
+      static_cast<systems::ImplicitIntegrator<double>*>(truth_integrator)->set_jacobian_computation_scheme(
+        systems::ImplicitIntegrator<double>::JacobianComputationScheme::kAutomatic);
+    }
+  } else {
+    throw std::runtime_error(
+        "Truth integration scheme '" + FLAGS_truth_integration_scheme +
+            "' not supported for this example.");
+  }
+  
+  truth_integrator->set_maximum_step_size(FLAGS_truth_integration_step);
+  if (truth_integrator->supports_error_estimation())
+    truth_integrator->set_fixed_step_mode( true );
+  if (!truth_integrator->get_fixed_step_mode())
+    throw std::runtime_error("Truth integration must be in fixed timestep mode.");
+
+  truth_simulator.set_target_realtime_rate(0.0);
+  truth_simulator.Initialize();
+
+  int nsteps = std::ceil(FLAGS_simulation_time / FLAGS_error_reporting_step);
+  int nstate = simulator.get_context().get_continuous_state_vector().size();
+  int nmetadata = 2; /* der evals and num steps */
+  Eigen::VectorXd times(nsteps+1);
+  Eigen::MatrixXd error_results(nsteps+1, 2 * nstate );
+  Eigen::MatrixXi error_meta(nsteps+1, nmetadata);
+  double time = 0;
+  for(int next_step_ind = 1; next_step_ind <= nsteps; ++next_step_ind)
+  {
+    double next_time = time + next_step_ind * FLAGS_error_reporting_step;
+    if ( next_step_ind == nsteps )
+    {
+      next_time = FLAGS_simulation_time;
+    }
+    systems::Context<double>& curr_truth_context = truth_simulator.get_mutable_context();
+    curr_truth_context.get_mutable_state().SetFrom(simulator.get_context().get_state());
+    simulator.AdvanceTo(next_time);
+    truth_simulator.AdvanceTo(next_time);
+    auto& simstate = simulator.get_context().get_continuous_state_vector();
+    auto& truthstate = truth_simulator.get_context().get_continuous_state_vector();
+    times(next_step_ind) = next_time;
+    error_results(next_step_ind , 0) = simstate[0] ;
+    error_results(next_step_ind , 1) = simstate[1] ;
+
+    error_results(next_step_ind , 2) = truthstate[0] ;
+    error_results(next_step_ind , 3) = truthstate[1] ;
+    error_meta(next_step_ind , 0) = integrator->get_num_derivative_evaluations();
+    error_meta(next_step_ind , 1) = integrator->get_num_steps_taken();
+
+  }
+
   bool discrete = false;
   if ( discrete ) {
     DRAKE_UNREACHABLE();
@@ -206,8 +356,14 @@ int DoMain() {
                  integrator->get_num_step_shrinkages_from_error_control());
     }
   }
-  DRAKE_DEMAND(logger->sample_times().rows() == input_logger->sample_times().rows());
-  box->StoreEigenCSVwFriction(FLAGS_run_filename + ".csv", logger->sample_times(), logger->data(), (input_logger->data()).transpose());
+
+  StoreEigenCSV(FLAGS_errors_filename + ".csv", times, error_results, error_meta, *box);
+
+  if(FLAGS_log_values)
+  {
+    DRAKE_DEMAND(logger->sample_times().rows() == input_logger->sample_times().rows());
+    box->StoreEigenCSVwFriction(FLAGS_run_filename + ".csv", logger->sample_times(), logger->data(), (input_logger->data()).transpose());
+  }
 
   std::ofstream file(FLAGS_meta_filename + ".csv");
   file << "steps, duration, max_dt, num_der_eval\n";
