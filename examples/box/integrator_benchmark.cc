@@ -115,7 +115,7 @@ void StoreEigenCSV(const std::string& filename, const Eigen::VectorXd& times, co
     truth_friction(i) = box.CalcFrictionFromVelocity(truth_velocity);
   } 
   std::ofstream file(filename);
-  file << "t, n_der, n_steps, sim box_x, sim box_v, sim f_t, box_x, box_v, f_t" << std::endl;
+  file << "t, n_der, n_steps, truth_n_steps, sim box_x, sim box_v, sim f_t, box_x, box_v, f_t" << std::endl;
   /* horizontally concatenate times and data */
   MatrixX<double> OutMatrix(times.rows(), times.cols() + metadata.cols() + data.cols()
                             + sim_friction.cols() + truth_friction.cols());
@@ -300,7 +300,7 @@ int DoMain() {
 
   int nsteps = std::ceil(FLAGS_simulation_time / FLAGS_error_reporting_step);
   int nstate = simulator.get_context().get_continuous_state_vector().size();
-  int nmetadata = 2; /* der evals and num steps */
+  int nmetadata = 3; /* der evals for sim, num steps for sim, num steps for truth */
   Eigen::VectorXd times(nsteps+1);
   Eigen::MatrixXd error_results(nsteps+1, 2 * nstate );
   Eigen::MatrixXi error_meta(nsteps+1, nmetadata);
@@ -326,6 +326,7 @@ int DoMain() {
     error_results(next_step_ind , 3) = truthstate[1] ;
     error_meta(next_step_ind , 0) = integrator->get_num_derivative_evaluations();
     error_meta(next_step_ind , 1) = integrator->get_num_steps_taken();
+    error_meta(next_step_ind , 2) = truth_integrator->get_num_steps_taken();
 
   }
 
