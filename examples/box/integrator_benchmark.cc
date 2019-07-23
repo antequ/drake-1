@@ -55,9 +55,11 @@ DEFINE_string(truth_integration_scheme, "runge_kutta3",
               "'fixed_implicit_euler', 'implicit_euler' (ec), 'semi_explicit_euler',"
               "'runge_kutta2', 'runge_kutta3' (ec), 'bogacki_shampine3' (ec), 'radau'");
 DEFINE_bool(truth_autodiff, true, "Set true to use AutoDiff in Jacobian computation in truth.");
-DEFINE_double(truth_integration_step, 1.0e-5,
+DEFINE_double(truth_integration_step, 3.0e-7,
               "Timestep size for integrating the truth.");
 
+DEFINE_bool(truth_fixed_step, true, "Use fixed steps for truth.");
+DEFINE_double(truth_accuracy, 1e-17, "Target accuracy for truth.");
 DEFINE_double(error_reporting_step, 1.0e-2,
               "Period between which local error is calculated.");
 
@@ -291,10 +293,10 @@ int DoMain() {
   
   truth_integrator->set_maximum_step_size(FLAGS_truth_integration_step);
   if (truth_integrator->supports_error_estimation())
-    truth_integrator->set_fixed_step_mode( true );
+    truth_integrator->set_fixed_step_mode( FLAGS_truth_fixed_step );
   if (!truth_integrator->get_fixed_step_mode())
-    throw std::runtime_error("Truth integration must be in fixed timestep mode.");
-
+    truth_integrator->set_target_accuracy(FLAGS_truth_accuracy);
+  
   truth_simulator.set_target_realtime_rate(0.0);
   truth_simulator.Initialize();
 
