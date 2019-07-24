@@ -1,49 +1,84 @@
 
 
-[radaufl2, radaufnd, radaufname] = read_scheme('radau', true);
-[radaunfl2, radaunfnd, radaunfname] = read_scheme('radau', false);
-[rk3fl2, rk3fnd, rk3fname] = read_scheme('runge_kutta3', true);
-[rk3nfl2, rk3nfnd, rk3nfname] = read_scheme('runge_kutta3', false);
-[rk2fl2, rk2fnd, rk2fname] = read_scheme('runge_kutta2', true);
-[rk2nfl2, rk2nfnd, rk2nfname] = read_scheme('runge_kutta2', false);
-[iefl2, iefnd, iefname] = read_scheme('implicit_euler', true);
-[ienfl2, ienfnd, ienfname] = read_scheme('implicit_euler', false);
+[radaufl2, radaufnd, radaufname, radaufs] = read_scheme('radau', true);
+[radaunfl2, radaunfnd, radaunfname, radaunfs] = read_scheme('radau', false);
+[rk3fl2, rk3fnd, rk3fname, rk3fs] = read_scheme('runge_kutta3', true);
+[rk3nfl2, rk3nfnd, rk3nfname, rk3nfs] = read_scheme('runge_kutta3', false);
+[rk2fl2, rk2fnd, rk2fname, rk2fs] = read_scheme('runge_kutta2', true);
+[rk2nfl2, rk2nfnd, rk2nfname, rk2nfs] = read_scheme('runge_kutta2', false);
+[iefl2, iefnd, iefname, iefs] = read_scheme('implicit_euler', true);
+[ienfl2, ienfnd, ienfname, ienfs] = read_scheme('implicit_euler', false);
 
 make_plots = false;
 if(make_plots)
-make_the_plot(radaufl2, radaufnd, radaufname);
-make_the_plot(radaunfl2, radaunfnd, radaunfname);
-make_the_plot(rk3fl2, rk3fnd, rk3fname);
-make_the_plot(rk3nfl2, rk3nfnd, rk3nfname);
-make_the_plot(rk2fl2, rk2fnd, rk2fname);
-make_the_plot(rk2nfl2, rk2nfnd, rk2nfname);
-make_the_plot(iefl2, iefnd, iefname);
-make_the_plot(ienfl2, ienfnd, ienfname);
+make_the_plot(radaufl2, radaufnd, radaufname, radaufs);
+make_the_plot(radaunfl2, radaunfnd, radaunfname, radaunfs);
+make_the_plot(rk3fl2, rk3fnd, rk3fname, rk3fs);
+make_the_plot(rk3nfl2, rk3nfnd, rk3nfname, rk3nfs);
+make_the_plot(rk2fl2, rk2fnd, rk2fname, rk2fs);
+make_the_plot(rk2nfl2, rk2nfnd, rk2nfname, rk2nfs);
+make_the_plot(iefl2, iefnd, iefname, iefs);
+make_the_plot(ienfl2, ienfnd, ienfname, ienfs);
 end
 
-figure();loglog(radaufl2, radaufnd, '-o', rk3fl2, rk3fnd, '-o', rk2fl2, rk2fnd, '-o', iefl2, iefnd, '-o');
+figure();
+p = loglog(radaufl2, radaufnd, '-o', rk3fl2, rk3fnd, '-o', rk2fl2, rk2fnd, '-o', iefl2, iefnd, '-o');
+hold on;
+if(any(radaufs))
+    
+    q = loglog(radaufl2(radaufs), radaufnd(radaufs), '-o','Color',p(1).Color);
+    q(1).MarkerSize = 10;
+    q(1).MarkerFaceColor = p(1).Color;
+end
+if(any(rk3fs))
+    q = loglog(rk3fl2(rk3fs), rk3fnd(rk3fs), '-o','Color',p(2).Color);
+    q(1).MarkerSize = 10;
+    q(1).MarkerFaceColor = p(2).Color;
+end
+if(any(rk2fs))
+    q = loglog(rk2fl2(rk2fs), rk2fnd(rk2fs), '-o','Color',p(3).Color);
+    q(1).MarkerSize = 10;
+    q(1).MarkerFaceColor = p(3).Color;
+end
+if(any(iefs))
+    q = loglog(iefl2(iefs), iefnd(iefs), '-o', 'Color', p(4).Color);
+    q(1).MarkerSize = 10;
+    q(1).MarkerFaceColor = p(4).Color;
+end
 legend('Radau 3 fixed', 'RK3 ec', 'RK2 fixed', 'Implicit Euler ec');
 xlabel('L2 norm of state errors, global calculated every 1e-2s');
 ylabel('Number of Derivative evaluations');
 title(['Evaluations vs Error Plot, with friction']);
+for i = 1:4
+    p(i).MarkerSize = 10;
+    
+end
 
-figure();loglog(radaunfl2, radaunfnd, '-o', rk3nfl2, rk3nfnd, '-o', rk2nfl2, rk2nfnd, '-o', ienfl2, ienfnd, '-o');
+figure();q = loglog(radaunfl2, radaunfnd, '-o', rk3nfl2, rk3nfnd, '-o', rk2nfl2, rk2nfnd, '-o', ienfl2, ienfnd, '-o');
+for i = 1:size(q,1)
+    q(i).MarkerSize= 10;
+end
 legend('Radau 3 fixed', 'RK3 ec', 'RK2 fixed', 'Implicit Euler ec');
 xlabel('L2 norm of state errors, global calculated every 1e-2s');
 ylabel('Number of Derivative evaluations');
 title(['Evaluations vs Error Plot, with no friction']);
 %%
 
-function [] = make_the_plot(l2_errs, nders, scheme_name)
+function [] = make_the_plot(l2_errs, nders, scheme_name, vs_skipped)
 
-figure(); loglog(l2_errs, nders, '-o');
+figure(); 
+p = loglog(l2_errs, nders, '-o');
+if(any(vs_skipped))
+    hold on
+    q = loglog(l2_errs(vs_skipped), nders(vs_skipped), '-+', 'Color', p(1).Color);
+end
 xlabel('L2 norm of state errors, global calculated every 1e-2s');
 ylabel('Number of Derivative evaluations');
 title(['Evaluations vs Error Plot, ' scheme_name]);
 
 end
 %%
-function [l2_errs, nders, scheme_name] = read_scheme(scheme_fname, friction)
+function [l2_errs, nders, scheme_name, vs_skipped] = read_scheme(scheme_fname, friction)
 
 %scheme_fname = 'radau';
 if(strcmp(scheme_fname, 'radau'))
@@ -141,4 +176,18 @@ nder5 = result5(end, 2);
 nder55 = result55(end, 2);
 nder6 = result6(end, 2);
 nders = [nder6 nder55 nder5 nder45 nder4 nder35 nder3 nder25];
+
+% does sim capture stiction?
+stiction_start=23; stiction_end=39;
+vsnorm25 = vecnorm(diff25(stiction_start:stiction_end,2),2);
+vsnorm3 = vecnorm(diff3(stiction_start:stiction_end,2),2);
+vsnorm35 = vecnorm(diff35(stiction_start:stiction_end,2),2);
+vsnorm4 = vecnorm(diff4(stiction_start:stiction_end,2),2);
+vsnorm45 = vecnorm(diff45(stiction_start:stiction_end,2),2);
+vsnorm5 = vecnorm(diff5(stiction_start:stiction_end,2),2);
+vsnorm55 = vecnorm(diff55(stiction_start:stiction_end,2),2);
+vsnorm6 = vecnorm(diff6(stiction_start:stiction_end,2),2);
+vs_threshold = 1e-4; % 2.8e-4 fails; 1.7e-5 is fine
+vsnorms = [vsnorm6 vsnorm55 vsnorm5 vsnorm45 vsnorm4 vsnorm35 vsnorm3 vsnorm25];
+vs_skipped = vsnorms > vs_threshold;
 end

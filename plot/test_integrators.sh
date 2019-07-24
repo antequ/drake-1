@@ -11,6 +11,8 @@
 #bazel run --config snopt //examples/box:passive_simulation -- --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="runge_kutta2" --target_realtime_rate="0" --autodiff="true" --max_time_step=3e-3 --run_filename="boxout25" --meta_filename="boxsim25"
 #bazel run --config snopt //examples/box:passive_simulation -- --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="runge_kutta2" --target_realtime_rate="0" --autodiff="true" --max_time_step=1e-2 --run_filename="boxout2" --meta_filename="boxsim2"
 
+cd /home/antequ/code/github/drake
+bazel build --config snopt //examples/box:integrator_benchmark
 
 export TEST_SCHEME=implicit_euler
 export FIXED=false
@@ -176,6 +178,7 @@ time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark 
 
 time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="$TEST_SCHEME" --target_realtime_rate="0" --autodiff="true" --max_time_step=3e-3 --fixed_step=$FIXED --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-7 --errors_filename="box${TEST_SCHEME}lnf6" --box_mu_s 0. 
 
+cd ../../../../..
 
 
 

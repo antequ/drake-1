@@ -2,8 +2,11 @@
 % change to boxnlrk2err .. for rk2 as ground truth
 % change to boxnlerr .. for rk3 as ground truth
 % change to boxnlraderr .. for radau as ground truth
-scheme_name = 'Radau 3, friction';
-scheme_fname = 'radau';
+scheme_name = 'Implicit Euler, friction';
+%scheme_fname = 'runge_kutta3';
+%scheme_fname = 'implicit_euler';
+scheme_fname = 'runge_kutta2';
+%scheme_fname = 'radau';
 fileprefix = ['/home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark.runfiles/drake/box' scheme_fname 'lerr' ];
 result25 = csvread([fileprefix '25.csv'], 1, 0);
 result3 = csvread([fileprefix '3.csv'], 1, 0);
@@ -247,9 +250,38 @@ figure(); plot(time, result35(:,[7 10])); title('friction comparison step size 3
 figure(); plot(time, result4(:,[7 10])); title('friction comparison step size 1e-4 vs truth') 
 figure(); plot(time, result45(:,[7 10])); title('friction comparison step size 3e-5 vs truth') 
 figure(); plot(time, result5(:,[7 10])); title('friction comparison step size 1e-5 vs truth') 
-figure(); plot(time, result55(:,[7 10])); title('friction comparison step size 3e-6 vs truth') 
+figure(); plot(time, result55(:,[7 10])); title('friction comparison step size 3e-6 vs truth')
+end
+if(1)
+figure(); plot(time, result25(:,[6 9])); title('velocity comparison largest step vs truth') 
+figure(); plot(time, result3(:,[6 9])); title('velocity comparison second largest step vs truth')
+figure(); plot(time, result35(:,[6 9])); title('velocity comparison step size 3e-4 vs truth')
 end
 
+%%
+% does sim capture stiction?
+stiction_start=23; stiction_end=39;
+
+
+vtotalnorm25 = vecnorm(diff25(:,2),2) / size(diff25, 1) * (stiction_end - stiction_start + 1);
+vtotalnorm3 = vecnorm(diff3(:,2),2) / size(diff3, 1) * (stiction_end - stiction_start + 1);
+vtotalnorm35 = vecnorm(diff35(:,2),2) / size(diff35, 1) * (stiction_end - stiction_start + 1);
+vtotalnorm4 = vecnorm(diff4(:,2),2) / size(diff4, 1) * (stiction_end - stiction_start + 1);
+vtotalnorm45 = vecnorm(diff45(:,2),2) / size(diff45, 1) * (stiction_end - stiction_start + 1);
+vtotalnorm5 = vecnorm(diff5(:,2),2) / size(diff5, 1) * (stiction_end - stiction_start + 1);
+vtotalnorm55 = vecnorm(diff55(:,2),2) / size(diff55, 1) * (stiction_end - stiction_start + 1);
+vtotalnorm6 = vecnorm(diff6(:,2),2) / size(diff6, 1) * (stiction_end - stiction_start + 1);
+vsnorm25 = vecnorm(diff25(stiction_start:stiction_end,2),2);
+vsnorm3 = vecnorm(diff3(stiction_start:stiction_end,2),2);
+vsnorm35 = vecnorm(diff35(stiction_start:stiction_end,2),2);
+vsnorm4 = vecnorm(diff4(stiction_start:stiction_end,2),2);
+vsnorm45 = vecnorm(diff45(stiction_start:stiction_end,2),2);
+vsnorm5 = vecnorm(diff5(stiction_start:stiction_end,2),2);
+vsnorm55 = vecnorm(diff55(stiction_start:stiction_end,2),2);
+vsnorm6 = vecnorm(diff6(stiction_start:stiction_end,2),2);
+vs_threshold = 1e-4; % 2.8e-4 fails; 1.7e-5 is fine
+vsnorms = [vsnorm25 vsnorm3 vsnorm35 vsnorm4 vsnorm45 vsnorm5 vsnorm55 vsnorm6]
+vs_skipped = vsnorms > vs_threshold
 %%
 
 % make plot of n_iterations vs error
@@ -266,7 +298,7 @@ nder6 = result6(end, 2);
 nders = [nder6 nder55 nder5 nder45 nder4 nder35 nder3 nder25];
 
 total_time = size(result25,1) * 1.e-2;
-if(1)
+if(0)
 figure(); loglog(stepsizes, nders, '-o');%, h, h.^2*1e4)
 title(['Number of derivative evaluations for ' num2str(total_time) ' s sim']);
 end
