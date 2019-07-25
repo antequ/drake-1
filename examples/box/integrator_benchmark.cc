@@ -48,7 +48,7 @@ DEFINE_double(max_time_step, 1.0e-3,
 
 DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
 DEFINE_bool(autodiff, true, "Set true to use AutoDiff in Jacobian computation.");
-
+DEFINE_double(fixed_tolerance, 1.e-5, "Tolerance for Newton iterations of fixed implicit integrators.");
 
 DEFINE_string(truth_integration_scheme, "runge_kutta3",
               "Integration scheme for computing truth (fixed). Available options are: "
@@ -183,6 +183,10 @@ int DoMain() {
       static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_jacobian_computation_scheme(
         systems::ImplicitIntegrator<double>::JacobianComputationScheme::kAutomatic);
     }
+    if(FLAGS_fixed_step)
+    {
+      integrator->set_target_accuracy(FLAGS_fixed_tolerance);
+    }
   } else if (FLAGS_integration_scheme == "runge_kutta2") {
     integrator =
         simulator.reset_integrator<systems::RungeKutta2Integrator<double>>(
@@ -208,14 +212,22 @@ int DoMain() {
       static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_jacobian_computation_scheme(
         systems::ImplicitIntegrator<double>::JacobianComputationScheme::kAutomatic);
     }
+    if(FLAGS_fixed_step)
+    {
+      integrator->set_target_accuracy(FLAGS_fixed_tolerance);
+    }
   } else if (FLAGS_integration_scheme == "radau") {
     integrator =
-        simulator.reset_integrator<systems::RadauIntegrator<double>>(
+        simulator.reset_integrator<systems::RadauIntegrator<double,2>>(
             *diagram, &simulator.get_mutable_context());
     if(FLAGS_autodiff)
     {
       static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_jacobian_computation_scheme(
         systems::ImplicitIntegrator<double>::JacobianComputationScheme::kAutomatic);
+    }
+    if(FLAGS_fixed_step)
+    {
+      integrator->set_target_accuracy(FLAGS_fixed_tolerance);
     }
   } else {
     throw std::runtime_error(
