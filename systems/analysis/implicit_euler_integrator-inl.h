@@ -62,7 +62,8 @@ void ImplicitEulerIntegrator<T>::DoInitialize() {
     working_accuracy = kDefaultAccuracy;
   else if (working_accuracy > kLoosestAccuracy)
     working_accuracy = kLoosestAccuracy;
-  this->set_accuracy_in_use(working_accuracy);
+  if (!ImplicitIntegrator<T>::get_fixed_step_mode())
+    this->set_accuracy_in_use(working_accuracy);
 
   // Reset the Jacobian matrix (so that recomputation is forced).
   this->get_mutable_jacobian().resize(0, 0);
@@ -169,16 +170,29 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   // TODO(edrumwri): Consider making this a settable parameter. Not putting it
   //                 toward staving off parameter overload.
   const int max_iterations = 10;
-
+  auto& iteration_limiting_alpha_function = IntegratorBase<T>::get_iteration_limiting_alpha_function();
+  bool refresh_jacobians = false;
   // Do the Newton-Raphson iterations.
   for (int i = 0; i < max_iterations; ++i) {
     // Update the number of Newton-Raphson iterations.
     num_nr_iterations_++;
+    if(refresh_jacobians)
+    {
+      /* refresh Jacobians - trial 3 */
+      this->MaybeFreshenMatrices(tf, *xtplus, h, 3,
+        compute_and_factor_iteration_matrix, &iteration_matrix_);
+    }
 
     // Compute the state update using the equation A*x = -g(), where A is the
     // iteration matrix.
     // TODO(edrumwri): Allow caller to provide their own solver.
     VectorX<T> dx = iteration_matrix_.Solve(-goutput);
+    double alpha = iteration_limiting_alpha_function(*xtplus, dx);
+    if ( alpha < 1.) // TODO: change to a threshold
+    {
+      dx *= alpha;
+      refresh_jacobians = true;
+    }
 
     // Get the infinity norm of the weighted update vector.
     dx_state_->get_mutable_vector().SetFromVector(dx);
@@ -388,7 +402,7 @@ bool ImplicitEulerIntegrator<T>::AttemptStepPaired(const T& t0, const T& h,
 
   // Attempt to compute the implicit trapezoid solution.
   *xtplus_itr = *xtplus_ie;
-  if (StepImplicitTrapezoid(t0, h, xt0, dx0, xtplus_itr)) {
+  if (IntegratorBase<T>::get_fixed_step_mode() || StepImplicitTrapezoid(t0, h, xt0, dx0, xtplus_itr)) {
     // Reset the state to that computed by implicit Euler.
     // TODO(edrumwri): Explore using the implicit trapezoid method solution
     //                 instead as *the* solution, rather than the implicit

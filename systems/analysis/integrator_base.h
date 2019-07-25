@@ -250,10 +250,10 @@ class IntegratorBase {
   // TODO(edrumwri): complain if integrator with error estimation wants to drop
   //                 below the minimum step size
   void set_target_accuracy(double accuracy) {
-    if (!supports_error_estimation())
+    /*if (!supports_error_estimation())
       throw std::logic_error(
           "Integrator does not support accuracy estimation "
-          "and user has requested error control");
+          "and user has requested error control");*/
     target_accuracy_ = accuracy;
     accuracy_in_use_ = accuracy;
   }
@@ -1205,7 +1205,17 @@ class IntegratorBase {
   /**
    * @}
    */
-
+  /** Sets the iteration limiting alpha function
+   * 
+   * 
+   * 
+   * 
+   */
+  void set_iteration_limiter(const std::function<double(const VectorX<T>& x,
+          const VectorX<T>& dx)>& iteration_limiting_alpha_function)
+    {
+      iteration_limiting_alpha_function_ = iteration_limiting_alpha_function;
+    }
  protected:
   /**
    * Resets any statistics particular to a specific integrator. The default
@@ -1253,6 +1263,8 @@ class IntegratorBase {
    * @sa get_target_accuracy()
    */
   void set_accuracy_in_use(double accuracy) { accuracy_in_use_ = accuracy; }
+
+
 
   /**
    * Generic code for validating (and resetting, if need be) the integrator
@@ -1494,7 +1506,11 @@ class IntegratorBase {
 
   // Sets the "ideal" next step size (typically done via error control).
   void set_ideal_next_step_size(const T& dt) { ideal_next_step_size_ = dt; }
-
+  const std::function<double(const VectorX<T>&, const VectorX<T>&)>&
+      get_iteration_limiting_alpha_function() const
+  {
+    return iteration_limiting_alpha_function_;
+  }
  private:
   // Validates that a smaller step size does not fall below the working minimum
   // and throws an exception if desired.
@@ -1632,6 +1648,14 @@ class IntegratorBase {
 
   double target_accuracy_{nan()};   // means "unspecified, use default"
   T req_initial_step_size_{nan()};  // means "unspecified, use default"
+
+  static double DefaultIterationLimitAlpha(const VectorX<T>&, const VectorX<T>&)
+  {
+    return 1.0;
+  }
+
+  std::function<double(const VectorX<T>& x, const VectorX<T>& dx)>
+      iteration_limiting_alpha_function_ =  DefaultIterationLimitAlpha ;
 };
 
 template <class T>
@@ -2047,6 +2071,7 @@ typename IntegratorBase<T>::StepResult
   if (this->get_fixed_step_mode()) {
     T adjusted_dt = dt;
     while (!Step(adjusted_dt)) {
+      throw std::runtime_error("Fixed-step integrator failed to converge at this dt.");
       ++num_shrinkages_from_substep_failures_;
       ++num_substep_failures_;
       adjusted_dt *= subdivision_factor_;
