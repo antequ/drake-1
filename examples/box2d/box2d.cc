@@ -53,7 +53,7 @@ using systems::Sine;
 
 // TODO(amcastro-tri): Consider moving this large set of parameters to a
 // configuration file (e.g. YAML).
-DEFINE_double(target_realtime_rate, 1.0,
+DEFINE_double(target_realtime_rate, 0.0,
               "Desired rate relative to real time.  See documentation for "
               "Simulator::set_target_realtime_rate() for details.");
 
@@ -97,7 +97,7 @@ DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
 DEFINE_bool(autodiff, false, "Set true to use AutoDiff in Jacobian computation.");
 DEFINE_double(fixed_tolerance, 1.e-5, "Tolerance for Newton iterations of fixed implicit integrators.");
 
-DEFINE_string(truth_integration_scheme, "runge_kutta3",
+DEFINE_string(truth_integration_scheme, "runge_kutta2",
               "Integration scheme for computing truth (fixed). Available options are: "
               "'fixed_implicit_euler', 'implicit_euler' (ec), 'semi_explicit_euler',"
               "'runge_kutta2', 'runge_kutta3' (ec), 'bogacki_shampine3' (ec), 'radau'");
@@ -460,11 +460,10 @@ int do_main() {
   /* TODO ANTE: This is temporary */
   nstate = 2;
   int nmetadata = 3; /* der evals for sim, num steps for sim, num steps for truth */
-  Eigen::VectorXd times(nsteps+1);
-  Eigen::MatrixXd error_results(nsteps+1, 2 * nstate );
-  Eigen::MatrixXi error_meta(nsteps+1, nmetadata);
-
-double time = 0;
+  Eigen::VectorXd times = Eigen::VectorXd::Zero(nsteps+1);
+  Eigen::MatrixXd error_results = Eigen::MatrixXd::Zero(nsteps+1, 2 * nstate );
+  Eigen::MatrixXi error_meta = Eigen::MatrixXi::Zero(nsteps+1, nmetadata);
+  double time = 0;
   for(int next_step_ind = 1; next_step_ind <= nsteps; ++next_step_ind)
   {
 
