@@ -189,6 +189,7 @@ class ImplicitIntegrator : public IntegratorBase<T> {
 
     /// Returns whether the iteration matrix has been set and factored.
     bool matrix_factored() const { return matrix_factored_; }
+    MatrixX<double> Get_Matrix() const { if(matrix_factored_) return LU_.reconstructedMatrix(); else return MatrixX<double>(); }
 
    private:
     bool matrix_factored_{false};

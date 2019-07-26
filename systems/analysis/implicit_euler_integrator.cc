@@ -6,7 +6,7 @@
 namespace drake {
 namespace systems {
 template class ImplicitEulerIntegrator<double>;
-template class ImplicitEulerIntegrator<AutoDiffXd>;
+///template class ImplicitEulerIntegrator<AutoDiffXd>;
 }  // namespace systems
 }  // namespace drake
 

@@ -311,6 +311,10 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
   // TODO(edrumwri): Consider making this a settable parameter. Not doing so
   //                 to avoid parameter overload.
   const int max_iterations = 10;
+  // iteration limiting logic
+  VectorX<T> x_iter = xt0;
+  bool maybe_refresh_jacobians_rest_of_this_trial = false;
+  auto& iteration_limiting_alpha_function = IntegratorBase<T>::get_iteration_limiting_alpha_function();
 
   // Do the Newton-Raphson iterations.
   for (int iter = 0; iter < max_iterations; ++iter) {
@@ -318,7 +322,16 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
 
     // Update the number of Newton-Raphson iterations.
     ++num_nr_iterations_;
-
+    if(maybe_refresh_jacobians_rest_of_this_trial)
+    {
+      /* refresh Jacobians - trial 3 */
+      std::cout << "refreshing, trial " << trial << std::endl;
+      
+      this->MaybeFreshenMatrices(t0 + h, x_iter, h, trial,
+        construct_iteration_matrix, &iteration_matrix_radau3_);
+        
+       maybe_refresh_jacobians_rest_of_this_trial = true;
+    }
     // Evaluate the derivatives using the current iterate.
     const VectorX<T>& F_of_Z = ComputeFofZ(t0, h, xt0, Z_);
 
@@ -330,8 +343,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
     VectorX<T> dZ = iteration_matrix_radau3_.Solve(
         A_tp_eye_ * (h * F_of_Z) - Z_);
 
-    // Update the iterate.
-    Z_ += dZ;
+
 
     // Compute the update to the actual continuous state (i.e., x not Z) using
     // (IV.8.2b) in [Hairer, 1996], which gives the relationship between x(t0+h)
@@ -349,6 +361,23 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
         dx += d_[i] * dZ.segment(j, state_dim);
     }
 
+    double alpha = iteration_limiting_alpha_function(x_iter, dx);
+    if ( alpha < 1.) // TODO: change to a threshold
+    {
+      //std::cout << "Jacobian\n" << ImplicitIntegrator<T>::get_mutable_jacobian() << std::endl;
+      //std::cout << "\nRHS\n" << goutput << std::endl;
+      //std::cout << "\nA matrix \n" << iteration_matrix_.Get_Matrix() << std::endl;
+      //std::cout << "\nxtplus \n" << *xtplus << std::endl;
+      //std::cout << "\ndx \n" << dx << std::endl;
+      dx *= alpha;
+      dZ *= alpha;
+      maybe_refresh_jacobians_rest_of_this_trial = true;
+    }
+    // Update the iterate.
+    Z_ += dZ;
+
+    x_iter += dx;
+    
     dx_state_->SetFromVector(dx);
     SPDLOG_DEBUG(drake::log(), "dx: {}", dx.transpose());
 
@@ -356,7 +385,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
     // control has been implemented.
     // Get the norm of the update vector.
     T dx_norm = dx_state_->CopyToVector().norm();
-
+    
     bool converged = (iter > 0 && this->IsUpdateZero(*xtplus, dx));
     SPDLOG_DEBUG(drake::log(), "norm(dx) indicates convergence? {}", converged);
 
@@ -419,7 +448,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
 
   // Try StepRadau again, freshening Jacobians and iteration matrix
   // factorizations as helpful.
-  return StepRadau(t0, h, xt0, xtplus, trial+1);
+  return StepRadau(t0, h, x_iter, xtplus, trial+1);
 }
 
 // Steps Radau forward by h, if possible.

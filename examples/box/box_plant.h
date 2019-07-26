@@ -71,6 +71,8 @@ class BoxPlant final : public systems::VectorSystem<T> {
     return this->get_input_port().Eval(context)(0);
   }
 
+  double CalcIterationLimiterAlpha(const VectorX<T>& x0, const VectorX<T>& dx) const;
+
   double get_length() const { return l_; }
 
   double get_inv_mass() const { return i_m_; }

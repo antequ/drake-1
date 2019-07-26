@@ -143,6 +143,57 @@ void BoxPlant<T>::DoCalcVectorTimeDerivatives(const systems::Context< T > &conte
   (*derivatives)[1] = (input[0] /* force */ - d_ * state[1] /* damping */ + CalcFrictionFromVelocity(state[1])) * i_m_ /* inv mass */ ;
 }
 
+static int outcount = 0;
+template <typename T>
+double BoxPlant<T>::CalcIterationLimiterAlpha(const VectorX<T>& x0, const VectorX<T>& dx) const
+{
+  double alpha = 1.;
+  double init_vel = ExtractDoubleOrThrow( x0(1));
+  double result_vel = ExtractDoubleOrThrow( x0(1) + dx(1) );
+  using std::abs;
+  double dxvel = abs(ExtractDoubleOrThrow( dx(1)));
+  // FROM SLIDING TO AT LEAST OPPOSITE ALMOST-SLIDING
+  double sliding_thres = 0.85;
+  if( ( abs(init_vel) >  sliding_thres * v_s_ ) && ( result_vel * init_vel < 0. ) && ( abs(result_vel) > sliding_thres * v_s_) )
+  {
+    
+    alpha = (abs( init_vel) - 0.5 * v_s_  ) / dxvel;
+    std::cout << "Sliding to opposite! alpha = " << alpha << " steps since last:" << outcount << std::endl;
+    outcount = 0;
+  }
+
+  // FROM SLIDING TO SOFTNORM REGION
+  double eps = 0.01 * v_s_;
+  if( ( abs(init_vel) >  sliding_thres * v_s_ ) && ( abs(result_vel) < eps )  )
+  {
+    alpha = (abs( init_vel) - 0.5 * v_s_  ) / dxvel;
+    std::cout << "Sliding to softnorm! alpha = " << alpha << " steps since last:" << outcount << std::endl;
+    outcount = 0;
+  }
+
+  // FROM SOFTNORM REGION TO SLIDING
+  if( ( abs(init_vel) <  eps ) && ( abs(result_vel) > sliding_thres * v_s_ )  )
+  {
+    alpha = ( 0.5 * v_s_  ) / dxvel;
+    std::cout << "Softnorm to Sliding! alpha = " << alpha << " steps since last:" << outcount << std::endl;
+    outcount = 0;
+  }
+
+  if( alpha < 0. || alpha > 1.)
+  {
+    std::cout << "init vel: " << init_vel << ", result_vel: " << result_vel << std::endl;
+    std::cout << "alpha: " << alpha << std::endl;
+    throw std::runtime_error("Error: alpha is negative or larger than 1 ");
+  }
+  outcount++;
+  //std::cout << "alpha: " << alpha << std::endl;
+  //std::cout << "\nx0:\n" << x0 << std::endl;
+  //std::cout << "\ndx:\n" << dx << std::endl;
+  return alpha;
+
+}
+
+
 }  // namespace box
 }  // namespace examples
 }  // namespace drake

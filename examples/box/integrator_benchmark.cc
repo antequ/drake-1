@@ -46,6 +46,7 @@ DEFINE_double(max_time_step, 1.0e-3,
               "Maximum time step used for the integrators. [s]. "
               "Must be at most error_reporting_step.");
 
+DEFINE_bool(iteration_limit, false, "Set true to use iteration limiter.");
 DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
 DEFINE_bool(autodiff, true, "Set true to use AutoDiff in Jacobian computation.");
 DEFINE_double(fixed_tolerance, 1.e-5, "Tolerance for Newton iterations of fixed implicit integrators.");
@@ -174,6 +175,7 @@ int DoMain() {
   systems::IntegratorBase<double>* truth_integrator{nullptr}; unused(truth_integrator);
 
 
+
   if (FLAGS_integration_scheme == "implicit_euler") {
     integrator =
         simulator.reset_integrator<systems::ImplicitEulerIntegrator<double>>(
@@ -187,6 +189,7 @@ int DoMain() {
     {
       integrator->set_target_accuracy(FLAGS_fixed_tolerance);
     }
+
   } else if (FLAGS_integration_scheme == "runge_kutta2") {
     integrator =
         simulator.reset_integrator<systems::RungeKutta2Integrator<double>>(
@@ -234,7 +237,14 @@ int DoMain() {
         "Integration scheme '" + FLAGS_integration_scheme +
             "' not supported for this example.");
   }
-  
+      // Set the iteration limiter method.
+    auto iteration_limiter = [box](const Eigen::VectorXd& x0, const Eigen::VectorXd& dx) -> double {
+         return box->CalcIterationLimiterAlpha(x0, dx);
+      };
+  if(FLAGS_iteration_limit)
+  {
+    integrator->set_iteration_limiter(iteration_limiter);
+  }
   integrator->set_maximum_step_size(FLAGS_max_time_step);
   if (integrator->supports_error_estimation())
     integrator->set_fixed_step_mode( FLAGS_fixed_step );

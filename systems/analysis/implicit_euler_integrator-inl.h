@@ -171,16 +171,20 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   //                 toward staving off parameter overload.
   const int max_iterations = 10;
   auto& iteration_limiting_alpha_function = IntegratorBase<T>::get_iteration_limiting_alpha_function();
-  bool refresh_jacobians = false;
+  bool maybe_refresh_jacobians_rest_of_this_trial = false;
   // Do the Newton-Raphson iterations.
   for (int i = 0; i < max_iterations; ++i) {
     // Update the number of Newton-Raphson iterations.
     num_nr_iterations_++;
-    if(refresh_jacobians)
+    if(maybe_refresh_jacobians_rest_of_this_trial)
     {
       /* refresh Jacobians - trial 3 */
-      this->MaybeFreshenMatrices(tf, *xtplus, h, 3,
+      std::cout << "refreshing, trial " << trial << std::endl;
+      
+      this->MaybeFreshenMatrices(tf, *xtplus, h, trial,
         compute_and_factor_iteration_matrix, &iteration_matrix_);
+        
+       maybe_refresh_jacobians_rest_of_this_trial = true;
     }
 
     // Compute the state update using the equation A*x = -g(), where A is the
@@ -190,8 +194,13 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
     double alpha = iteration_limiting_alpha_function(*xtplus, dx);
     if ( alpha < 1.) // TODO: change to a threshold
     {
+      //std::cout << "Jacobian\n" << ImplicitIntegrator<T>::get_mutable_jacobian() << std::endl;
+      //std::cout << "\nRHS\n" << goutput << std::endl;
+      //std::cout << "\nA matrix \n" << iteration_matrix_.Get_Matrix() << std::endl;
+      //std::cout << "\nxtplus \n" << *xtplus << std::endl;
+      //std::cout << "\ndx \n" << dx << std::endl;
       dx *= alpha;
-      refresh_jacobians = true;
+      maybe_refresh_jacobians_rest_of_this_trial = true;
     }
 
     // Get the infinity norm of the weighted update vector.
