@@ -306,7 +306,7 @@ int do_main() {
 
   systems::IntegratorBase<double>* integrator{nullptr};
   systems::IntegratorBase<double>* truth_integrator{nullptr}; 
- std::cout << "reached 1" << std::endl;
+
 
   if (FLAGS_integration_scheme == "implicit_euler") {
     integrator =
@@ -369,7 +369,7 @@ int do_main() {
         "Integration scheme '" + FLAGS_integration_scheme +
             "' not supported for this example.");
   }
-  std::cout << "reached 2" << std::endl;
+
    /*   // Set the iteration limiter method.
     auto iteration_limiter = [box](const Eigen::VectorXd& x0, const Eigen::VectorXd& dx) -> double {
          return box->CalcIterationLimiterAlpha(x0, dx);
@@ -453,7 +453,7 @@ int do_main() {
   
   truth_simulator.set_target_realtime_rate(0.0);
   truth_simulator.Initialize();
-std::cout << "reached 3" << std::endl;
+
 
   int nsteps = std::ceil(FLAGS_simulation_time / FLAGS_error_reporting_step);
   int nstate = simulator.get_context().get_continuous_state_vector().size();
@@ -467,7 +467,7 @@ std::cout << "reached 3" << std::endl;
 double time = 0;
   for(int next_step_ind = 1; next_step_ind <= nsteps; ++next_step_ind)
   {
-    std::cout << "reached 4" << std::endl;
+
     double next_time = time + next_step_ind * FLAGS_error_reporting_step;
     if ( next_step_ind == nsteps )
     {
@@ -475,32 +475,32 @@ double time = 0;
     }
     systems::Context<double>& curr_truth_context = truth_simulator.get_mutable_context();
     curr_truth_context.get_mutable_state().SetFrom(simulator.get_context().get_state());
-    std::cout << "reached 5" << std::endl;
+
     simulator.AdvanceTo(next_time);
-    std::cout << "reached 6" << std::endl;
+
     truth_simulator.AdvanceTo(next_time);
-    std::cout << "reached 7" << std::endl;
+
     const systems::Context<double>& sim_plant_context =
       diagram->GetSubsystemContext(plant, simulator.get_context());
     const systems::Context<double>& truth_plant_context =
       diagram->GetSubsystemContext(plant, truth_simulator.get_context());
     auto simstate = plant.GetPositionsAndVelocities(sim_plant_context);
     auto truthstate = plant.GetPositionsAndVelocities(truth_plant_context);
-    std::cout << "reached 8" << std::endl;
+
     times(next_step_ind) = next_time;
-    std::cout << "reached 9" << std::endl;
+
     error_results(next_step_ind , 0) = simstate[1] ; /* x translation */
     error_results(next_step_ind , 1) = simstate[3] ; /* x velocity */
 
     error_results(next_step_ind , 2) = truthstate[1] ; /* x translation */
     error_results(next_step_ind , 3) = truthstate[3] ; /* x velocity */
-    std::cout << "reached 10" << std::endl;
+
     error_meta(next_step_ind , 0) = integrator->get_num_derivative_evaluations();
     error_meta(next_step_ind , 1) = integrator->get_num_steps_taken();
     error_meta(next_step_ind , 2) = truth_integrator->get_num_steps_taken();
 
   }
-std::cout << "reached 5" << std::endl;
+
   if (FLAGS_use_discrete_states) {
     fmt::print("Used time stepping with dt={}\n", FLAGS_max_time_step);
     fmt::print("Number of time steps taken = {:d}\n",
