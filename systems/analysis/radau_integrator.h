@@ -327,7 +327,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
       /* refresh Jacobians - trial 3 */
       std::cout << "refreshing, trial " << trial << std::endl;
       
-      this->MaybeFreshenMatrices(t0 + h, x_iter, h, trial,
+      this->MaybeFreshenMatrices(t0 + h, x_iter, h, 3,
         construct_iteration_matrix, &iteration_matrix_radau3_);
         
        maybe_refresh_jacobians_rest_of_this_trial = true;
