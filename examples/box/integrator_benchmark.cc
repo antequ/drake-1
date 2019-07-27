@@ -97,7 +97,7 @@ DEFINE_double(box_f_n, 3.234,
 DEFINE_double(box_mu_s, 1.0,
               "box static friction coefficient");
 
-DEFINE_double(box_v_s, 1.0e-2,
+DEFINE_double(box_v_s, 1.0e-4,
               "The maximum slipping speed allowed during stiction. (m/s)");
 
 

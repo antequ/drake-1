@@ -181,8 +181,8 @@ double BoxPlant<T>::CalcIterationLimiterAlpha(const VectorX<T>& x0, const Vector
     outcount = 0;
   }
 
-  // FROM STICTION TO SLIDING
-  else if( ( abs(init_vel) <  sliding_thres * v_s_ ) && ( abs(result_vel) > 2  * sliding_thres * v_s_) )
+  // FROM STICTION TO SLIDING -- ONLY FOR EXPLICIT -- THIS IS A HACK THAT WE WILL NOT USE
+/* */  else if( ( abs(init_vel) <  sliding_thres * v_s_ ) && ( abs(result_vel) > 2 * sliding_thres * v_s_) )
   {
     alpha = (result_vel *  v_s_ * 1.05 * sliding_thres / abs(result_vel)  - init_vel ) / dxsignedvel;
     std::cout << "Stiction to sliding! alpha = " << alpha << " steps since last:" << outcount << std::endl;

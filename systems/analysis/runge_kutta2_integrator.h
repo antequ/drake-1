@@ -116,14 +116,14 @@ bool RungeKutta2Integrator<T>::DoStep(const T& h) {
   const VectorBase<T>& xcdot_a =
       this->EvalTimeDerivatives(*context).get_vector();
 
-  auto x_2 = xc.CopyToVector();
-  auto dx_2 = 0.5 * dx + (0.5 * h) * xcdot_a.CopyToVector();
-  alpha = iteration_limiting_alpha_function(x_2, dx_2);
+  auto x2 = xc.CopyToVector();
+  auto dx2 = (0.5) * (dx) + (0.5 * h) * xcdot_a.CopyToVector();
+  alpha = iteration_limiting_alpha_function(x2, dx2);
   if( alpha < 1. )
   {
     std::cout << "\nSecond stage alpha: " << alpha << std::endl;
-    std::cout << "x: \n" << x_2 << std::endl;
-    std::cout << "dx: \n" << dx_2 << std::endl;
+    std::cout << "x: \n" << x2 << std::endl;
+    std::cout << "dx: \n" << dx2 << std::endl;
     context->SetTime(t0);
     context->SetContinuousState(x0);
     // come back with a smaller timestep!
