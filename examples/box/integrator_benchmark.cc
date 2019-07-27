@@ -238,7 +238,10 @@ int DoMain() {
             "' not supported for this example.");
   }
       // Set the iteration limiter method.
-    auto iteration_limiter = [box](const Eigen::VectorXd& x0, const Eigen::VectorXd& dx) -> double {
+    auto iteration_limiter = [box](const systems::Context<double>&, const systems::ContinuousState<double>& x_k,
+       const systems::ContinuousState<double>& x_kp1) -> double {
+         Eigen::VectorXd x0 = x_k.CopyToVector();
+         Eigen::VectorXd dx = x_kp1.CopyToVector() - x0;
          return box->CalcIterationLimiterAlpha(x0, dx);
       };
   if(FLAGS_iteration_limit)

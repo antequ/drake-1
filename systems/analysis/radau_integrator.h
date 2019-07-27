@@ -315,6 +315,8 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
   VectorX<T> x_iter = xt0;
   bool maybe_refresh_jacobians_rest_of_this_trial = false;
   auto& iteration_limiting_alpha_function = IntegratorBase<T>::get_iteration_limiting_alpha_function();
+  std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
+  std::unique_ptr<ContinuousState<T>> x_kp1 = x_k->Clone();
 
   // Do the Newton-Raphson iterations.
   for (int iter = 0; iter < max_iterations; ++iter) {
@@ -360,8 +362,9 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
       if (d_[i] != 0.0)
         dx += d_[i] * dZ.segment(j, state_dim);
     }
-
-    double alpha = iteration_limiting_alpha_function(x_iter, dx);
+    x_k->SetFromVector(x_iter);
+    x_kp1->SetFromVector(x_iter+dx);
+    double alpha = iteration_limiting_alpha_function(*context,*x_k, *x_kp1);
     if ( alpha < 1.) // TODO: change to a threshold
     {
       //std::cout << "Jacobian\n" << ImplicitIntegrator<T>::get_mutable_jacobian() << std::endl;

@@ -178,6 +178,27 @@ time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark 
 
 
 
+export TEST_SCHEME=implicit_euler
+export FIXED=true
+cd '/home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark.runfiles/drake/'
+time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="$TEST_SCHEME" --target_realtime_rate="0" --autodiff="true" --max_time_step=1e-2 --fixed_step=$FIXED --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-7 --iteration_limit=true --errors_filename="box${TEST_SCHEME}fillerr25" &
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="$TEST_SCHEME" --target_realtime_rate="0" --autodiff="true" --max_time_step=3e-3 --fixed_step=$FIXED --accuracy 1e-4 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-7 --iteration_limit=true --errors_filename="box${TEST_SCHEME}fillerr3"  &
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="$TEST_SCHEME" --target_realtime_rate="0" --autodiff="true" --max_time_step=1e-3 --fixed_step=$FIXED --accuracy 1e-5 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-7 --iteration_limit=true --errors_filename="box${TEST_SCHEME}fillerr35" &
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="$TEST_SCHEME" --target_realtime_rate="0" --autodiff="true" --max_time_step=5e-4 --fixed_step=$FIXED --accuracy 1e-6 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-7 --iteration_limit=true --errors_filename="box${TEST_SCHEME}fillerr4" &
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="$TEST_SCHEME" --target_realtime_rate="0" --autodiff="true" --max_time_step=2e-4 --fixed_step=$FIXED --accuracy 1e-7 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-7 --iteration_limit=true --errors_filename="box${TEST_SCHEME}fillerr45"  &
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="$TEST_SCHEME" --target_realtime_rate="0" --autodiff="true" --max_time_step=1e-4 --fixed_step=$FIXED --accuracy 1e-8 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-7 --iteration_limit=true --errors_filename="box${TEST_SCHEME}fillerr5" &
+#3e-5 doesn't work
+time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="$TEST_SCHEME" --target_realtime_rate="0" --autodiff="true" --max_time_step=1e-5 --fixed_step=$FIXED --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-7 --iteration_limit=true --errors_filename="box${TEST_SCHEME}fillerr55"  &
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark --simulation_time 2.5 --box_v_s 1e-4 --integration_scheme="$TEST_SCHEME" --target_realtime_rate="0" --autodiff="true" --max_time_step=3e-7 --fixed_step=$FIXED --accuracy 1e-10 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-7 --iteration_limit=true --errors_filename="box${TEST_SCHEME}fillerr6" &
+
+
+
 export TEST_SCHEME=runge_kutta3
 export FIXED=false
 cd '/home/antequ/code/github/drake/bazel-bin/examples/box/integrator_benchmark.runfiles/drake/'

@@ -1211,8 +1211,8 @@ class IntegratorBase {
    * 
    * 
    */
-  void set_iteration_limiter(const std::function<double(const VectorX<T>& x,
-          const VectorX<T>& dx)>& iteration_limiting_alpha_function)
+  void set_iteration_limiter(const std::function<double(const Context<T>& ctx_0, const ContinuousState<T>& x_k,
+          const ContinuousState<T>& x_kp1)>& iteration_limiting_alpha_function)
     {
       iteration_limiting_alpha_function_ = iteration_limiting_alpha_function;
       has_active_iteration_limiting_alpha_function_ = true;
@@ -1508,7 +1508,7 @@ class IntegratorBase {
   // Sets the "ideal" next step size (typically done via error control).
   void set_ideal_next_step_size(const T& dt) { ideal_next_step_size_ = dt; }
   
-  const std::function<double(const VectorX<T>&, const VectorX<T>&)>&
+  const std::function<double(const Context<T>&, const ContinuousState<T>&, const ContinuousState<T>&)>&
       get_iteration_limiting_alpha_function() const
   {
     return iteration_limiting_alpha_function_;
@@ -1657,12 +1657,12 @@ class IntegratorBase {
   double target_accuracy_{nan()};   // means "unspecified, use default"
   T req_initial_step_size_{nan()};  // means "unspecified, use default"
 
-  static double DefaultIterationLimitAlpha(const VectorX<T>&, const VectorX<T>&)
+  static double DefaultIterationLimitAlpha(const Context<T>&, const ContinuousState<T>&, const ContinuousState<T>&)
   {
     return 1.0;
   }
 
-  std::function<double(const VectorX<T>& x, const VectorX<T>& dx)>
+  std::function<double(const Context<T>& ctx_0, const ContinuousState<T>& x_k, const ContinuousState<T>& x_kp1)>
       iteration_limiting_alpha_function_ =  DefaultIterationLimitAlpha ;
   // indicates whether we have an active (non default) iteration limiting function
   bool has_active_iteration_limiting_alpha_function_ {false};
