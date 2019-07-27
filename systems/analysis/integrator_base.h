@@ -1215,6 +1215,7 @@ class IntegratorBase {
           const VectorX<T>& dx)>& iteration_limiting_alpha_function)
     {
       iteration_limiting_alpha_function_ = iteration_limiting_alpha_function;
+      has_active_iteration_limiting_alpha_function_ = true;
     }
  protected:
   /**
@@ -1506,10 +1507,17 @@ class IntegratorBase {
 
   // Sets the "ideal" next step size (typically done via error control).
   void set_ideal_next_step_size(const T& dt) { ideal_next_step_size_ = dt; }
+  
   const std::function<double(const VectorX<T>&, const VectorX<T>&)>&
       get_iteration_limiting_alpha_function() const
   {
     return iteration_limiting_alpha_function_;
+  }
+
+  // indicates whether the iteration limiting alpha function is not the default one.
+  bool has_active_iteration_limiting_alpha_function() const
+  {
+    return has_active_iteration_limiting_alpha_function_;
   }
  private:
   // Validates that a smaller step size does not fall below the working minimum
@@ -1656,6 +1664,8 @@ class IntegratorBase {
 
   std::function<double(const VectorX<T>& x, const VectorX<T>& dx)>
       iteration_limiting_alpha_function_ =  DefaultIterationLimitAlpha ;
+  // indicates whether we have an active (non default) iteration limiting function
+  bool has_active_iteration_limiting_alpha_function_ {false};
 };
 
 template <class T>
