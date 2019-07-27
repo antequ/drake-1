@@ -82,12 +82,26 @@ bool RungeKutta2Integrator<T>::DoStep(const T& h) {
   // x and inputs u (which may depend on t and x).
   // Define x⁽ᵃ⁾ ≜ {xc⁽ᵃ⁾, xd₀, xa₀} and u⁽ᵃ⁾ ≜ u(t⁽ᵃ⁾, x⁽ᵃ⁾).
 
+  VectorX<T> x0 = context->get_continuous_state_vector().CopyToVector();
+  double t0 = context->get_time();
   // Evaluate derivative xcdot₀ ← xcdot(t₀, x(t₀), u(t₀)). Copy the result
   // into a temporary since we'll be calculating another derivative below.
   derivs0_->get_mutable_vector().SetFrom(
       this->EvalTimeDerivatives(*context).get_vector());
   const VectorBase<T>& xcdot0 = derivs0_->get_vector();
-
+  
+  auto& iteration_limiting_alpha_function = IntegratorBase<T>::get_iteration_limiting_alpha_function();
+  auto x = context->get_continuous_state_vector().CopyToVector();
+  auto dx = h * xcdot0.CopyToVector();
+  double alpha = iteration_limiting_alpha_function(x, dx);
+  if( alpha < 1. )
+  {
+    std::cout << "\nalpha: " << alpha << std::endl;
+    std::cout << "x: \n" << x << std::endl;
+    std::cout << "dx: \n" << dx << std::endl;
+    // come back with a smaller timestep!
+    return DoStep( h * alpha );
+  }
   // Cache: xcdot0 references a *copy* of the derivative result so is immune
   // to subsequent evaluations.
 
@@ -95,13 +109,26 @@ bool RungeKutta2Integrator<T>::DoStep(const T& h) {
   // and xc-dependent cache entries out of date, including the derivative
   // cache entry.
   VectorBase<T>& xc = context->SetTimeAndGetMutableContinuousStateVector(
-      context->get_time() + h);  // t⁽ᵃ⁾ ← t₁ = t₀ + h
+      t0 + h);  // t⁽ᵃ⁾ ← t₁ = t₀ + h
   xc.PlusEqScaled(h, xcdot0);    // xc⁽ᵃ⁾ ← xc₀ + h * xcdot₀
 
   // Evaluate derivative xcdot⁽ᵃ⁾ ← xcdot(t⁽ᵃ⁾, x⁽ᵃ⁾, u⁽ᵃ⁾).
   const VectorBase<T>& xcdot_a =
       this->EvalTimeDerivatives(*context).get_vector();
 
+  auto x_2 = xc.CopyToVector();
+  auto dx_2 = 0.5 * dx + (0.5 * h) * xcdot_a.CopyToVector();
+  alpha = iteration_limiting_alpha_function(x_2, dx_2);
+  if( alpha < 1. )
+  {
+    std::cout << "\nSecond stage alpha: " << alpha << std::endl;
+    std::cout << "x: \n" << x_2 << std::endl;
+    std::cout << "dx: \n" << dx_2 << std::endl;
+    context->SetTime(t0);
+    context->SetContinuousState(x0);
+    // come back with a smaller timestep!
+    return DoStep( h * alpha );
+  }
   // Cache: xcdot_a references the live derivative cache value, currently
   // up to date but about to be marked out of date. We do not want to make
   // an unnecessary copy of this data.
@@ -123,6 +150,7 @@ bool RungeKutta2Integrator<T>::DoStep(const T& h) {
   xc.PlusEqScaled({{h / 2, xcdot_a}, {-h / 2, xcdot0}});
 
   // RK2 always succeeds at taking the step.
+  // Ante 7/27: not if my iteration limiter makes it fail :D
   return true;
 }
 }  // namespace systems

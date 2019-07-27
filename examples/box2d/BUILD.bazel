@@ -17,7 +17,7 @@ filegroup(
     name = "box2d_models",
     srcs = [
         "box2d.sdf",
-        "simple_mug.sdf",
+        "box2d_no_friction.sdf",
     ],
     visibility = ["//visibility:public"],
 )

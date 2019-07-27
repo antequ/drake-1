@@ -151,9 +151,11 @@ double BoxPlant<T>::CalcIterationLimiterAlpha(const VectorX<T>& x0, const Vector
   double init_vel = ExtractDoubleOrThrow( x0(1));
   double result_vel = ExtractDoubleOrThrow( x0(1) + dx(1) );
   using std::abs;
-  double dxvel = abs(ExtractDoubleOrThrow( dx(1)));
+  double dxsignedvel = ExtractDoubleOrThrow( dx(1));
+  double dxvel = abs(dxsignedvel);
   // FROM SLIDING TO AT LEAST OPPOSITE ALMOST-SLIDING
   double sliding_thres = 0.85;
+  double eps = 0.01 * v_s_;
   if( ( abs(init_vel) >  sliding_thres * v_s_ ) && ( result_vel * init_vel < 0. ) && ( abs(result_vel) > sliding_thres * v_s_) )
   {
     
@@ -163,8 +165,8 @@ double BoxPlant<T>::CalcIterationLimiterAlpha(const VectorX<T>& x0, const Vector
   }
 
   // FROM SLIDING TO SOFTNORM REGION
-  double eps = 0.01 * v_s_;
-  if( ( abs(init_vel) >  sliding_thres * v_s_ ) && ( abs(result_vel) < eps )  )
+  
+  else if( ( abs(init_vel) >  sliding_thres * v_s_ ) && ( abs(result_vel) < eps )  )
   {
     alpha = (abs( init_vel) - 0.5 * v_s_  ) / dxvel;
     std::cout << "Sliding to softnorm! alpha = " << alpha << " steps since last:" << outcount << std::endl;
@@ -172,10 +174,18 @@ double BoxPlant<T>::CalcIterationLimiterAlpha(const VectorX<T>& x0, const Vector
   }
 
   // FROM SOFTNORM REGION TO SLIDING
-  if( ( abs(init_vel) <  eps ) && ( abs(result_vel) > sliding_thres * v_s_ )  )
+  else if( ( abs(init_vel) <  eps ) && ( abs(result_vel) > sliding_thres * v_s_ )  )
   {
     alpha = ( 0.5 * v_s_  ) / dxvel;
-    std::cout << "Softnorm to Sliding! alpha = " << alpha << " steps since last:" << outcount << std::endl;
+    std::cout << "Softnorm to sliding! alpha = " << alpha << " steps since last:" << outcount << std::endl;
+    outcount = 0;
+  }
+
+  // FROM STICTION TO SLIDING
+  else if( ( abs(init_vel) <  sliding_thres * v_s_ ) && ( abs(result_vel) > 2  * sliding_thres * v_s_) )
+  {
+    alpha = (result_vel *  v_s_ * 1.05 * sliding_thres / abs(result_vel)  - init_vel ) / dxsignedvel;
+    std::cout << "Stiction to sliding! alpha = " << alpha << " steps since last:" << outcount << std::endl;
     outcount = 0;
   }
 

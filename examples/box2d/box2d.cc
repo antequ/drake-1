@@ -72,6 +72,7 @@ DEFINE_double(box_x0, 0.0,
 DEFINE_double(box_v0, 0.0,
               "The initial x velocity of the box. [m].");
 
+DEFINE_bool(use_friction, true, "Simulate with friction.");
 DEFINE_bool(use_discrete_states, false, "uses discrete implicit stribeck");
 // Integration parameters:
 DEFINE_string(integration_scheme, "implicit_euler",
@@ -118,7 +119,7 @@ DEFINE_double(accuracy, 1.0e-2, "Sets the simulation accuracy for variable step"
               "size integrators with error control.");
 
 // Contact parameters
-DEFINE_double(penetration_allowance, 1.0e-2,
+DEFINE_double(penetration_allowance, 1.0e+1,
               "Penetration allowance. [m]. "
               "See MultibodyPlant::set_penetration_allowance().");
 DEFINE_double(v_stiction_tolerance, 1.0e-4,
@@ -190,8 +191,16 @@ int do_main() {
   plant.RegisterAsSourceForSceneGraph(&scene_graph);
 
   Parser parser(&plant);
-  std::string full_name =
-      FindResourceOrThrow("drake/examples/box2d/box2d.sdf");
+  std::string full_name;
+
+  if(FLAGS_use_friction)
+  {
+    full_name = FindResourceOrThrow("drake/examples/box2d/box2d.sdf");
+  }
+  else
+  {
+    full_name = FindResourceOrThrow("drake/examples/box2d/box2d_no_friction.sdf");
+  }
   parser.AddModelFromFile(full_name);
 
   /* const PrismaticJoint<double>& translate_joint =
