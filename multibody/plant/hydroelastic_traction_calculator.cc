@@ -221,10 +221,9 @@ HydroelasticTractionCalculator<T>::CalcTractionAtQHelper(
   traction_data.vt_BqAq_W = v_BqAq_W - nhat_W * vn_BqAq_W;
 
   // Determine the traction using a soft-norm.
-  using std::atan;
   using std::sqrt;
   const T squared_vt = traction_data.vt_BqAq_W.squaredNorm();
-  const T norm_vt = sqrt(squared_vt);
+  //const T norm_vt = sqrt(squared_vt);
   const T soft_norm_vt = sqrt(squared_vt +
       vslip_regularizer_ * vslip_regularizer_);
 
@@ -232,8 +231,34 @@ HydroelasticTractionCalculator<T>::CalcTractionAtQHelper(
   const Vector3<T> vt_hat_BqAq_W = traction_data.vt_BqAq_W / soft_norm_vt;
 
   // Compute the traction.
+  auto sigmoid_linear = [](const T& x) -> T {
+      using std::min;
+      using std::max;
+      /* return max(min(x, T(1.0)), T(-1.0)); */
+      return min(x, 1.0); 
+  };
+  auto sigmoid_quadratic = [](const T& x) -> T {
+      using std::min;
+      using std::max;
+      return min(max(x * (2 - x), x), 1.0);
+      /*return min(x, T(1.0)); */
+  };
+  auto sigmoid_atan = [](const T& x) -> T {
+      using std::atan;
+      return 2.0 / M_PI * atan(x);
+  };
+  auto sigmoid_logistic = [](const T& x) -> T {
+      using std::exp;
+      return 1.0/(1.0 + exp(- x));
+  };
+  unused(sigmoid_atan);
+  unused(sigmoid_logistic); 
+  unused(sigmoid_linear);
+  /* const T frictional_scalar = mu_coulomb * normal_traction *
+      2.0 / M_PI * atan(norm_vt / T(vslip_regularizer_));*/
   const T frictional_scalar = mu_coulomb * normal_traction *
-      2.0 / M_PI * atan(norm_vt / T(vslip_regularizer_));
+      sigmoid_quadratic(soft_norm_vt / vslip_regularizer_);
+
   traction_data.traction_Aq_W = nhat_W * normal_traction -
       vt_hat_BqAq_W * frictional_scalar;
 
