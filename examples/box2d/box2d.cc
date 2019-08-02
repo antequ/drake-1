@@ -111,6 +111,7 @@ DEFINE_double(truth_accuracy, 1e-17, "Target accuracy for truth.");
 DEFINE_double(error_reporting_step, 1.0e-2,
               "Period between which local error is calculated.");
 
+DEFINE_bool(use_hydroelastics_model, false, "use hydroelastics for contact.");
 
 DEFINE_bool(visualize, false, "Set true to visualize");
 //DEFINE_bool(log_values, false, "Set true to log");
@@ -125,6 +126,8 @@ DEFINE_double(penetration_allowance, 1.0e+1,
 DEFINE_double(v_stiction_tolerance, 1.0e-4,
               "The maximum slipping speed allowed during stiction. [m/s]");
 
+DEFINE_double(elastic_modulus, 2.05021814e4, "Elastic modulus, in Pa.");
+DEFINE_double(dissipation, 2.0, "dissipation, in s/m.");    
 // Gripping force.
 DEFINE_double(vertical_force, 0, "fixed vertical force");
 
@@ -212,7 +215,18 @@ int do_main() {
   // Add the pads.
 /*  const Body<double>& left_finger = plant.GetBodyByName("left_finger");
   const Body<double>& right_finger = plant.GetBodyByName("right_finger"); */
-
+  if (FLAGS_use_hydroelastics_model) {
+    plant.use_hydroelastic_model();
+    
+    const auto& moving_box = plant.GetBodyByName("moving_box");
+    const std::vector<geometry::GeometryId>& collision_geos = plant.GetCollisionGeometriesForBody(moving_box);
+    for( auto geo_id : collision_geos)
+    {
+      plant.set_elastic_modulus(geo_id, FLAGS_elastic_modulus);
+      plant.set_hydroelastics_dissipation(geo_id, FLAGS_dissipation);
+    }
+    
+  }
   // Now the model is complete.
   plant.Finalize();
 
@@ -473,6 +487,7 @@ int do_main() {
   Eigen::MatrixXd error_results = Eigen::MatrixXd::Zero(nsteps+1, 2 * nstate );
   Eigen::MatrixXi error_meta = Eigen::MatrixXi::Zero(nsteps+1, nmetadata);
   double time = 0;
+  int progress_out_rate = nsteps / 25;
   for(int next_step_ind = 1; next_step_ind <= nsteps; ++next_step_ind)
   {
 
@@ -481,6 +496,7 @@ int do_main() {
     {
       next_time = FLAGS_simulation_time;
     }
+
     systems::Context<double>& curr_truth_context = truth_simulator.get_mutable_context();
     curr_truth_context.get_mutable_state().SetFrom(simulator.get_context().get_state());
 
@@ -506,7 +522,13 @@ int do_main() {
     error_meta(next_step_ind , 0) = integrator->get_num_derivative_evaluations();
     error_meta(next_step_ind , 1) = integrator->get_num_steps_taken();
     error_meta(next_step_ind , 2) = truth_integrator->get_num_steps_taken();
-
+    if(next_step_ind % progress_out_rate == 0)
+    {
+      std::stringstream to_out;
+      to_out << FLAGS_integration_scheme << (FLAGS_fixed_step ? " fixed, " : " ec, ") << FLAGS_max_time_step << ": " << next_time << " s.";
+      std::cout << to_out.str() << std::endl;
+    }
+    
   }
 
   if (FLAGS_use_discrete_states) {
