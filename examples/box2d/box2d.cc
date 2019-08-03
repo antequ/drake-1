@@ -96,7 +96,7 @@ DEFINE_double(max_time_step, 1.0e-3,
 DEFINE_bool(iteration_limit, false, "Set true to use iteration limiter.");
 DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
 DEFINE_bool(autodiff, false, "Set true to use AutoDiff in Jacobian computation.");
-DEFINE_double(fixed_tolerance, 1.e-5, "Tolerance for Newton iterations of fixed implicit integrators.");
+DEFINE_double(fixed_tolerance, 1.e-4, "Tolerance for Newton iterations of fixed implicit integrators.");
 
 DEFINE_string(truth_integration_scheme, "runge_kutta2",
               "Integration scheme for computing truth (fixed). Available options are: "
@@ -393,14 +393,19 @@ int do_main() {
             "' not supported for this example.");
   }
 
-   /*   // Set the iteration limiter method.
-    auto iteration_limiter = [box](const Eigen::VectorXd& x0, const Eigen::VectorXd& dx) -> double {
-         return box->CalcIterationLimiterAlpha(x0, dx);
-      }; // ANTE TODO: iteration limiting
-  if(FLAGS_iteration_limit)
+      // Set the iteration limiter method.
+    auto iteration_limiter = [&diagram, &plant](const systems::Context<double>& ctx0, const systems::ContinuousState<double>& x_k,
+       const systems::ContinuousState<double>& x_kp1) -> double {
+         const systems::Context<double>& plant_ctx0 = diagram->GetSubsystemContext(plant, ctx0);
+         /* this method is very poorly named but gets the subsystem continuous state */
+         Eigen::VectorXd v_k = diagram->GetSubsystemDerivatives(plant, x_k).get_generalized_velocity().CopyToVector();
+         Eigen::VectorXd v_kp1 = diagram->GetSubsystemDerivatives(plant, x_kp1).get_generalized_velocity().CopyToVector();
+         return plant.CalcIterationLimiterAlpha(plant_ctx0, v_k, v_kp1);
+      };
+  if(FLAGS_iteration_limit && !FLAGS_use_discrete_states)
   {
     integrator->set_iteration_limiter(iteration_limiter);
-  } */
+  } 
   integrator->set_maximum_step_size(FLAGS_max_time_step);
   if (integrator->supports_error_estimation())
     integrator->set_fixed_step_mode( FLAGS_fixed_step );

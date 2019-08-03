@@ -1009,6 +1009,58 @@ void MultibodyPlant<T>::set_penetration_allowance(
   penalty_method_contact_parameters_.time_scale = time_scale;
 }
 
+
+/// 
+///  Calculates the iteration limiter alpha for integrating
+///    with stribeck friction. Should only be called in continuous.
+///
+template <typename T>
+double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& mbp_ctx_0,
+        const drake::VectorX<T>& v_k,
+        const drake::VectorX<T>& v_kp1) const
+        {
+          DRAKE_MBP_THROW_IF_NOT_FINALIZED();
+          DRAKE_DEMAND(time_step_ == 0);
+          
+          if(use_hydroelastic_model_)
+          {
+            // hydroelastics
+            return 1.;
+          }
+          else
+          {
+            // point contact
+            /* const std::vector<PenetrationAsPointPair<T>>& point_pairs0 =
+                EvalPointPairPenetrations(mbp_ctx_0);
+            const int num_contacts = point_pairs0.size(); */
+            const internal::ContactJacobians<T>& contact_jacobians =
+                EvalContactJacobians(mbp_ctx_0);
+            drake::VectorX<T> vt = contact_jacobians.Jt * v_k;
+            drake::VectorX<T> dvt = contact_jacobians.Jt * (v_kp1 - v_k);
+            const int num_contacts = vt.rows() / 2;
+            
+            
+            double v_stiction = stribeck_model_.stiction_tolerance();
+            const double relative_tolerance = 0.01; /* from implicit_stribeck_solver code */
+            /* from implicit_stribeck_solver code */
+            const double cos_theta_max =  0.5 /* std::cos(M_PI / 3.0) */;
+            using std::min;
+            T alpha = 1.0;
+            for (int ic = 0; ic < num_contacts; ++ic) {  // Index ic scans contact points.
+              const int ik = 2 * ic;  // Index ik scans contact vector quantities.
+              const auto vt_ic = vt.template segment<2>(ik);
+              const auto dvt_ic = dvt.template segment<2>(ik);
+              alpha = min(
+                  alpha,
+                  internal::DirectionChangeLimiter<T>::CalcAlpha(
+                      vt_ic, dvt_ic,
+                      cos_theta_max, v_stiction, relative_tolerance));
+            }
+            DRAKE_DEMAND(0 < alpha && alpha <= 1.0);
+            return ExtractDoubleOrThrow( alpha );
+          }
+        }
+
 // Specialize this function so that double is fully supported.
 template <>
 std::vector<PenetrationAsPointPair<double>>
@@ -2287,7 +2339,7 @@ T MultibodyPlant<T>::StribeckModel::ComputeFrictionCoefficient(
   } else if (v >= 1) {
     return mu_s - (mu_s - mu_d) * step5((v - 1) / 2);
   } else {
-    return mu_s * step5(v);
+    return mu_s * v * (2 - v) /* mu_s * step5(v) */; /* change to mu_s * v * (2 - v) */
   }
 }
 

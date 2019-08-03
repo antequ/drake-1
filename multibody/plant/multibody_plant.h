@@ -3293,6 +3293,14 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
     internal_tree().SetRandomState(context, state, generator);
   }
 
+  /// 
+  ///  Calculates the iteration limiter alpha for integrating
+  ///    with stribeck friction. Should only be called in continuous.
+  ///
+  double CalcIterationLimiterAlpha(const systems::Context<T>& mbp_ctx_0,
+          const drake::VectorX<T>& v_k,
+          const drake::VectorX<T>& v_kp1) const;
+          
   using internal::MultibodyTreeSystem<T>::is_discrete;
   using internal::MultibodyTreeSystem<T>::EvalPositionKinematics;
   using internal::MultibodyTreeSystem<T>::EvalVelocityKinematics;
