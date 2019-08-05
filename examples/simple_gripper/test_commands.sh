@@ -13,9 +13,9 @@ time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='poin
 # discrete implicit stribeck, 3ms time steps
 time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='point' --target_realtime_rate=0 --max_time_step=3e-3 --time_stepping=true --accuracy 1e-3 --iteration_limit=true --simulation_time 30 --fixed_step=true --fixed_tolerance 3e-4 1> /dev/null
 
-# continuous iteration limited, 1ms time steps
+# continuous iteration limited, 10ms time steps
 time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='point' --target_realtime_rate=0 --max_time_step=1e-2 --time_stepping=false --accuracy 3e-3 --iteration_limit=true --simulation_time 30 --fixed_step=true --fixed_tolerance 1e-3 1> /dev/null
-# discrete implicit stribeck, 1ms time steps
+# discrete implicit stribeck, 10ms time steps
 time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='point' --target_realtime_rate=0 --max_time_step=1e-2 --time_stepping=true --accuracy 3e-3 --iteration_limit=true --simulation_time 30 --fixed_step=true --fixed_tolerance 1e-3 1> /dev/null
 
 #turn off visualization
