@@ -78,6 +78,12 @@ DEFINE_bool(time_stepping, true, "If 'true', the plant is modeled as a "
     "discrete system with periodic updates of period 'max_time_step'."
     "If 'false', the plant is modeled as a continuous system.");
 
+DEFINE_bool(iteration_limit, true, "Set true to use iteration limiter.");
+DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
+DEFINE_double(fixed_tolerance, 1.e-4, "Tolerance for Newton iterations of fixed implicit integrators.");
+
+
+DEFINE_bool(visualize, true, "Set true to visualize.");
 // Contact parameters
 DEFINE_double(penetration_allowance, 1.0e-2,
               "Penetration allowance. [m]. "
@@ -294,17 +300,20 @@ int do_main() {
 
   builder.Connect(scene_graph.get_query_output_port(),
                   plant.get_geometry_query_input_port());
-
-  DrakeLcm lcm;
-  geometry::ConnectDrakeVisualizer(&builder, scene_graph, &lcm);
   builder.Connect(
       plant.get_geometry_poses_output_port(),
       scene_graph.get_source_pose_port(plant.get_source_id().value()));
 
-  // Publish contact results for visualization.
-  // (Currently only available when time stepping.)
-  if (FLAGS_time_stepping)
-    ConnectContactResultsToDrakeVisualizer(&builder, plant, &lcm);
+  DrakeLcm lcm;
+  if( FLAGS_visualize )
+  {
+    geometry::ConnectDrakeVisualizer(&builder, scene_graph, &lcm);
+
+    // Publish contact results for visualization.
+    // (Currently only available when time stepping.)
+    if (FLAGS_time_stepping)
+      ConnectContactResultsToDrakeVisualizer(&builder, plant, &lcm);
+  }
 
   // Sinusoidal force input. We want the gripper to follow a trajectory of the
   // form x(t) = X0 * sin(ω⋅t). By differentiating once, we can compute the
@@ -386,6 +395,10 @@ int do_main() {
     integrator =
         simulator.reset_integrator<ImplicitEulerIntegrator<double>>(
             *diagram, &simulator.get_mutable_context());
+    if(FLAGS_fixed_step)
+    {
+      integrator->set_target_accuracy(FLAGS_fixed_tolerance);
+    }
   } else if (FLAGS_integration_scheme == "runge_kutta2") {
     integrator =
         simulator.reset_integrator<RungeKutta2Integrator<double>>(
@@ -403,9 +416,28 @@ int do_main() {
         "Integration scheme '" + FLAGS_integration_scheme +
             "' not supported for this example.");
   }
+
+      // Set the iteration limiter method.
+  auto iteration_limiter = [&diagram, &plant](const systems::Context<double>& ctx0, const systems::ContinuousState<double>& x_k,
+      const systems::ContinuousState<double>& x_kp1) -> double {
+        const systems::Context<double>& plant_ctx0 = diagram->GetSubsystemContext(plant, ctx0);
+        /* this method is very poorly named but gets the subsystem continuous state */
+        Eigen::VectorXd v_k = diagram->GetSubsystemDerivatives(plant, x_k).get_generalized_velocity().CopyToVector();
+        Eigen::VectorXd v_kp1 = diagram->GetSubsystemDerivatives(plant, x_kp1).get_generalized_velocity().CopyToVector();
+        return plant.CalcIterationLimiterAlpha(plant_ctx0, v_k, v_kp1);
+    };
+  if(FLAGS_iteration_limit && !FLAGS_time_stepping)
+  {
+    integrator->set_iteration_limiter(iteration_limiter);
+  } 
   integrator->set_maximum_step_size(max_time_step);
+  if (integrator->supports_error_estimation())
+    integrator->set_fixed_step_mode( FLAGS_fixed_step );
   if (!integrator->get_fixed_step_mode())
+  {
+    std::cout << "Setting target accuracy ... " << std::endl;
     integrator->set_target_accuracy(FLAGS_accuracy);
+  }
 
   // The error controlled integrators might need to take very small time steps
   // to compute a solution to the desired accuracy. Therefore, to visualize

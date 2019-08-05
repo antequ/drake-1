@@ -184,7 +184,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
       std::cout << "refreshing, trial " << trial << std::endl;
       /* consider always use trial 3 - improves stability */
       /* in the future, consider changing this back, because it's better to adjust step size */
-      this->MaybeFreshenMatrices(tf, *xtplus, h, /* trial */ 3,
+      this->MaybeFreshenMatrices(tf, *xtplus, h, /* trial */  3,
         compute_and_factor_iteration_matrix, &iteration_matrix_);
         
        maybe_refresh_jacobians_rest_of_this_trial = true;

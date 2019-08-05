@@ -2081,7 +2081,7 @@ typename IntegratorBase<T>::StepResult
   if (this->get_fixed_step_mode()) {
     T adjusted_dt = dt;
     while (!Step(adjusted_dt)) {
-      throw std::runtime_error("Fixed-step integrator failed to converge at this dt.");
+      //throw std::runtime_error("Fixed-step integrator failed to converge at this dt.");
       ++num_shrinkages_from_substep_failures_;
       ++num_substep_failures_;
       adjusted_dt *= subdivision_factor_;
