@@ -311,8 +311,8 @@ int do_main() {
 
     // Publish contact results for visualization.
     // (Currently only available when time stepping.)
-    if (FLAGS_time_stepping)
-      ConnectContactResultsToDrakeVisualizer(&builder, plant, &lcm);
+    //if (FLAGS_time_stepping)
+    //  ConnectContactResultsToDrakeVisualizer(&builder, plant, &lcm);
   }
 
   // Sinusoidal force input. We want the gripper to follow a trajectory of the
