@@ -81,3 +81,15 @@ do
        cp frame_0000519.tiff frame_000$INDEX.tiff
 done
 
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --simulation_time 200 --v_stiction_tolerance 1e-4 --integration_scheme="implicit_euler" --target_realtime_rate="0" --autodiff=false --max_time_step=1e-2 --fixed_step=true --accuracy 1e-3 --fixed_tolerance=3e-4 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-2 --visualize=true --iteration_limit=true
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --simulation_time 200 --v_stiction_tolerance 1e-4 --integration_scheme="implicit_euler" --target_realtime_rate="0" --autodiff=false --max_time_step=1e-2 --fixed_step=true --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-2 --visualize=true --iteration_limit=true --use_discrete_states
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --simulation_time 200 --v_stiction_tolerance 1e-4 --integration_scheme="implicit_euler" --target_realtime_rate="0" --autodiff=false --max_time_step=3e-3 --fixed_step=true --accuracy 1e-3 --fixed_tolerance=1e-4 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-2 --visualize=true --iteration_limit=true
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --simulation_time 200 --v_stiction_tolerance 1e-4 --integration_scheme="implicit_euler" --target_realtime_rate="0" --autodiff=false --max_time_step=3e-3 --fixed_step=true --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-2 --visualize=true --iteration_limit=true --use_discrete_states
+
+time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --simulation_time 200 --v_stiction_tolerance 1e-4 --integration_scheme="implicit_euler" --target_realtime_rate="0" --autodiff=false --max_time_step=3e-3 --fixed_step=false --accuracy 3e-3 --fixed_tolerance=1e-4 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-2 --visualize=true --iteration_limit=true
+
+
