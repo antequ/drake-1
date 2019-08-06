@@ -23,6 +23,9 @@
 #include "drake/geometry/query_results/contact_surface.h"
 #include "drake/multibody/plant/hydroelastic_traction_calculator.h"
 
+//#define PRINT_VAR(a) std::cout << #a": " << a << std::endl;
+#define PRINT_VAR(a) (void) a;
+
 namespace drake {
 namespace multibody {
 

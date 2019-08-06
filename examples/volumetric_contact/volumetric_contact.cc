@@ -90,6 +90,7 @@ DEFINE_double(size, 0.1, "Box size.");  // box
 
 void AddGround(double size, double friction_coefficient,
                    MultibodyPlant<double>* plant) {
+  unused(size);
   //const Vector3d p_WG(0.0, 0.0, -FLAGS_ground_height / 2.0);
   //const RigidTransformd X_WG(p_WG);
   const RigidTransformd X_WG;

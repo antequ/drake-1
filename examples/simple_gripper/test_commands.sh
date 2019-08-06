@@ -47,3 +47,37 @@ for INDEX in {001 .. 120}
 do
 	echo $INDEX
 done
+ cd "/home/antequ/Videos/director/gripperpointcontactitlim"
+
+    ffmpeg -r 30 -i frame_%07d.tiff \
+           -vcodec libx264 \
+           -preset slow \
+           -crf 18 \
+           -pix_fmt yuv420p \
+           ../gripperpointcontactitlim.mp4
+
+for INDEX in {0001..0050}
+do
+       cp frame_0000000.tiff frame_000$INDEX.tiff
+done
+
+for INDEX in {0171..0282}
+do
+       cp frame_0000056.tiff frame_000$INDEX.tiff
+done
+
+for INDEX in {0519..0630}
+do
+       cp frame_0000056.tiff frame_000$INDEX.tiff
+done
+
+for INDEX in {0172..0276}
+do
+       cp frame_0000171.tiff frame_000$INDEX.tiff
+done
+
+for INDEX in {0520..0624}
+do
+       cp frame_0000519.tiff frame_000$INDEX.tiff
+done
+

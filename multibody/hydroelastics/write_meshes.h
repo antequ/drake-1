@@ -20,10 +20,10 @@ void vtk_write_unstructured_grid(
 template <typename T>
 typename std::enable_if<
       !std::is_same<T, double>::value>::type
-write_vtk_mesh(const std::string& file_name,
-                    const geometry::VolumeMesh<T>& mesh,
+write_vtk_mesh(const std::string& ,
+                    const geometry::VolumeMesh<T>& ,
                     const std::string& title = "mesh") {
-  throw std::runtime_error("blah");
+  throw std::runtime_error("write vtk mesh is only supported when T is double: " + title);
 }
 
 template <typename T>
