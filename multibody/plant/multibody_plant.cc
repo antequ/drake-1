@@ -1012,7 +1012,38 @@ void MultibodyPlant<T>::set_penetration_allowance(
   penalty_method_contact_parameters_.time_scale = time_scale;
 }
 
+template <typename T>
+inline T GetAlphaFromVtDvtVectors(const drake::VectorX<T>& vt, const drake::VectorX<T>& dvt, double v_stiction)
+{
+  const int num_contacts = vt.rows() / 2;
+  const double relative_tolerance = 0.01; /* from implicit_stribeck_solver code */
+  /* from implicit_stribeck_solver code */
+  const double cos_theta_max =  0.5 /* std::cos(M_PI / 3.0) */;
+  using std::min;
+  T alpha = 1.0;
+  for (int ic = 0; ic < num_contacts; ++ic) {  // Index ic scans contact points.
+    const int ik = 2 * ic;  // Index ik scans contact vector quantities.
+    const auto vt_ic = vt.template segment<2>(ik);
+    const auto dvt_ic = dvt.template segment<2>(ik);
+    alpha = min(
+        alpha,
+        internal::DirectionChangeLimiter<T>::CalcAlpha(
+            vt_ic, dvt_ic,
+            cos_theta_max, v_stiction, relative_tolerance));
+  }
+  DRAKE_DEMAND(0 < alpha && alpha <= 1.0);
+  return alpha;
+}
 
+#if 0
+template <>
+double MultibodyPlant<symbolic::Expression>::CalcIterationLimiterAlpha(const systems::Context<symbolic::Expression>& ,
+        const drake::VectorX<symbolic::Expression>& ,
+        const drake::VectorX<symbolic::Expression>& ) const
+        {
+          return 1.0;
+        }
+#endif
 /// 
 ///  Calculates the iteration limiter alpha for integrating
 ///    with stribeck friction. Should only be called in continuous.
@@ -1028,7 +1059,111 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
           if(use_hydroelastic_model_)
           {
             // hydroelastics
-            return 1.;
+            
+            // GET CONTACT SURFACE
+            const systems::Context<T>& context = mbp_ctx_0;
+            const auto& query_object =
+                this->get_geometry_query_input_port()
+                    .template Eval<geometry::QueryObject<T>>(context);
+            const std::vector<ContactSurface<T>>& all_surfaces =
+                get_contact_surfaces_output_port()
+                    .template Eval<std::vector<ContactSurface<T>>>(context);
+            internal::HydroelasticTractionCalculator<T> traction_calculator(
+                stribeck_model_.stiction_tolerance());
+            T alpha = 1.0;
+            for (const ContactSurface<T>& surface : all_surfaces )
+            {
+              // Use contact surface points to build vt list
+              VectorX<T> vt(surface.mesh().num_vertices() * 2);
+              VectorX<T> dvt(surface.mesh().num_vertices() * 2);
+
+              // compute the static friction force
+              const GeometryId geometryM_id = surface.id_M();
+              const GeometryId geometryN_id = surface.id_N();
+
+              // Get the transform of the geometry for M to the world frame.
+              const RigidTransform<T> X_WM = query_object.X_WG(surface.id_M());
+
+              // Get the bodies that the two geometries are affixed to. We'll call these
+              // A and B.
+              const BodyIndex bodyA_index = geometry_id_to_body_index_.at(geometryM_id);
+              const BodyIndex bodyB_index = geometry_id_to_body_index_.at(geometryN_id);
+              const Body<T>& bodyA = internal_tree().get_body(bodyA_index);
+              const Body<T>& bodyB = internal_tree().get_body(bodyB_index);
+
+              // The the poses and spatial velocities of bodies A and B.
+              const RigidTransform<T> X_WA = bodyA.EvalPoseInWorld(context);
+              const RigidTransform<T> X_WB = bodyB.EvalPoseInWorld(context);
+              //const SpatialVelocity<T> V_WA = bodyA.EvalSpatialVelocityInWorld(context);
+              //const SpatialVelocity<T> V_WB = bodyB.EvalSpatialVelocityInWorld(context);
+              // v_k and v_kp1
+              // todo: consider switching to contact jacobian method
+              std::unique_ptr<systems::Context<T>> ctx_k = this->CreateDefaultContext();
+              ctx_k->get_mutable_state().SetFrom(mbp_ctx_0.get_state());
+              
+              systems::ContinuousState<T>& cstate_k = ctx_k->get_mutable_continuous_state();
+              cstate_k.get_mutable_generalized_velocity().SetFromVector(v_k);
+              const SpatialVelocity<T> V_WAk = bodyA.EvalSpatialVelocityInWorld(*ctx_k);
+              const SpatialVelocity<T> V_WBk = bodyB.EvalSpatialVelocityInWorld(*ctx_k);
+              systems::ContinuousState<T>& cstate_kp1 = ctx_k->get_mutable_continuous_state();
+              cstate_kp1.get_mutable_generalized_velocity().SetFromVector(v_kp1);
+              const SpatialVelocity<T> V_WAkp1 = bodyA.EvalSpatialVelocityInWorld(*ctx_k);
+              const SpatialVelocity<T> V_WBkp1 = bodyB.EvalSpatialVelocityInWorld(*ctx_k);
+              
+              
+
+
+              for( geometry::SurfaceVertexIndex vertex_index(0) ; vertex_index < surface.mesh().num_vertices(); ++vertex_index )
+              {
+                /* SurfaceFaceIndex face_index(0); face_index < surface.mesh().num_faces(); ++face_index */
+                
+                const Vector3<T> p_WQ = X_WM * surface.mesh().vertex(vertex_index).r_MV();
+                const Vector3<T> h_M = surface.EvaluateGrad_h_MN_M( vertex_index );
+                const Vector3<T> nhat_M = h_M.normalized();
+                // normal of vertex in world coordinates. NOTE: Assume normal does not shift!
+                const Vector3<T> nhat_W = X_WM.rotation() * nhat_M;
+
+                // First compute the spatial velocity of the bodies
+                const Vector3<T> p_AoAq_W = p_WQ - X_WA.translation();
+                const Vector3<T> p_BoBq_W = p_WQ - X_WB.translation();
+
+                const SpatialVelocity<T> V_WAqk = V_WAk.Shift(p_AoAq_W);
+                const SpatialVelocity<T> V_WBqk = V_WBk.Shift(p_BoBq_W);
+
+                const SpatialVelocity<T> V_WAqkp1 = V_WAkp1.Shift(p_AoAq_W);
+                const SpatialVelocity<T> V_WBqkp1 = V_WBkp1.Shift(p_BoBq_W);
+
+                // compute the relative translational velocity of Frame Aq relative to Frame Bq
+                const SpatialVelocity<T> V_BqAq_Wk = V_WAqk - V_WBqk;
+                const Vector3<T>& v_BqAq_Wk = V_BqAq_Wk.translational();
+                const SpatialVelocity<T> V_BqAq_Wkp1 = V_WAqkp1 - V_WBqkp1;
+                const Vector3<T>& v_BqAq_Wkp1 = V_BqAq_Wkp1.translational();
+                const Vector3<T>& dv_BqAq_W =   v_BqAq_Wkp1 - v_BqAq_Wk;
+                // Get the velocity along the normal to the contact surface. Note that a
+                // positive value indicates that bodies are separating at Q while a negative
+                // value indicates that bodies are approaching at Q.
+                //const T vn_BqAq_W = v_BqAq_W.dot(nhat_W);
+
+                // Get the slip velocity at the point.
+                const Vector3<T> vt_BqAq_Wk   = v_BqAq_Wk - nhat_W * nhat_W.dot(v_BqAq_Wk);
+                const Vector3<T> dvt_BqAq_W   = dv_BqAq_W - nhat_W * nhat_W.dot(dv_BqAq_W);
+                  // Compute the orientation of a contact frame C at the contact point such
+                  // that the z-axis Cz equals to nhat_BA_W. The tangent vectors are
+                  // arbitrary, with the only requirement being that they form a valid right
+                  // handed basis with nhat_BA.
+                const RotationMatrix<T> R_WC(math::ComputeBasisFromAxis(2, nhat_W));
+
+                // component 1
+                vt(vertex_index * 2 + 0)  = R_WC.matrix().col(0).dot(vt_BqAq_Wk) ;
+                dvt(vertex_index * 2 + 0) = R_WC.matrix().col(0).dot(dvt_BqAq_W) ;
+                // component 2
+                vt(vertex_index * 2 + 1)  = R_WC.matrix().col(1).dot(vt_BqAq_Wk) ;
+                dvt(vertex_index * 2 + 1) = R_WC.matrix().col(1).dot(dvt_BqAq_W) ;
+              }
+              using std::min;
+              alpha = min(alpha, GetAlphaFromVtDvtVectors(vt, dvt, stribeck_model_.stiction_tolerance()));
+            }
+            return ExtractDoubleOrThrow(alpha);
           }
           else
           {
@@ -1040,27 +1175,7 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                 EvalContactJacobians(mbp_ctx_0);
             drake::VectorX<T> vt = contact_jacobians.Jt * v_k;
             drake::VectorX<T> dvt = contact_jacobians.Jt * (v_kp1 - v_k);
-            const int num_contacts = vt.rows() / 2;
-            
-            
-            double v_stiction = stribeck_model_.stiction_tolerance();
-            const double relative_tolerance = 0.01; /* from implicit_stribeck_solver code */
-            /* from implicit_stribeck_solver code */
-            const double cos_theta_max =  0.5 /* std::cos(M_PI / 3.0) */;
-            using std::min;
-            T alpha = 1.0;
-            for (int ic = 0; ic < num_contacts; ++ic) {  // Index ic scans contact points.
-              const int ik = 2 * ic;  // Index ik scans contact vector quantities.
-              const auto vt_ic = vt.template segment<2>(ik);
-              const auto dvt_ic = dvt.template segment<2>(ik);
-              alpha = min(
-                  alpha,
-                  internal::DirectionChangeLimiter<T>::CalcAlpha(
-                      vt_ic, dvt_ic,
-                      cos_theta_max, v_stiction, relative_tolerance));
-            }
-            DRAKE_DEMAND(0 < alpha && alpha <= 1.0);
-            return ExtractDoubleOrThrow( alpha );
+            return ExtractDoubleOrThrow( GetAlphaFromVtDvtVectors( vt, dvt, stribeck_model_.stiction_tolerance()));
           }
         }
 
@@ -2436,7 +2551,7 @@ AddMultibodyPlantSceneGraph(
 }  // namespace multibody
 }  // namespace drake
 
-DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_NONSYMBOLIC_SCALARS(
     class drake::multibody::MultibodyPlant)
-DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_NONSYMBOLIC_SCALARS(
     struct drake::multibody::AddMultibodyPlantSceneGraphResult)
