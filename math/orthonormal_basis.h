@@ -55,5 +55,41 @@ Matrix3<T> ComputeBasisFromAxis(int axis_index, const Vector3<T>& axis_W) {
   return R_WL;
 }
 
+// sped up version of above that only uses one square root instead of two
+template <class T>
+Matrix3<T> ComputeBasisFromUnitAxis(int axis_index, const Vector3<T>& axis_W) {
+  // Verify that the correct axis is given.
+  if (axis_index < 0 || axis_index > 2)
+    throw std::logic_error("Invalid axis specified: must be 0, 1, or 2.");
+
+  // Verify that the vector is about 1
+  const double zero_tol = 1e-12;
+  const T norm_minus_one = axis_W.squaredNorm() - 1;
+  if (norm_minus_one * norm_minus_one > zero_tol)
+    throw std::logic_error("Vector is not unit.");
+
+  // Choose two coordinates, flip them, and then zero the third
+  const Vector3<T> u(axis_W.cwiseAbs());
+  int maxAxis;
+  u.maxCoeff(&maxAxis);
+  int otherAxis = (maxAxis + 1 ) % 3;
+  Vector3<T> perpAxis = Vector3<T>::Zero();
+  perpAxis[maxAxis] = axis_W[otherAxis];
+  perpAxis[otherAxis] = -axis_W[maxAxis];
+
+
+  // Now define additional vectors in the basis.
+  Vector3<T> v1_W = perpAxis.normalized();
+  Vector3<T> v2_W = axis_W.cross(v1_W);
+
+  // Set the columns of the matrix.
+  Matrix3<T> R_WL;
+  R_WL.col(axis_index) = axis_W;
+  R_WL.col((axis_index + 1) % 3) = v1_W;
+  R_WL.col((axis_index + 2) % 3) = v2_W;
+
+  return R_WL;
+}
+
 }  // namespace math
 }  // namespace drake

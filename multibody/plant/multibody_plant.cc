@@ -1071,6 +1071,16 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
             internal::HydroelasticTractionCalculator<T> traction_calculator(
                 stribeck_model_.stiction_tolerance());
             T alpha = 1.0;
+            std::unique_ptr<systems::Context<T>> ctx_k = this->CreateDefaultContext();
+            ctx_k->get_mutable_state().SetFrom(mbp_ctx_0.get_state());
+              systems::ContinuousState<T>& cstate_k = ctx_k->get_mutable_continuous_state();
+              cstate_k.get_mutable_generalized_velocity().SetFromVector(v_k);
+
+            std::unique_ptr<systems::Context<T>> ctx_kp1 = this->CreateDefaultContext();
+            ctx_kp1->get_mutable_state().SetFrom(mbp_ctx_0.get_state());
+              systems::ContinuousState<T>& cstate_kp1 = ctx_kp1->get_mutable_continuous_state();
+              cstate_kp1.get_mutable_generalized_velocity().SetFromVector(v_kp1);
+
             for (const ContactSurface<T>& surface : all_surfaces )
             {
               // Use contact surface points to build vt list
@@ -1098,17 +1108,11 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
               //const SpatialVelocity<T> V_WB = bodyB.EvalSpatialVelocityInWorld(context);
               // v_k and v_kp1
               // todo: consider switching to contact jacobian method
-              std::unique_ptr<systems::Context<T>> ctx_k = this->CreateDefaultContext();
-              ctx_k->get_mutable_state().SetFrom(mbp_ctx_0.get_state());
               
-              systems::ContinuousState<T>& cstate_k = ctx_k->get_mutable_continuous_state();
-              cstate_k.get_mutable_generalized_velocity().SetFromVector(v_k);
               const SpatialVelocity<T> V_WAk = bodyA.EvalSpatialVelocityInWorld(*ctx_k);
               const SpatialVelocity<T> V_WBk = bodyB.EvalSpatialVelocityInWorld(*ctx_k);
-              systems::ContinuousState<T>& cstate_kp1 = ctx_k->get_mutable_continuous_state();
-              cstate_kp1.get_mutable_generalized_velocity().SetFromVector(v_kp1);
-              const SpatialVelocity<T> V_WAkp1 = bodyA.EvalSpatialVelocityInWorld(*ctx_k);
-              const SpatialVelocity<T> V_WBkp1 = bodyB.EvalSpatialVelocityInWorld(*ctx_k);
+              const SpatialVelocity<T> V_WAkp1 = bodyA.EvalSpatialVelocityInWorld(*ctx_kp1);
+              const SpatialVelocity<T> V_WBkp1 = bodyB.EvalSpatialVelocityInWorld(*ctx_kp1);
               
               
 
@@ -1151,7 +1155,7 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                   // that the z-axis Cz equals to nhat_BA_W. The tangent vectors are
                   // arbitrary, with the only requirement being that they form a valid right
                   // handed basis with nhat_BA.
-                const RotationMatrix<T> R_WC(math::ComputeBasisFromAxis(2, nhat_W));
+                const RotationMatrix<T> R_WC(math::ComputeBasisFromUnitAxis(2, nhat_W));
 
                 // component 1
                 vt(vertex_index * 2 + 0)  = R_WC.matrix().col(0).dot(vt_BqAq_Wk) ;

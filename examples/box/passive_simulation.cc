@@ -30,7 +30,7 @@ DEFINE_double(simulation_time, 4.0,
 // Integration parameters:
 DEFINE_string(integration_scheme, "implicit_euler",
               "Integration scheme to be used. Available options are: "
-              "'fixed_implicit_euler', 'implicit_euler' (ec), 'semi_explicit_euler',"
+              "'radau1', 'implicit_euler' (ec), 'semi_explicit_euler',"
               "'runge_kutta2', 'runge_kutta3' (ec), 'bogacki_shampine3' (ec), 'radau'");
 
 DEFINE_string(run_filename, "boxout",
@@ -46,6 +46,7 @@ DEFINE_double(max_time_step, 1.0e-3,
 
 DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
 DEFINE_bool(autodiff, true, "Set true to use AutoDiff in Jacobian computation (also disables visualization).");
+DEFINE_double(fixed_tolerance, 1.e-4, "Tolerance for Newton iterations of fixed implicit integrators.");
 
 DEFINE_double(accuracy, 1.0e-2, "Sets the simulation accuracy for variable step"
               "size integrators with error control.");
@@ -142,7 +143,7 @@ int DoMain() {
     integrator =
         simulator.reset_integrator<systems::SemiExplicitEulerIntegrator<double>>(
             *diagram, FLAGS_max_time_step, &simulator.get_mutable_context());
-  } else if (FLAGS_integration_scheme == "fixed_implicit_euler") {
+  } else if (FLAGS_integration_scheme == "radau1") {
     integrator =
         simulator.reset_integrator<systems::RadauIntegrator<double,1>>(
             *diagram, &simulator.get_mutable_context());
@@ -160,6 +161,7 @@ int DoMain() {
       static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_jacobian_computation_scheme(
         systems::ImplicitIntegrator<double>::JacobianComputationScheme::kAutomatic);
     }
+
   } else {
     throw std::runtime_error(
         "Integration scheme '" + FLAGS_integration_scheme +
@@ -171,6 +173,11 @@ int DoMain() {
     integrator->set_fixed_step_mode( FLAGS_fixed_step );
   if (!integrator->get_fixed_step_mode())
     integrator->set_target_accuracy(FLAGS_accuracy);
+  
+  if(FLAGS_fixed_step || integrator->get_fixed_step_mode())
+  {
+    integrator->set_target_accuracy(FLAGS_fixed_tolerance);
+  }
 
   // The error controlled integrators might need to take very small time steps
   // to compute a solution to the desired accuracy. Therefore, to visualize

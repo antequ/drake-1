@@ -34,6 +34,39 @@ time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='poin
 sleep 4;
 # continuous no iteration limiter, error controlled, 3ms time steps, 100s
 time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='point' --target_realtime_rate=0 --max_time_step=3e-3 --time_stepping=false --accuracy 3e-4 --iteration_limit=false --simulation_time 100 --fixed_step=false  1> /dev/null
+
+
+
+# continuous hydroelastics 3ms fixed ts no it limiter - show
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=3e-3 --time_stepping=false --accuracy 1e-3 --iteration_limit=false --simulation_time 30 --fixed_step=true --fixed_tolerance 3e-4
+
+
+# continuous hydroelastics 1ms fixed ts no it limit - show
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=1e-3 --time_stepping=false --accuracy 1e-3 --iteration_limit=false --simulation_time 30 --fixed_step=true --fixed_tolerance 1e-4 
+
+
+# continuous hydroelastics 0.3ms fixed ts no it limit
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=3e-4 --time_stepping=false --accuracy 1e-3 --iteration_limit=false --simulation_time 30 --fixed_step=true --fixed_tolerance 1e-4 
+
+# continuous hydroelastics error controlled, max 3ms time steps - show
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=3e-3 --time_stepping=false --accuracy 3e-4 --iteration_limit=false --simulation_time 30 --fixed_step=false 
+
+# continuous hydroelastics error controlled, max 3ms time steps, it limited
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=3e-3 --time_stepping=false --accuracy 3e-4 --iteration_limit=true --simulation_time 30 --fixed_step=false
+
+# 
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=3e-2 --time_stepping=false --accuracy 1e-4 --iteration_limit=false --simulation_time 30 --fixed_step=false --amplitude=0
+
+# continuous hydroelastics 3ms fixed ts it limited - show
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=3e-3 --time_stepping=false --accuracy 1e-3 --iteration_limit=true --simulation_time 30 --fixed_step=true --fixed_tolerance 3e-4 
+
+# continuous hydroelastics 1ms fixed ts it limited
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=1e-3 --time_stepping=false --accuracy 1e-3 --iteration_limit=true --simulation_time 30 --fixed_step=true --fixed_tolerance 1e-4 
+
+# continuous hydroelastics 0.3ms fixed ts it limited
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=3e-4 --time_stepping=false --accuracy 1e-3 --iteration_limit=true --simulation_time 30 --fixed_step=true --fixed_tolerance 1e-4 
+
+
  cd "/home/antequ/Videos/director/gripperpointcontactitlim"
 
     ffmpeg -r 30 -i frame_%07d.tiff \
