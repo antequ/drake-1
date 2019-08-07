@@ -394,13 +394,15 @@ int do_main() {
   }
 
       // Set the iteration limiter method.
-    auto iteration_limiter = [&diagram, &plant](const systems::Context<double>& ctx0, const systems::ContinuousState<double>& x_k,
-       const systems::ContinuousState<double>& x_kp1) -> double {
+  std::unique_ptr<systems::Context<double>> scratch_ctx_k = plant.CreateDefaultContext();
+  std::unique_ptr<systems::Context<double>> scratch_ctx_kp1 = plant.CreateDefaultContext();
+    auto iteration_limiter = [&diagram, &plant, &scratch_ctx_k, &scratch_ctx_kp1](const systems::Context<double>& ctx0,
+    const systems::ContinuousState<double>& x_k, const systems::ContinuousState<double>& x_kp1) -> double {
          const systems::Context<double>& plant_ctx0 = diagram->GetSubsystemContext(plant, ctx0);
          /* this method is very poorly named but gets the subsystem continuous state */
          Eigen::VectorXd v_k = diagram->GetSubsystemDerivatives(plant, x_k).get_generalized_velocity().CopyToVector();
          Eigen::VectorXd v_kp1 = diagram->GetSubsystemDerivatives(plant, x_kp1).get_generalized_velocity().CopyToVector();
-         return plant.CalcIterationLimiterAlpha(plant_ctx0, v_k, v_kp1);
+         return plant.CalcIterationLimiterAlpha(plant_ctx0, v_k, v_kp1, scratch_ctx_k.get(), scratch_ctx_kp1.get());
       };
   if(FLAGS_iteration_limit && !FLAGS_use_discrete_states)
   {

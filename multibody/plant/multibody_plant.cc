@@ -1051,7 +1051,9 @@ double MultibodyPlant<symbolic::Expression>::CalcIterationLimiterAlpha(const sys
 template <typename T>
 double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& mbp_ctx_0,
         const drake::VectorX<T>& v_k,
-        const drake::VectorX<T>& v_kp1) const
+        const drake::VectorX<T>& v_kp1,
+          systems::Context<T>* scratch_context_k,
+          systems::Context<T>* scratch_context_kp1) const
         {
           DRAKE_MBP_THROW_IF_NOT_FINALIZED();
           DRAKE_DEMAND(time_step_ == 0);
@@ -1071,21 +1073,43 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
             internal::HydroelasticTractionCalculator<T> traction_calculator(
                 stribeck_model_.stiction_tolerance());
             T alpha = 1.0;
-            std::unique_ptr<systems::Context<T>> ctx_k = this->CreateDefaultContext();
-            ctx_k->get_mutable_state().SetFrom(mbp_ctx_0.get_state());
-              systems::ContinuousState<T>& cstate_k = ctx_k->get_mutable_continuous_state();
-              cstate_k.get_mutable_generalized_velocity().SetFromVector(v_k);
+            systems::Context<T>* context_k = scratch_context_k;
+            systems::Context<T>* context_kp1 = scratch_context_kp1;
+            std::unique_ptr<systems::Context<T>> ctx_k {nullptr};
+            std::unique_ptr<systems::Context<T>> ctx_kp1 {nullptr};
+            if( context_k == nullptr)
+            {
+              ctx_k = this->CreateDefaultContext();
+              ctx_k->get_mutable_state().SetFrom(mbp_ctx_0.get_state());
+              context_k = ctx_k.get();
+            }
 
-            std::unique_ptr<systems::Context<T>> ctx_kp1 = this->CreateDefaultContext();
-            ctx_kp1->get_mutable_state().SetFrom(mbp_ctx_0.get_state());
-              systems::ContinuousState<T>& cstate_kp1 = ctx_kp1->get_mutable_continuous_state();
-              cstate_kp1.get_mutable_generalized_velocity().SetFromVector(v_kp1);
+            context_k->get_mutable_continuous_state().get_mutable_generalized_velocity().SetFromVector(v_k);
+            
+            if( context_kp1 == nullptr)
+            {
+              ctx_kp1 = this->CreateDefaultContext();
+              ctx_kp1->get_mutable_state().SetFrom(mbp_ctx_0.get_state());
+              context_kp1 = ctx_kp1.get();
+            }
+
+            context_kp1->get_mutable_continuous_state().get_mutable_generalized_velocity().SetFromVector(v_kp1);
+            
 
             for (const ContactSurface<T>& surface : all_surfaces )
             {
               // Use contact surface points to build vt list
+
+//#define VERTEX_COMP
+#ifdef VERTEX_COMP
               VectorX<T> vt(surface.mesh().num_vertices() * 2);
               VectorX<T> dvt(surface.mesh().num_vertices() * 2);
+#else
+              VectorX<T> vt(surface.mesh().num_faces() * 2);
+              VectorX<T> dvt(surface.mesh().num_faces() * 2);
+              const Vector3<T> Q ={T(1./3), T(1./3), T(1./3)};
+
+#endif
 
               // compute the static friction force
               const GeometryId geometryM_id = surface.id_M();
@@ -1109,20 +1133,27 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
               // v_k and v_kp1
               // todo: consider switching to contact jacobian method
               
-              const SpatialVelocity<T> V_WAk = bodyA.EvalSpatialVelocityInWorld(*ctx_k);
-              const SpatialVelocity<T> V_WBk = bodyB.EvalSpatialVelocityInWorld(*ctx_k);
-              const SpatialVelocity<T> V_WAkp1 = bodyA.EvalSpatialVelocityInWorld(*ctx_kp1);
-              const SpatialVelocity<T> V_WBkp1 = bodyB.EvalSpatialVelocityInWorld(*ctx_kp1);
+              const SpatialVelocity<T> V_WAk = bodyA.EvalSpatialVelocityInWorld(*context_k);
+              const SpatialVelocity<T> V_WBk = bodyB.EvalSpatialVelocityInWorld(*context_k);
+              const SpatialVelocity<T> V_WAkp1 = bodyA.EvalSpatialVelocityInWorld(*context_kp1);
+              const SpatialVelocity<T> V_WBkp1 = bodyB.EvalSpatialVelocityInWorld(*context_kp1);
               
               
-
-
+#ifdef VERTEX_COMP
               for( geometry::SurfaceVertexIndex vertex_index(0) ; vertex_index < surface.mesh().num_vertices(); ++vertex_index )
               {
                 /* SurfaceFaceIndex face_index(0); face_index < surface.mesh().num_faces(); ++face_index */
-                
+  
                 const Vector3<T> p_WQ = X_WM * surface.mesh().vertex(vertex_index).r_MV();
                 const Vector3<T> h_M = surface.EvaluateGrad_h_MN_M( vertex_index );
+
+#else
+              for( geometry::SurfaceFaceIndex face_index(0) ; face_index < surface.mesh().num_faces(); ++face_index )
+              {
+                /* SurfaceFaceIndex face_index(0); face_index < surface.mesh().num_faces(); ++face_index */
+                const Vector3<T> p_WQ = X_WM * surface.mesh().CalcCartesianFromBarycentric(face_index, Q);
+                const Vector3<T> h_M = surface.EvaluateGrad_h_MN_M( face_index, Q );
+#endif
                 const Vector3<T> nhat_M = h_M.normalized();
                 // normal of vertex in world coordinates. NOTE: Assume normal does not shift!
                 const Vector3<T> nhat_W = X_WM.rotation() * nhat_M;
@@ -1151,18 +1182,63 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                 // Get the slip velocity at the point.
                 const Vector3<T> vt_BqAq_Wk   = v_BqAq_Wk - nhat_W * nhat_W.dot(v_BqAq_Wk);
                 const Vector3<T> dvt_BqAq_W   = dv_BqAq_W - nhat_W * nhat_W.dot(dv_BqAq_W);
+                bool write_out = false;
+                if( write_out && dvt_BqAq_W.squaredNorm() > 1e-6 )
+                {
+#ifdef VERTEX_COMP
+                std::cout << "vert " << vertex_index << "   n: " << nhat_W(0) <<  " " << nhat_W(1) << " " << nhat_W(2) << "\n";
+                std::cout << "vert " << vertex_index << "  vt: " << vt_BqAq_Wk(0) <<  " " << vt_BqAq_Wk(1) << " " << vt_BqAq_Wk(2) << "\n";
+                std::cout << "vert " << vertex_index << " dvt: " << dvt_BqAq_W(0) <<  " " << dvt_BqAq_W(1) << " " << dvt_BqAq_W(2) << std::endl;
+#else
+                std::cout << "face " << face_index << "   n: " << nhat_W(0) <<  " " << nhat_W(1) << " " << nhat_W(2) << "\n";
+                std::cout << "face " << face_index << "  vt: " << vt_BqAq_Wk(0) <<  " " << vt_BqAq_Wk(1) << " " << vt_BqAq_Wk(2) << "\n";
+                std::cout << "face " << face_index << " dvt: " << dvt_BqAq_W(0) <<  " " << dvt_BqAq_W(1) << " " << dvt_BqAq_W(2) << std::endl;
+#endif
+                }
+                // compute basis vectors
+                const bool use_faster_basis = true;
+                if(use_faster_basis)
+                {
+                  const Vector3<T> larger = vt_BqAq_Wk.squaredNorm() > dvt_BqAq_W.squaredNorm() ? vt_BqAq_Wk : dvt_BqAq_W;
+                  const Vector3<T> l_hat = larger.normalized();
+                  const Vector3<T> l_hat_perp = nhat_W.cross(l_hat);
+#ifdef VERTEX_COMP
+                  vt(vertex_index * 2 + 0)  = l_hat.dot(vt_BqAq_Wk) ;
+                  dvt(vertex_index * 2 + 0) = l_hat.dot(dvt_BqAq_W) ;
+                  vt(vertex_index * 2 + 1)  = l_hat_perp.dot(vt_BqAq_Wk) ;
+                  dvt(vertex_index * 2 + 1) = l_hat_perp.dot(dvt_BqAq_W) ;
+#else
+                  vt(face_index * 2 + 0)  = l_hat.dot(vt_BqAq_Wk) ;
+                  dvt(face_index * 2 + 0) = l_hat.dot(dvt_BqAq_W) ;
+                  vt(face_index * 2 + 1)  = l_hat_perp.dot(vt_BqAq_Wk) ;
+                  dvt(face_index * 2 + 1) = l_hat_perp.dot(dvt_BqAq_W) ;
+
+#endif
+                }
+                else
+                {
                   // Compute the orientation of a contact frame C at the contact point such
                   // that the z-axis Cz equals to nhat_BA_W. The tangent vectors are
                   // arbitrary, with the only requirement being that they form a valid right
                   // handed basis with nhat_BA.
-                const RotationMatrix<T> R_WC(math::ComputeBasisFromUnitAxis(2, nhat_W));
+                  const RotationMatrix<T> R_WC(math::ComputeBasisFromAxis(2, nhat_W));
+#ifdef VERTEX_COMP
+                  // component 1
+                  vt(vertex_index * 2 + 0)  = R_WC.matrix().col(0).dot(vt_BqAq_Wk) ;
+                  dvt(vertex_index * 2 + 0) = R_WC.matrix().col(0).dot(dvt_BqAq_W) ;
+                  // component 2
+                  vt(vertex_index * 2 + 1)  = R_WC.matrix().col(1).dot(vt_BqAq_Wk) ;
+                  dvt(vertex_index * 2 + 1) = R_WC.matrix().col(1).dot(dvt_BqAq_W) ;
+#else
+                  // component 1
+                  vt(face_index * 2 + 0)  = R_WC.matrix().col(0).dot(vt_BqAq_Wk) ;
+                  dvt(face_index * 2 + 0) = R_WC.matrix().col(0).dot(dvt_BqAq_W) ;
+                  // component 2
+                  vt(face_index * 2 + 1)  = R_WC.matrix().col(1).dot(vt_BqAq_Wk) ;
+                  dvt(face_index * 2 + 1) = R_WC.matrix().col(1).dot(dvt_BqAq_W) ;
 
-                // component 1
-                vt(vertex_index * 2 + 0)  = R_WC.matrix().col(0).dot(vt_BqAq_Wk) ;
-                dvt(vertex_index * 2 + 0) = R_WC.matrix().col(0).dot(dvt_BqAq_W) ;
-                // component 2
-                vt(vertex_index * 2 + 1)  = R_WC.matrix().col(1).dot(vt_BqAq_Wk) ;
-                dvt(vertex_index * 2 + 1) = R_WC.matrix().col(1).dot(dvt_BqAq_W) ;
+#endif
+                }
               }
               using std::min;
               alpha = min(alpha, GetAlphaFromVtDvtVectors(vt, dvt, stribeck_model_.stiction_tolerance()));

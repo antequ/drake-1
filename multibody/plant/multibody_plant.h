@@ -3301,7 +3301,9 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   ///
   double CalcIterationLimiterAlpha(const systems::Context<T>& mbp_ctx_0,
           const drake::VectorX<T>& v_k,
-          const drake::VectorX<T>& v_kp1) const;
+          const drake::VectorX<T>& v_kp1,
+          systems::Context<T>* scratch_context_k = nullptr,
+          systems::Context<T>* scratch_context_kp1 = nullptr) const;
           
   /// TODO(amcastro-tri): Make this a private Calc() method. Create an output
   /// port instead that you can Eval().

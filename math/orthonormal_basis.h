@@ -81,6 +81,9 @@ Matrix3<T> ComputeBasisFromUnitAxis(int axis_index, const Vector3<T>& axis_W) {
   // Now define additional vectors in the basis.
   Vector3<T> v1_W = perpAxis.normalized();
   Vector3<T> v2_W = axis_W.cross(v1_W);
+  const T v2_norm_minus_one = v2_W.squaredNorm() - 1;
+  if (v2_norm_minus_one * v2_norm_minus_one > zero_tol)
+    throw std::logic_error("v2 Vector is not unit.");
 
   // Set the columns of the matrix.
   Matrix3<T> R_WL;

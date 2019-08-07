@@ -39,7 +39,7 @@ ComputeSpatialForcesAtBodyOriginsFromHydroelasticModel(
   // (i.e., the traction, f). Higher-order pressure fields and nonlinear
   // tractions (from, e.g., incorporating the Stribeck curve into the friction
   // model) might see benefit from a higher-order quadrature.
-  const GaussianTriangleQuadratureRule gaussian(2 /* order */);
+  const GaussianTriangleQuadratureRule gaussian(1 /* order */);
 
   // We'll be accumulating force on body A at the surface centroid C,
   // triangle-by-triangle.
