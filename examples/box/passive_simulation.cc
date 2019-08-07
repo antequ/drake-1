@@ -39,14 +39,14 @@ DEFINE_string(run_filename, "boxout",
 DEFINE_string(meta_filename, "boxsim",
                 "Filename for meta output. \".csv\" will be postpended.");
 
-DEFINE_double(max_time_step, 1.0e-3,
+DEFINE_double(max_time_step, 3e-3,
               "Maximum time step used for the integrators. [s]. "
               "If negative, a value based on parameter penetration_allowance "
               "is used.");
 
-DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
-DEFINE_bool(autodiff, true, "Set true to use AutoDiff in Jacobian computation (also disables visualization).");
-DEFINE_double(fixed_tolerance, 1.e-4, "Tolerance for Newton iterations of fixed implicit integrators.");
+DEFINE_bool(fixed_step, true, "Set true to force fixed timesteps.");
+DEFINE_bool(autodiff, false, "Set true to use AutoDiff in Jacobian computation (also disables visualization).");
+DEFINE_double(fixed_tolerance, 1.e-5, "Tolerance for Newton iterations of fixed implicit integrators.");
 
 DEFINE_double(accuracy, 1.0e-2, "Sets the simulation accuracy for variable step"
               "size integrators with error control.");
@@ -80,6 +80,8 @@ DEFINE_double(box_mu_s, 1.0,
 DEFINE_double(box_v_s, 1.0e-2,
               "The maximum slipping speed allowed during stiction. (m/s)");
 
+DEFINE_bool(visualize, true, "Set 'false' to disable visualization.");
+
 int DoMain() {
   systems::DiagramBuilder<double> builder;
   auto source = builder.AddSystem<systems::Sine>(FLAGS_force_amplitude /* amplitude */, 
@@ -94,8 +96,8 @@ int DoMain() {
   auto scene_graph = builder.AddSystem<geometry::SceneGraph>();
   auto logger = systems::LogOutput(box->get_state_output_port(), &builder);
   auto input_logger = systems::LogOutput(source->get_output_port(0), &builder);
-  if( false )
-  //if( !FLAGS_autodiff )
+  
+  if( FLAGS_visualize )
   {
     BoxGeometry::AddToBuilder(
         &builder, *box, scene_graph, "0");

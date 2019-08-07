@@ -169,7 +169,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   // with a quasi-Newton approach, so our mileage may vary.
   // TODO(edrumwri): Consider making this a settable parameter. Not putting it
   //                 toward staving off parameter overload.
-  const int max_iterations = 10;
+  const int max_iterations = 10;//trial == 1? 6 : 13;
   auto& iteration_limiting_alpha_function = IntegratorBase<T>::get_iteration_limiting_alpha_function();
   bool maybe_refresh_jacobians_rest_of_this_trial = false;
   std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
@@ -196,16 +196,19 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
     VectorX<T> dx = iteration_matrix_.Solve(-goutput);
     x_k->SetFromVector(*xtplus);
     x_kp1->SetFromVector(*xtplus + dx);
-    double alpha = iteration_limiting_alpha_function(*context, *x_k, *x_kp1);
-    if ( alpha < 1.) // TODO: change to a threshold
+    if ( i == 0 || maybe_refresh_jacobians_rest_of_this_trial )
     {
-      //std::cout << "Jacobian\n" << ImplicitIntegrator<T>::get_mutable_jacobian() << std::endl;
-      //std::cout << "\nRHS\n" << goutput << std::endl;
-      //std::cout << "\nA matrix \n" << iteration_matrix_.Get_Matrix() << std::endl;
-      //std::cout << "\nxtplus \n" << *xtplus << std::endl;
-      //std::cout << "\ndx \n" << dx << std::endl;
-      dx *= alpha;
-      maybe_refresh_jacobians_rest_of_this_trial = true;
+      double alpha = iteration_limiting_alpha_function(*context, *x_k, *x_kp1);
+      if ( alpha < 1.) // TODO: change to a threshold
+      {
+        //std::cout << "Jacobian\n" << ImplicitIntegrator<T>::get_mutable_jacobian() << std::endl;
+        //std::cout << "\nRHS\n" << goutput << std::endl;
+        //std::cout << "\nA matrix \n" << iteration_matrix_.Get_Matrix() << std::endl;
+        //std::cout << "\nxtplus \n" << *xtplus << std::endl;
+        //std::cout << "\ndx \n" << dx << std::endl;
+        dx *= alpha;
+        maybe_refresh_jacobians_rest_of_this_trial = true;
+      }
     }
 
     // Get the infinity norm of the weighted update vector.
