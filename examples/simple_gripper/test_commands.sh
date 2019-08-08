@@ -33,8 +33,10 @@ sleep 4;
 time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='point' --target_realtime_rate=0 --max_time_step=3e-3 --time_stepping=false --accuracy 1e-3 --iteration_limit=true --simulation_time 100 --fixed_step=true --fixed_tolerance 3e-4 1> /dev/null
 sleep 4;
 # continuous no iteration limiter, error controlled, 3ms time steps, 100s
-time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='point' --target_realtime_rate=0 --max_time_step=3e-3 --time_stepping=false --accuracy 3e-4 --iteration_limit=false --simulation_time 100 --fixed_step=false  1> /dev/null
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='point' --target_realtime_rate=0 --max_time_step=3e-3 --time_stepping=false --accuracy 3e-4 --iteration_limit=false --simulation_time 100 --fixed_step=false  #1> /dev/null
 
+# continuous it limited, ec, 3ms ts, 100s
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='point' --target_realtime_rate=0 --max_time_step=3e-3 --time_stepping=false --accuracy 3e-4 --iteration_limit=true --simulation_time 100 --fixed_step=false  
 
 
 # continuous hydroelastics 3ms fixed ts no it limiter - show
@@ -65,6 +67,9 @@ time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydr
 
 # continuous hydroelastics 0.3ms fixed ts it limited
 time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=3e-4 --time_stepping=false --accuracy 1e-3 --iteration_limit=true --simulation_time 30 --fixed_step=true --fixed_tolerance 1e-4 
+
+# good run hydroelastics: 5ms fixed
+time bazel run //examples/simple_gripper:simple_gripper -- --contact_model='hydroelastic' --target_realtime_rate=0 --max_time_step=5e-3 --time_stepping=false --accuracy 1e-3 --iteration_limit=true --simulation_time 30 --fixed_step=true --fixed_tolerance 3e-4 
 
 
  cd "/home/antequ/Videos/director/gripperpointcontactitlim"

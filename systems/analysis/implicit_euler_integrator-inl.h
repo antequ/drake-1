@@ -189,7 +189,9 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
         
        maybe_refresh_jacobians_rest_of_this_trial = true;
     }
-
+    /* turns out this helps as much as iteration limiter! have it refresh jacobians during trial 3 */
+    if (trial == 3)
+      maybe_refresh_jacobians_rest_of_this_trial = true;
     // Compute the state update using the equation A*x = -g(), where A is the
     // iteration matrix.
     // TODO(edrumwri): Allow caller to provide their own solver.

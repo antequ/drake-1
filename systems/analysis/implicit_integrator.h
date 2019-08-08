@@ -319,7 +319,7 @@ class ImplicitIntegrator : public IntegratorBase<T> {
     // Jacobian (fresh is false). Otherwise, a failed step (result is false)
     // means we can keep the Jacobian (fresh is true). Therefore fresh =
     // !result, always.
-    jacobian_is_fresh_ = !result;
+    jacobian_is_fresh_ = false;
 
     return result;
   }
