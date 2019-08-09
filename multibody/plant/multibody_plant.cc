@@ -2077,20 +2077,25 @@ void MultibodyPlant<T>::DeclareStateCacheAndPorts() {
   }
 
   // Contact results output port.
-  const auto& contact_results_cache_entry =
-      this->get_cache_entry(cache_indexes_.contact_results);
-  contact_results_port_ = this->DeclareAbstractOutputPort(
-                                  "contact_results", ContactResults<T>(),
-                                  &MultibodyPlant<T>::CopyContactResultsOutput,
-                                  {contact_results_cache_entry.ticket()})
-                              .get_index();
+  if (!uses_hydroelastic_model()) {
+    const auto& contact_results_cache_entry =
+        this->get_cache_entry(cache_indexes_.contact_results);
+    contact_results_port_ =
+        this->DeclareAbstractOutputPort(
+                "contact_results", ContactResults<T>(),
+                &MultibodyPlant<T>::CopyContactResultsOutput,
+                {contact_results_cache_entry.ticket()})
+            .get_index();
+  }
 
-  contact_surfaces_port_ =
-      this->DeclareAbstractOutputPort("contact_surfaces",
-                                      std::vector<ContactSurface<T>>(),
-                                      &MultibodyPlant<T>::CalcContactSurfaces,
-                                      {this->configuration_ticket()})
-          .get_index();
+  if (uses_hydroelastic_model()) {
+    contact_surfaces_port_ =
+        this->DeclareAbstractOutputPort("contact_surfaces",
+                                        std::vector<ContactSurface<T>>(),
+                                        &MultibodyPlant<T>::CalcContactSurfaces,
+                                        {this->configuration_ticket()})
+            .get_index();
+  }
 }
 
 template <typename T>
