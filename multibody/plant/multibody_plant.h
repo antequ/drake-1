@@ -2846,6 +2846,8 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
     return default_coulomb_friction_[collision_index];
   }
 
+  bool uses_hydroelastic_model() const { return use_hydroelastic_model_; }
+
   /// If `use_hydro` MBP uses the hydroelastic model. Otherwise it uses point
   /// contact model.
   void use_hydroelastic_model(bool use_hydro = true) {

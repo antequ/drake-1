@@ -703,7 +703,9 @@ void MultibodyPlant<T>::FinalizePlantOnly() {
         stribeck_model_.stiction_tolerance();
     implicit_stribeck_solver_->set_solver_parameters(solver_parameters);
   } else {
-    if(get_source_id()) MakeHydroelasticModels();
+    // We only build hydroelastics if the user requested it AND if geometry was
+    // registerd with a SceneGraph.
+    if(uses_hydroelastic_model() && get_source_id()) MakeHydroelasticModels();
   }
   SetUpJointLimitsParameters();
   scene_graph_ = nullptr;  // must not be used after Finalize().
