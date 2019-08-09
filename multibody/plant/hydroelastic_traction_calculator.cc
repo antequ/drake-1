@@ -45,9 +45,12 @@ ComputeSpatialForcesAtBodyOriginsFromHydroelasticModel(
   // triangle-by-triangle.
   SpatialForce<T> F_Ac_W;
   F_Ac_W.SetZero();
-
+#pragma omp declare reduction \
+  (plus:SpatialForce<T>:omp_out+=omp_in) \
+  initializer(omp_priv=omp_orig)
   // Integrate the tractions over all triangles in the contact surface.
-  for (SurfaceFaceIndex i(0); i < data.surface.mesh().num_faces(); ++i) {
+  #pragma omp parallel for reduction(plus:F_Ac_W)
+  for (SurfaceFaceIndex i = SurfaceFaceIndex(0); i < data.surface.mesh().num_faces(); ++i) {
     // Construct the function to be integrated over triangle i.
     // TODO(sherm1) Pull functor creation out of the loop (not a good idea to
     //              create a new functor for every i).

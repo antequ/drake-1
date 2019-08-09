@@ -16,7 +16,7 @@
 #include "drake/geometry/query_results/contact_surface.h"
 #include "drake/math/rigid_transform.h"
 #include "drake/multibody/hydroelastics/level_set_field.h"
-
+#include "omp.h"
 namespace drake {
 namespace multibody {
 namespace hydroelastics {
@@ -301,7 +301,10 @@ std::unique_ptr<geometry::SurfaceMesh<T>> CalcZeroLevelSetInMeshDomain(
   std::array<Vector3<T>, 4> tet_vertices_N;
   Vector4<T> phi;
   Vector4<T> e_m;
-  for (const auto& tet : mesh_M.tetrahedra()) {
+  // don't even try this. it's so slow
+  //#pragma omp parallel for private(tet_vertices_N, phi, e_m) schedule(static)
+  for (size_t ind = 0; ind < mesh_M.tetrahedra().size(); ind++) {
+    const auto& tet = mesh_M.tetrahedra().at(ind);
     // Collect data for each vertex of the tetrahedron.
     for (int i = 0; i < 4; ++i) {
       const auto& p_MV = mesh_M.vertex(tet.vertex(i)).r_MV();
@@ -317,13 +320,16 @@ std::unique_ptr<geometry::SurfaceMesh<T>> CalcZeroLevelSetInMeshDomain(
     std::swap(tet_vertices_N[1], tet_vertices_N[2]);
     std::swap(phi[1], phi[2]);
     std::swap(e_m[1], e_m[2]);
+    // this whole function is critical. don't even try.
+    //#pragma omp critical
     IntersectTetWithLevelSet(tet_vertices_N, phi, e_m, &vertices_N, &faces,
                              e_m_surface);
   }
 
   //std::cout << faces.size() << std::endl;
   phi_gradient_N->resize(vertices_N.size());
-  for (geometry::SurfaceVertexIndex v(0); v < vertices_N.size(); ++v) {
+  //#pragma omp parallel for
+  for (size_t v = 0; v < vertices_N.size(); ++v) {
     const Vector3<T>& p_NV = vertices_N[v].r_MV();
     (*phi_gradient_N)[v] = phi_N.gradient(p_NV);
   }

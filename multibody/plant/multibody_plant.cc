@@ -22,7 +22,7 @@
 #include "drake/geometry/proximity/surface_mesh.h"
 #include "drake/geometry/query_results/contact_surface.h"
 #include "drake/multibody/plant/hydroelastic_traction_calculator.h"
-
+#include "omp.h"
 //#define PRINT_VAR(a) std::cout << #a": " << a << std::endl;
 #define PRINT_VAR(a) (void) a;
 
@@ -1021,15 +1021,22 @@ inline T GetAlphaFromVtDvtVectors(const drake::VectorX<T>& vt, const drake::Vect
   const double cos_theta_max =  0.5 /* std::cos(M_PI / 3.0) */;
   using std::min;
   T alpha = 1.0;
+  /*
+  #pragma omp declare reduction \
+  (alpha_min:T:omp_out=min(omp_out, omp_in) ) \
+  initializer(omp_priv=1.0)*/
+  // this is slow
+  //#pragma omp parallel for reduction(alpha_min:alpha)
   for (int ic = 0; ic < num_contacts; ++ic) {  // Index ic scans contact points.
     const int ik = 2 * ic;  // Index ik scans contact vector quantities.
     const auto vt_ic = vt.template segment<2>(ik);
     const auto dvt_ic = dvt.template segment<2>(ik);
+    T local_alpha = internal::DirectionChangeLimiter<T>::CalcAlpha(
+            vt_ic, dvt_ic,
+            cos_theta_max, v_stiction, relative_tolerance);
     alpha = min(
         alpha,
-        internal::DirectionChangeLimiter<T>::CalcAlpha(
-            vt_ic, dvt_ic,
-            cos_theta_max, v_stiction, relative_tolerance));
+        local_alpha);
   }
   DRAKE_DEMAND(0 < alpha && alpha <= 1.0);
   return alpha;
@@ -1148,7 +1155,8 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                 const Vector3<T> h_M = surface.EvaluateGrad_h_MN_M( vertex_index );
 
 #else
-              for( geometry::SurfaceFaceIndex face_index(0) ; face_index < surface.mesh().num_faces(); ++face_index )
+              #pragma omp parallel for schedule(static)
+              for( geometry::SurfaceFaceIndex face_index = geometry::SurfaceFaceIndex(0) ; face_index < surface.mesh().num_faces(); ++face_index )
               {
                 /* SurfaceFaceIndex face_index(0); face_index < surface.mesh().num_faces(); ++face_index */
                 const Vector3<T> p_WQ = X_WM * surface.mesh().CalcCartesianFromBarycentric(face_index, Q);

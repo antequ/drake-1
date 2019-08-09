@@ -5,6 +5,7 @@
 
 #include "drake/common/eigen_types.h"
 #include "drake/multibody/triangle_quadrature/triangle_quadrature_rule.h"
+#include "omp.h"
 
 namespace drake {
 namespace multibody {
@@ -49,6 +50,13 @@ class TriangleQuadrature {
       const T& area);
 };
 
+/*
+//this just integrates the 1 point per face!
+template <typename NumericReturnType>
+NumericReturnType Summer(const NumericReturnType& one,const NumericReturnType& two)
+{
+  return one+two;
+}*/
 template <typename NumericReturnType, typename T>
 NumericReturnType TriangleQuadrature<NumericReturnType, T>::Integrate(
     const std::function<NumericReturnType(const Vector2<T>&)>& f,
@@ -68,7 +76,12 @@ NumericReturnType TriangleQuadrature<NumericReturnType, T>::Integrate(
   // possible ways to initialize to zero (e.g., `double integral = 0.0` vs.
   // `Eigen::VectorXd = Eigen::VectorXd::Zero())` or having to know the
   // dimension of the NumericReturnType (i.e., scalar or vector dimension).
-  NumericReturnType integral = f(barycentric_coordinates[0]) * weights[0];
+  NumericReturnType integral = f(barycentric_coordinates[0]) * weights[0] ;
+/*
+  #pragma omp declare reduction \
+  (plus:NumericReturnType:omp_out=Summer<NumericReturnType>(omp_out,omp_in)) \
+  initializer(omp_priv=omp_orig)*/
+  //#pragma omp parallel for reduction(plus:integral)
   for (int i = 1; i < static_cast<int>(weights.size()); ++i)
     integral += f(barycentric_coordinates[i]) * weights[i];
 

@@ -91,7 +91,9 @@ std::vector<ContactSurface<T>> HydroelasticEngine<T>::ComputeContactSurfaces(
       query_object.FindCollisionCandidates();
 
   std::vector<ContactSurface<T>> all_contact_surfaces;
-  for (const auto& pair : geometry_pairs) {
+  #pragma omp parallel for schedule(static)
+  for (size_t ind = 0; ind < geometry_pairs.size(); ++ind) {
+    const auto& pair  = geometry_pairs.at(ind);
     GeometryId id_M = pair.first();
     GeometryId id_N = pair.second();
     const HydroelasticGeometry<T>* model_M = get_model(id_M);
@@ -142,7 +144,7 @@ std::vector<ContactSurface<T>> HydroelasticEngine<T>::ComputeContactSurfaces(
     //  vtkio::write_vtk_mesh("vol_mesh_from_calc_method.vtk",
     //                model_S.hydroelastic_field().volume_mesh());
     //}
-
+    #pragma omp critical
     if (surface) all_contact_surfaces.emplace_back(std::move(*surface));
   }
 
