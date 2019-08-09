@@ -1454,15 +1454,6 @@ void MultibodyPlant<T>::CalcAndAddHydroelasticsContactForces(
     const internal::BodyNodeIndex bodyA_node_index = bodyA.node_index();
     const internal::BodyNodeIndex bodyB_node_index = bodyB.node_index();
 
-    PRINT_VAR(bodyA.name());
-    PRINT_VAR(bodyB.name());
-    PRINT_VAR(F_Ao_W);
-    PRINT_VAR(F_Bo_W);
-    PRINT_VAR(dissipation);
-    PRINT_VAR(surface.mesh().total_area());
-    PRINT_VAR(surface.mesh().centroid());
-
-
     if (bodyA_index != world_index()) {
       F_BBo_W_array->at(bodyA_node_index) += F_Ao_W;
     }
@@ -2018,7 +2009,7 @@ void MultibodyPlant<T>::DeclareStateCacheAndPorts() {
 
   // Declare per model instance output port of generalized contact forces.
   instance_generalized_contact_forces_output_ports_.resize(
-      num_model_instances());
+      num_model_instances());      
   for (ModelInstanceIndex model_instance_index(0);
        model_instance_index < num_model_instances(); ++model_instance_index) {
     const int instance_num_velocities =
@@ -2030,17 +2021,58 @@ void MultibodyPlant<T>::DeclareStateCacheAndPorts() {
         this->get_cache_entry(cache_indexes_.implicit_stribeck_solver_results);
     auto calc = [this, model_instance_index](const systems::Context<T>& context,
                                              systems::BasicVector<T>* result) {
-      const internal::ImplicitStribeckSolverResults<T>& solver_results =
-          EvalImplicitStribeckResults(context);
-      this->CopyGeneralizedContactForcesOut(
-          solver_results, model_instance_index, result);
+      if (is_discrete()) {
+        const internal::ImplicitStribeckSolverResults<T>& solver_results =
+            EvalImplicitStribeckResults(context);
+        this->CopyGeneralizedContactForcesOut(solver_results,
+                                              model_instance_index, result);
+      } else {
+        // Compute tau_c = J^T * Fc.
+        // TODO(amcastro-tri): cache the computation of the generalized forces
+        // due to contact tau_c.
+        std::vector<SpatialForce<T>> F_BBo_W_array(num_bodies(),
+                                                   SpatialForce<T>::Zero());
+        CalcAndAddContactForcesByPenaltyMethod(context, &F_BBo_W_array);
+
+        const VectorX<T> zero_vdot = VectorX<T>::Zero(num_velocities());
+        std::vector<SpatialAcceleration<T>> A_WB_array(num_bodies());
+        std::vector<SpatialForce<T>> F_BMo_W_array(num_bodies());
+        VectorX<T> tau_contact(num_velocities());
+        internal_tree().CalcInverseDynamics(
+            context, zero_vdot, F_BBo_W_array, zero_vdot,
+            true /* ignore velocities */, &A_WB_array, &F_BMo_W_array,
+            &tau_contact);
+
+        tau_contact = -tau_contact;
+
+        for (BodyIndex i(0); i < num_bodies(); ++i) {
+          PRINT_VAR(get_body(i).name());
+          PRINT_VAR(F_BBo_W_array[get_body(i).node_index()]);
+        }
+
+        PRINT_VAR(tau_contact.transpose());
+
+        // Add to proper model instance.
+        // Generalized velocities and generalized forces are ordered in the same
+        // way. Thus we can call get_velocities_from_array().
+        const VectorX<T> instance_tau_contact =
+            internal_tree().GetVelocitiesFromArray(model_instance_index,
+                                                   tau_contact);
+        PRINT_VAR(instance_tau_contact.transpose());                                           
+        
+        result->set_value(instance_tau_contact);
+      }
     };
+
+    const systems::DependencyTicket& dependency_ticket =
+        is_discrete() ? implicit_stribeck_solver_results_cache_entry.ticket()
+                      : this->kinematics_ticket();
     instance_generalized_contact_forces_output_ports_[model_instance_index] =
         this->DeclareVectorOutputPort(
                 internal_tree().GetModelInstanceName(model_instance_index) +
                     "_generalized_contact_forces",
                 BasicVector<T>(instance_num_velocities), calc,
-                {implicit_stribeck_solver_results_cache_entry.ticket()})
+                {dependency_ticket})
             .get_index();
   }
 
@@ -2145,6 +2177,13 @@ void MultibodyPlant<T>::DeclareCacheEntries() {
 
   // Cache contact results for point contact.
   if (!uses_hydroelastic_model()) {
+    const systems::DependencyTicket& dependency_ticket =
+        is_discrete() ? this->cache_entry_ticket(
+                            cache_indexes_.implicit_stribeck_solver_results)
+                      : this->kinematics_ticket();
+    //systems::CacheIndex dependency_ticket =
+    //    is_discrete() ? cache_indexes_.implicit_stribeck_solver_results
+     //                 : this->kinematics_ticket();
     auto& contact_results_cache_entry = this->DeclareCacheEntry(
         std::string("Contact results."),
         []() { return AbstractValue::Make(ContactResults<T>()); },
@@ -2162,8 +2201,7 @@ void MultibodyPlant<T>::DeclareCacheEntries() {
         },
         // We explicitly declare the dependence on the implicit Stribeck solver
         // even though the Eval() above does the evaluation.
-        {this->cache_entry_ticket(
-            cache_indexes_.implicit_stribeck_solver_results)});
+        {dependency_ticket});
     cache_indexes_.contact_results = contact_results_cache_entry.cache_index();
   }
 }
@@ -2272,7 +2310,6 @@ const systems::OutputPort<T>&
 MultibodyPlant<T>::get_generalized_contact_forces_output_port(
     ModelInstanceIndex model_instance) const {
   DRAKE_MBP_THROW_IF_NOT_FINALIZED();
-  DRAKE_THROW_UNLESS(is_discrete());
   DRAKE_THROW_UNLESS(model_instance.is_valid());
   DRAKE_THROW_UNLESS(model_instance < num_model_instances());
   DRAKE_THROW_UNLESS(internal_tree().num_states(model_instance) > 0);
@@ -2284,7 +2321,6 @@ template <typename T>
 const systems::OutputPort<T>&
 MultibodyPlant<T>::get_contact_results_output_port() const {
   DRAKE_MBP_THROW_IF_NOT_FINALIZED();
-  DRAKE_THROW_UNLESS(is_discrete());
   return this->get_output_port(contact_results_port_);
 }
 
