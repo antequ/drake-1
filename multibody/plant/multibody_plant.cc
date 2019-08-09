@@ -1166,18 +1166,25 @@ void MultibodyPlant<T>::CalcContactResults(
   }
 }
 
-template<typename T>
-void MultibodyPlant<T>::CalcAndAddContactForcesByPenaltyMethod(
-    const systems::Context<T>&,
-    const internal::PositionKinematicsCache<T>& pc,
-    const internal::VelocityKinematicsCache<T>& vc,
-    const std::vector<PenetrationAsPointPair<T>>& point_pairs,
-    std::vector<SpatialForce<T>>* F_BBo_W_array) const {
+template <typename T>
+void MultibodyPlant<T>::CalcContactResultsByPenaltyMethod(
+    const systems::Context<T>& context,
+    ContactResults<T>* contact_results) const {
+  DRAKE_DEMAND(contact_results != nullptr);
   if (num_collision_geometries() == 0) return;
+
+  const std::vector<PenetrationAsPointPair<T>>& point_pairs =
+      EvalPointPairPenetrations(context);
 
   std::vector<CoulombFriction<double>> combined_friction_pairs =
       CalcCombinedFrictionCoefficients(point_pairs);
 
+  const internal::PositionKinematicsCache<T>& pc =
+      EvalPositionKinematics(context);
+  const internal::VelocityKinematicsCache<T>& vc =
+      EvalVelocityKinematics(context);
+
+  contact_results->Clear();
   for (size_t icontact = 0; icontact < point_pairs.size(); ++icontact) {
     const auto& pair = point_pairs[icontact];
     const GeometryId geometryA_id = pair.id_A;
@@ -1241,13 +1248,14 @@ void MultibodyPlant<T>::CalcAndAddContactForcesByPenaltyMethod(
       const T kNonZeroSqd = 1e-14 * 1e-14;
       // Tangential friction force on A at C, expressed in W.
       Vector3<T> ft_AC_W = Vector3<T>::Zero();
+      T slip_velocity = 0;
       if (vt_squared > kNonZeroSqd) {
-        const T vt = sqrt(vt_squared);
+        slip_velocity = sqrt(vt_squared);
         // Stribeck friction coefficient.
         const T mu_stribeck = stribeck_model_.ComputeFrictionCoefficient(
-            vt, combined_friction_pairs[icontact]);
+            slip_velocity, combined_friction_pairs[icontact]);
         // Tangential direction.
-        const Vector3<T> that_W = vt_AcBc_W / vt;
+        const Vector3<T> that_W = vt_AcBc_W / slip_velocity;
 
         // Magnitude of the friction force on A at C.
         const T ft_AC = mu_stribeck * fn_AC;
@@ -1257,19 +1265,68 @@ void MultibodyPlant<T>::CalcAndAddContactForcesByPenaltyMethod(
       // Spatial force on body A at C, expressed in the world frame W.
       const SpatialForce<T> F_AC_W(Vector3<T>::Zero(),
                                    fn_AC_W + ft_AC_W);
+      
+      const Vector3<T> f_Bc_W = -F_AC_W.translational();
+      contact_results->AddContactInfo(
+          {bodyA_index, bodyB_index, f_Bc_W, p_WC, vn, slip_velocity, pair});
+    }
+  }
+}
 
-      if (F_BBo_W_array != nullptr) {
-        if (bodyA_index != world_index()) {
-          // Spatial force on body A at Ao, expressed in W.
-          const SpatialForce<T> F_AAo_W = F_AC_W.Shift(p_CoAo_W);
-          F_BBo_W_array->at(bodyA_node_index) += F_AAo_W;
-        }
+template <typename T>
+void MultibodyPlant<T>::CalcAndAddContactForcesByPenaltyMethod(
+    const systems::Context<T>& context,
+    std::vector<SpatialForce<T>>* F_BBo_W_array) const {
+  DRAKE_DEMAND(F_BBo_W_array != nullptr);
+  if (num_collision_geometries() == 0) return;
 
-        if (bodyB_index != world_index()) {
-          // Spatial force on body B at Bo, expressed in W.
-          const SpatialForce<T> F_BBo_W = -F_AC_W.Shift(p_CoBo_W);
-          F_BBo_W_array->at(bodyB_node_index) += F_BBo_W;
-        }
+  const ContactResults<T>& contact_results = EvalContactResults(context);
+
+  const internal::PositionKinematicsCache<T>& pc =
+      EvalPositionKinematics(context);
+
+  for (int pair_index = 0; pair_index < contact_results.num_contacts();
+       ++pair_index) {
+    const PointPairContactInfo<T>& contact_info =
+        contact_results.point_pair_contact_info(pair_index);
+    const PenetrationAsPointPair<T>& pair = contact_info.point_pair();
+
+    const GeometryId geometryA_id = pair.id_A;
+    const GeometryId geometryB_id = pair.id_B;
+
+    BodyIndex bodyA_index = geometry_id_to_body_index_.at(geometryA_id);
+    BodyIndex bodyB_index = geometry_id_to_body_index_.at(geometryB_id);
+
+    internal::BodyNodeIndex bodyA_node_index =
+        internal_tree().get_body(bodyA_index).node_index();
+    internal::BodyNodeIndex bodyB_node_index =
+        internal_tree().get_body(bodyB_index).node_index();
+
+    // Contact point C.
+    const Vector3<T> p_WC = contact_info.contact_point();
+
+    // Contact point position on body A.
+    const Vector3<T>& p_WAo = pc.get_X_WB(bodyA_node_index).translation();
+    const Vector3<T>& p_CoAo_W = p_WAo - p_WC;
+
+    // Contact point position on body B.
+    const Vector3<T>& p_WBo = pc.get_X_WB(bodyB_node_index).translation();
+    const Vector3<T>& p_CoBo_W = p_WBo - p_WC;
+
+    const Vector3<T> f_Bc_W = contact_info.contact_force();
+    const SpatialForce<T> F_AC_W(Vector3<T>::Zero(), -f_Bc_W);
+
+    if (F_BBo_W_array != nullptr) {
+      if (bodyA_index != world_index()) {
+        // Spatial force on body A at Ao, expressed in W.
+        const SpatialForce<T> F_AAo_W = F_AC_W.Shift(p_CoAo_W);
+        F_BBo_W_array->at(bodyA_node_index) += F_AAo_W;
+      }
+
+      if (bodyB_index != world_index()) {
+        // Spatial force on body B at Bo, expressed in W.
+        const SpatialForce<T> F_BBo_W = -F_AC_W.Shift(p_CoBo_W);
+        F_BBo_W_array->at(bodyB_node_index) += F_BBo_W;
       }
     }
   }
@@ -1606,10 +1663,7 @@ void MultibodyPlant<T>::DoCalcTimeDerivatives(
     // We use point contact.
     // Compute contact forces on each body by penalty method.
     if (num_collision_geometries() > 0) {
-      const std::vector<PenetrationAsPointPair<T>>& point_pairs =
-          EvalPointPairPenetrations(context);
-      CalcAndAddContactForcesByPenaltyMethod(context, pc, vc, point_pairs,
-                                             &F_BBo_W_array);
+      CalcAndAddContactForcesByPenaltyMethod(context, &F_BBo_W_array);
     }
   }
 
@@ -2089,22 +2143,29 @@ void MultibodyPlant<T>::DeclareCacheEntries() {
   cache_indexes_.implicit_stribeck_solver_results =
       implicit_stribeck_solver_cache_entry.cache_index();
 
-  // Cache contact results.
-  auto& contact_results_cache_entry = this->DeclareCacheEntry(
-      std::string("Contact results."),
-      []() { return AbstractValue::Make(ContactResults<T>()); },
-      [this](const systems::ContextBase& context_base,
-             AbstractValue* cache_value) {
-        auto& context = dynamic_cast<const Context<T>&>(context_base);
-        auto& contact_results_cache =
-            cache_value->get_mutable_value<ContactResults<T>>();
-        this->CalcContactResults(context, &contact_results_cache);
-      },
-      // We explicitly declare the dependence on the implicit Stribeck solver
-      // even though the Eval() above does the evaluation.
-      {this->cache_entry_ticket(
-          cache_indexes_.implicit_stribeck_solver_results)});
-  cache_indexes_.contact_results = contact_results_cache_entry.cache_index();
+  // Cache contact results for point contact.
+  if (!uses_hydroelastic_model()) {
+    auto& contact_results_cache_entry = this->DeclareCacheEntry(
+        std::string("Contact results."),
+        []() { return AbstractValue::Make(ContactResults<T>()); },
+        [this](const systems::ContextBase& context_base,
+               AbstractValue* cache_value) {
+          auto& context = dynamic_cast<const Context<T>&>(context_base);
+          auto& contact_results_cache =
+              cache_value->get_mutable_value<ContactResults<T>>();
+          if (is_discrete()) {
+            this->CalcContactResults(context, &contact_results_cache);
+          } else {
+            this->CalcContactResultsByPenaltyMethod(context,
+                                                    &contact_results_cache);
+          }
+        },
+        // We explicitly declare the dependence on the implicit Stribeck solver
+        // even though the Eval() above does the evaluation.
+        {this->cache_entry_ticket(
+            cache_indexes_.implicit_stribeck_solver_results)});
+    cache_indexes_.contact_results = contact_results_cache_entry.cache_index();
+  }
 }
 
 template <typename T>

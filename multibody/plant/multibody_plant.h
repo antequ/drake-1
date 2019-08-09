@@ -3671,13 +3671,15 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
       const std::vector<geometry::PenetrationAsPointPair<T>>&
       point_pairs) const;
 
+  // Calc method to EvalContactResultsByPenaltyMethod.
+  void CalcContactResultsByPenaltyMethod(
+      const systems::Context<T>& context,
+      ContactResults<T>* contact_results) const;
+
   // (Advanced) Helper method to compute contact forces in the normal direction
   // using a penalty method.
   void CalcAndAddContactForcesByPenaltyMethod(
       const systems::Context<T>& context,
-      const internal::PositionKinematicsCache<T>& pc,
-      const internal::VelocityKinematicsCache<T>& vc,
-      const std::vector<geometry::PenetrationAsPointPair<T>>& point_pairs,
       std::vector<SpatialForce<T>>* F_BBo_W_array) const;
 
   void MakeHydroelasticModels();
