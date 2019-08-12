@@ -1027,6 +1027,7 @@ inline T GetAlphaFromVtDvtVectors(const drake::VectorX<T>& vt, const drake::Vect
   initializer(omp_priv=1.0)*/
   // this is slow
   //#pragma omp parallel for reduction(alpha_min:alpha)
+  std::vector<T> alpha_list(num_contacts);
   for (int ic = 0; ic < num_contacts; ++ic) {  // Index ic scans contact points.
     const int ik = 2 * ic;  // Index ik scans contact vector quantities.
     const auto vt_ic = vt.template segment<2>(ik);
@@ -1034,10 +1035,14 @@ inline T GetAlphaFromVtDvtVectors(const drake::VectorX<T>& vt, const drake::Vect
     T local_alpha = internal::DirectionChangeLimiter<T>::CalcAlpha(
             vt_ic, dvt_ic,
             cos_theta_max, v_stiction, relative_tolerance);
+    alpha_list[ic] = local_alpha;
     alpha = min(
         alpha,
         local_alpha);
   }
+  std::sort(alpha_list.begin(), alpha_list.end());
+  //alpha = alpha_list[num_contacts/4];
+  alpha = alpha_list[0];
   DRAKE_DEMAND(0 < alpha && alpha <= 1.0);
   return alpha;
 }

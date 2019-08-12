@@ -515,4 +515,12 @@ cd ../../../../..
 #time bazel run --config snopt //examples/box:integrator_benchmark  -- --simulation_time 2.5 --v_stiction_tolerance 1e-4 --integration_scheme="$TEST_SCHEME" --target_realtime_rate="0" --autodiff=false --max_time_step=2.4e-5 --fixed_step=$FIXED --box_v0 0.0 --truth_integration_scheme="runge_kutta3" --truth_integration_step=3e-6 --use_hydroelastics_model=true --errors_filename="box${TEST_SCHEME}lerr47"
 
 
+#Hydroelastic choking vs not choking:
+time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --simulation_time 2.5 --v_stiction_tolerance 1e-4 --integration_scheme="implicit_euler" --autodiff=false --max_time_step=3e-2 --fixed_step=false --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-1 --iteration_limit=false --visualize=true --target_realtime_rate="1" --use_hydroelastics_model
+time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --simulation_time 2.5 --v_stiction_tolerance 1e-4 --integration_scheme="implicit_euler" --autodiff=false --max_time_step=3e-2 --fixed_step=false --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-1 --iteration_limit=true --visualize=true --target_realtime_rate="1" --use_hydroelastics_model
+
+#Point choking vs not choking:
+time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --simulation_time 2.5 --v_stiction_tolerance 1e-4 --integration_scheme="implicit_euler" --autodiff=false --max_time_step=3e-2 --fixed_step=false --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-1 --iteration_limit=false --visualize=true --target_realtime_rate="1"
+time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --simulation_time 2.5 --v_stiction_tolerance 1e-4 --integration_scheme="implicit_euler" --autodiff=false --max_time_step=3e-2 --fixed_step=false --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --truth_integration_step=1e-1 --iteration_limit=true --visualize=true --target_realtime_rate="1" 
+
 
