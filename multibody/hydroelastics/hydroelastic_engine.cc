@@ -32,6 +32,7 @@ using drake::math::RigidTransform;
 
 #include <iostream>
 #include <fstream>
+#undef PRINT_VAR
 //#define PRINT_VAR(a) std::cout << #a": " << a << std::endl;
 #define PRINT_VAR(a) (void) (a);
 
