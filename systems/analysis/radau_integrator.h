@@ -476,7 +476,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
 
   // Try StepRadau again, freshening Jacobians and iteration matrix
   // factorizations as helpful.
-  return StepRadau(t0, h, x_iter, xtplus, trial+1);
+  return StepRadau(t0, h, xt0, xtplus, trial+1);
 }
 
 // Steps Radau forward by h, if possible.
