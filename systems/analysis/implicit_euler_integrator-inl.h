@@ -136,6 +136,9 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   // Verify the trial number is valid.
   DRAKE_ASSERT(trial >= 1 && trial <= 4);
 
+  if(trial < 3) 
+   trial = 3;
+
   // Verify xtplus
   DRAKE_ASSERT(xtplus && xtplus->size() == xt0.size());
 
@@ -169,7 +172,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   // with a quasi-Newton approach, so our mileage may vary.
   // TODO(edrumwri): Consider making this a settable parameter. Not putting it
   //                 toward staving off parameter overload.
-  const int max_iterations = 10;//trial == 1? 6 : 13;
+  const int max_iterations = trial == 3 ? 20 : 10;//trial == 1? 6 : 13;
   auto& iteration_limiting_alpha_function = IntegratorBase<T>::get_iteration_limiting_alpha_function();
   bool maybe_refresh_jacobians_rest_of_this_trial = false;
   std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
@@ -181,7 +184,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
     if(maybe_refresh_jacobians_rest_of_this_trial)
     {
       /* refresh Jacobians - trial 3 */
-      std::cout << "refreshing, trial " << trial << std::endl;
+      //std::cout << "refreshing, trial " << trial << std::endl;
       /* consider always use trial 3 - improves stability */
       /* in the future, consider changing this back, because it's better to adjust step size */
       this->MaybeFreshenMatrices(tf, *xtplus, h, /* trial */  3,
@@ -198,7 +201,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
     VectorX<T> dx = iteration_matrix_.Solve(-goutput);
     x_k->SetFromVector(*xtplus);
     x_kp1->SetFromVector(*xtplus + dx);
-    if ( i == 0 || maybe_refresh_jacobians_rest_of_this_trial )
+    if ( true || i == 0 || maybe_refresh_jacobians_rest_of_this_trial )
     {
       double alpha = iteration_limiting_alpha_function(*context, *x_k, *x_kp1);
       if ( alpha < 1.) // TODO: change to a threshold
@@ -242,7 +245,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
       if (theta > 1) {
         SPDLOG_DEBUG(drake::log(), "Newton-Raphson divergence detected for "
             "h={}", h);
-        break;
+        //break;
       }
 
       // Look for convergence using Equation 8.10 from [Hairer, 1996].
@@ -251,7 +254,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
       // implicit integrator), p. 121. We select a value halfway in-between.
       const double kappa = 0.05;
       const double k_dot_tol = kappa * this->get_accuracy_in_use();
-      if (eta * dx_norm < k_dot_tol) {
+      if (theta <= 1 && eta * dx_norm < k_dot_tol) {
         SPDLOG_DEBUG(drake::log(), "Newton-Raphson converged; η = {}, h = {}",
                      eta, h);
         return true;

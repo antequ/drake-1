@@ -269,6 +269,8 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
 
   // Verify the trial number is valid.
   DRAKE_ASSERT(1 <= trial && trial <= 4);
+  if (trial < 3 )
+     trial = 3;
 
   // Set the state.
   Context<T>* context = this->get_mutable_context();
@@ -310,14 +312,16 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
   // [7 or 10])", p. 121.
   // TODO(edrumwri): Consider making this a settable parameter. Not doing so
   //                 to avoid parameter overload.
-  const int max_iterations = 10;
+  const int max_iterations = (trial == 3) ? 20 : 10;
   // iteration limiting logic
   VectorX<T> x_iter = xt0;
   bool maybe_refresh_jacobians_rest_of_this_trial = false;
   auto& iteration_limiting_alpha_function = IntegratorBase<T>::get_iteration_limiting_alpha_function();
   std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
   std::unique_ptr<ContinuousState<T>> x_kp1 = x_k->Clone();
-
+  bool run_all_the_way = false;
+  int theta_greater_than_one_forgiveness_count = 0;
+  int theta_greater_than_one_limit = 1;
   // Do the Newton-Raphson iterations.
   for (int iter = 0; iter < max_iterations; ++iter) {
     SPDLOG_DEBUG(drake::log(), "Newton-Raphson iteration {}", iter);
@@ -327,13 +331,16 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
     if(maybe_refresh_jacobians_rest_of_this_trial)
     {
       /* refresh Jacobians - trial 3 */
-      std::cout << "refreshing, trial " << trial << std::endl;
+      //std::cout << "refreshing, trial " << trial << std::endl;
       
       this->MaybeFreshenMatrices(t0 + h, x_iter, h, 3,
         construct_iteration_matrix, &iteration_matrix_radau3_);
         
        maybe_refresh_jacobians_rest_of_this_trial = true;
     }
+        /* turns out this helps as much as iteration limiter! have it refresh jacobians during trial 3 */
+    if (trial == 3)
+      maybe_refresh_jacobians_rest_of_this_trial = true;
     // Evaluate the derivatives using the current iterate.
     const VectorX<T>& F_of_Z = ComputeFofZ(t0, h, xt0, Z_);
 
@@ -364,17 +371,23 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
     }
     x_k->SetFromVector(x_iter);
     x_kp1->SetFromVector(x_iter+dx);
-    double alpha = iteration_limiting_alpha_function(*context,*x_k, *x_kp1);
-    if ( alpha < 1.) // TODO: change to a threshold
+    if ( true || iter == 0 || maybe_refresh_jacobians_rest_of_this_trial )
     {
-      //std::cout << "Jacobian\n" << ImplicitIntegrator<T>::get_mutable_jacobian() << std::endl;
-      //std::cout << "\nRHS\n" << goutput << std::endl;
-      //std::cout << "\nA matrix \n" << iteration_matrix_.Get_Matrix() << std::endl;
-      //std::cout << "\nxtplus \n" << *xtplus << std::endl;
-      //std::cout << "\ndx \n" << dx << std::endl;
-      dx *= alpha;
-      dZ *= alpha;
-      maybe_refresh_jacobians_rest_of_this_trial = true;
+      double alpha = iteration_limiting_alpha_function(*context,*x_k, *x_kp1);
+      if ( alpha < 1.) // TODO: change to a threshold
+      {
+        //std::cout << "Jacobian\n" << ImplicitIntegrator<T>::get_mutable_jacobian() << std::endl;
+        //std::cout << "\nRHS\n" << goutput << std::endl;
+        //std::cout << "\nA matrix \n" << iteration_matrix_.Get_Matrix() << std::endl;
+        //std::cout << "\nxtplus \n" << *xtplus << std::endl;
+        //std::cout << "\ndx \n" << dx << std::endl;
+        dx *= alpha;
+        dZ *= alpha;
+        maybe_refresh_jacobians_rest_of_this_trial = true;
+        //run_all_the_way = true;
+        theta_greater_than_one_limit+= 2;
+        //std::cout << "iteration " << iter << ", alpha: " << alpha << std::endl;
+      }
     }
     // Update the iterate.
     Z_ += dZ;
@@ -391,7 +404,10 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
     
     bool converged = (iter > 0 && this->IsUpdateZero(*xtplus, dx));
     SPDLOG_DEBUG(drake::log(), "norm(dx) indicates convergence? {}", converged);
-
+    if (trial == 3 )
+    {
+      //std::cout << "t:" << t0 << ", it: " << iter << ", |dx|: " << dx_norm << ", dx: " << dx.transpose() << ", resid: " << (A_tp_eye_ * (h * F_of_Z) - Z_).transpose() << std::endl;
+    }
     // Compute the convergence rate and check convergence.
     // [Hairer, 1996] notes that this convergence strategy should only be
     // applied after *at least* two iterations (p. 121).
@@ -404,13 +420,20 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
       const T eta = theta / (1 - theta);
       SPDLOG_DEBUG(drake::log(), "Newton-Raphson loop {} theta: {}, eta: {}",
                    iter, theta, eta);
-
-      // Look for divergence.
+      //if (trial == 3 && iter >= 1 && run_all_the_way)
+        //std::cout << "it: " << iter << ", theta: " << theta << ", eta: " << eta << ", dx_norm: " << dx_norm << std::endl;
+      // when the iteration size grows, it is a hiccup. just run past it.
       if (theta > 1) {
-        SPDLOG_DEBUG(drake::log(), "Newton-Raphson divergence detected for "
-            "h={}", h);
-        break;
+        //run_all_the_way = true;
+        theta_greater_than_one_forgiveness_count++;
+        //std::cout << "theta greater than 1, count " << theta_greater_than_one_forgiveness_count << std::endl;
+        //if (theta_greater_than_one_forgiveness_count > theta_greater_than_one_limit)
+        //  break;
       }
+      //  SPDLOG_DEBUG(drake::log(), "Newton-Raphson divergence detected for "
+      //      "h={}", h);
+      //  break;
+      //}
 
       // Look for convergence using Equation IV.8.10 from [Hairer, 1996].
       // [Hairer, 1996] determined values of kappa in [0.01, 0.1] work most
@@ -418,14 +441,16 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
       // implicit integrator), p. 121. We select a value halfway in-between.
       const double kappa = 0.05;
       const double k_dot_tol = kappa * this->get_accuracy_in_use();
-      if (eta * dx_norm < k_dot_tol) {
+      if (theta <= 1 && eta * dx_norm < k_dot_tol) {
         SPDLOG_DEBUG(drake::log(), "Newton-Raphson converged; η = {}, h = {}",
                      eta, h);
+          //std::cout << "it: " << iter << ", theta: " << theta << ", eta: " << eta << ", dx_norm: " << dx_norm << std::endl;
+                     //std::cout << k_dot_tol << std::endl;
         converged = true;
       }
     }
 
-    if (converged) {
+    if (converged && ( !run_all_the_way || iter == max_iterations - 1 )) {
       // Set the solution using (IV.8.2b) in [Hairer, 1996].
       xtplus->setZero();
       for (int i = 0, j = 0; i < num_stages; ++i, j += state_dim) {
