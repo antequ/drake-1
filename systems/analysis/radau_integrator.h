@@ -269,7 +269,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
 
   // Verify the trial number is valid.
   DRAKE_ASSERT(1 <= trial && trial <= 4);
-  if (trial < 3 )
+  if (!this->get_reuse() && trial < 3 )
      trial = 3;
 
   // Set the state.
@@ -312,10 +312,10 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
   // [7 or 10])", p. 121.
   // TODO(edrumwri): Consider making this a settable parameter. Not doing so
   //                 to avoid parameter overload.
-  const int max_iterations = (trial == 3) ? 20 : 10;
+  const int max_iterations = (!this->get_reuse()) ? 20 : 10;
   // iteration limiting logic
   VectorX<T> x_iter = xt0;
-  bool maybe_refresh_jacobians_rest_of_this_trial = false;
+  int maybe_refresh_jacobians_with_x_iter = (!this->get_reuse()) ? 1 : 0;
   auto& iteration_limiting_alpha_function = IntegratorBase<T>::get_iteration_limiting_alpha_function();
   std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
   std::unique_ptr<ContinuousState<T>> x_kp1 = x_k->Clone();
@@ -328,19 +328,9 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
 
     // Update the number of Newton-Raphson iterations.
     ++num_nr_iterations_;
-    if(maybe_refresh_jacobians_rest_of_this_trial)
-    {
-      /* refresh Jacobians - trial 3 */
-      //std::cout << "refreshing, trial " << trial << std::endl;
-      
-      this->MaybeFreshenMatrices(t0 + h, x_iter, h, 3,
-        construct_iteration_matrix, &iteration_matrix_radau3_);
-        
-       maybe_refresh_jacobians_rest_of_this_trial = true;
-    }
+    
         /* turns out this helps as much as iteration limiter! have it refresh jacobians during trial 3 */
-    if (trial == 3)
-      maybe_refresh_jacobians_rest_of_this_trial = true;
+    
     // Evaluate the derivatives using the current iterate.
     const VectorX<T>& F_of_Z = ComputeFofZ(t0, h, xt0, Z_);
 
@@ -371,7 +361,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
     }
     x_k->SetFromVector(x_iter);
     x_kp1->SetFromVector(x_iter+dx);
-    if ( true || iter == 0 || maybe_refresh_jacobians_rest_of_this_trial )
+    if ( iter == 0 || maybe_refresh_jacobians_with_x_iter > 0 )
     {
       double alpha = iteration_limiting_alpha_function(*context,*x_k, *x_kp1);
       if ( alpha < 1.) // TODO: change to a threshold
@@ -383,9 +373,9 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
         //std::cout << "\ndx \n" << dx << std::endl;
         dx *= alpha;
         dZ *= alpha;
-        maybe_refresh_jacobians_rest_of_this_trial = true;
+        maybe_refresh_jacobians_with_x_iter = 2;
         //run_all_the_way = true;
-        theta_greater_than_one_limit+= 2;
+        theta_greater_than_one_limit += 2; // empirically this is how many iterations it grew by
         //std::cout << "iteration " << iter << ", alpha: " << alpha << std::endl;
       }
     }
@@ -427,8 +417,12 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
         //run_all_the_way = true;
         theta_greater_than_one_forgiveness_count++;
         //std::cout << "theta greater than 1, count " << theta_greater_than_one_forgiveness_count << std::endl;
-        //if (theta_greater_than_one_forgiveness_count > theta_greater_than_one_limit)
-        //  break;
+        if (this->get_reuse() && theta_greater_than_one_forgiveness_count > theta_greater_than_one_limit)
+        {
+          SPDLOG_DEBUG(drake::log(), "Newton-Raphson divergence detected for "
+            "h={}", h);
+          break;
+        }
       }
       //  SPDLOG_DEBUG(drake::log(), "Newton-Raphson divergence detected for "
       //      "h={}", h);
@@ -465,6 +459,18 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
 
     // Update the norm of the state update.
     last_dx_norm = dx_norm;
+
+    // refresh jacobians if necessary
+    if(maybe_refresh_jacobians_with_x_iter > 0)
+    {
+      /* refresh Jacobians - trial 3 */
+      //std::cout << "refreshing, trial " << trial << std::endl;
+      this->force_recompute_jacobian_next_call();
+      this->MaybeFreshenMatrices(t0 + h, x_iter, h, /* trial */ 3,
+        construct_iteration_matrix, &iteration_matrix_radau3_);
+      if (this->get_reuse())
+       maybe_refresh_jacobians_with_x_iter-- ;
+    }
   }
 
   SPDLOG_DEBUG(drake::log(), "StepRadau() convergence failed");

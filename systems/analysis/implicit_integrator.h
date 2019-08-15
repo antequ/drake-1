@@ -311,7 +311,7 @@ class ImplicitIntegrator : public IntegratorBase<T> {
 
   /// @copydoc IntegratorBase::DoStep()
   virtual bool DoImplicitIntegratorStep(const T& h) = 0;
-
+  void force_recompute_jacobian_next_call() { jacobian_is_fresh_ = false; }
  private:
   bool DoStep(const T& h) final {
     bool result = DoImplicitIntegratorStep(h);
@@ -319,7 +319,7 @@ class ImplicitIntegrator : public IntegratorBase<T> {
     // Jacobian (fresh is false). Otherwise, a failed step (result is false)
     // means we can keep the Jacobian (fresh is true). Therefore fresh =
     // !result, always.
-    jacobian_is_fresh_ = false;
+    jacobian_is_fresh_ = !result;
 
     return result;
   }

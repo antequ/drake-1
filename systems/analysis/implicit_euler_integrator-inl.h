@@ -136,7 +136,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   // Verify the trial number is valid.
   DRAKE_ASSERT(trial >= 1 && trial <= 4);
 
-  if(trial < 3) 
+  if(!this->get_reuse() && trial < 3) 
    trial = 3;
 
   // Verify xtplus
@@ -144,7 +144,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
 
   SPDLOG_DEBUG(drake::log(), "StepAbstract() entered for t={}, h={}, trial={}",
       t0, h, trial);
-
+  *xtplus = xt0;
   // Advance the context time and state to compute derivatives at t0 + h.
   const T tf = t0 + h;
   Context<T>* context = this->get_mutable_context();
@@ -172,36 +172,26 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   // with a quasi-Newton approach, so our mileage may vary.
   // TODO(edrumwri): Consider making this a settable parameter. Not putting it
   //                 toward staving off parameter overload.
-  const int max_iterations = trial == 3 ? 20 : 10;//trial == 1? 6 : 13;
+  const int max_iterations = (!this->get_reuse()) ? 20 : 10;//trial == 1? 6 : 13;
   auto& iteration_limiting_alpha_function = IntegratorBase<T>::get_iteration_limiting_alpha_function();
-  bool maybe_refresh_jacobians_rest_of_this_trial = false;
+  int maybe_refresh_jacobians_with_x_iter = (!this->get_reuse()) ? 1 : 0;
   std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
   std::unique_ptr<ContinuousState<T>> x_kp1 = x_k->Clone();
+  int theta_greater_than_one_forgiveness_count = 0;
+  int theta_greater_than_one_limit = 15;
   // Do the Newton-Raphson iterations.
-  for (int i = 0; i < max_iterations; ++i) {
+  int i;
+  for (i = 0; i < max_iterations; ++i) {
     // Update the number of Newton-Raphson iterations.
     num_nr_iterations_++;
-    if(maybe_refresh_jacobians_rest_of_this_trial)
-    {
-      /* refresh Jacobians - trial 3 */
-      //std::cout << "refreshing, trial " << trial << std::endl;
-      /* consider always use trial 3 - improves stability */
-      /* in the future, consider changing this back, because it's better to adjust step size */
-      this->MaybeFreshenMatrices(tf, *xtplus, h, /* trial */  3,
-        compute_and_factor_iteration_matrix, &iteration_matrix_);
-        
-       maybe_refresh_jacobians_rest_of_this_trial = true;
-    }
-    /* turns out this helps as much as iteration limiter! have it refresh jacobians during trial 3 */
-    if (trial == 3)
-      maybe_refresh_jacobians_rest_of_this_trial = true;
+
     // Compute the state update using the equation A*x = -g(), where A is the
     // iteration matrix.
     // TODO(edrumwri): Allow caller to provide their own solver.
     VectorX<T> dx = iteration_matrix_.Solve(-goutput);
     x_k->SetFromVector(*xtplus);
     x_kp1->SetFromVector(*xtplus + dx);
-    if ( true || i == 0 || maybe_refresh_jacobians_rest_of_this_trial )
+    if ( true || i == 0 || maybe_refresh_jacobians_with_x_iter > 0 )
     {
       double alpha = iteration_limiting_alpha_function(*context, *x_k, *x_kp1);
       if ( alpha < 1.) // TODO: change to a threshold
@@ -212,10 +202,15 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
         //std::cout << "\nxtplus \n" << *xtplus << std::endl;
         //std::cout << "\ndx \n" << dx << std::endl;
         dx *= alpha;
-        maybe_refresh_jacobians_rest_of_this_trial = true;
+        maybe_refresh_jacobians_with_x_iter = 4;
+        theta_greater_than_one_limit += 2;
+        std::cout << alpha << " " << theta_greater_than_one_limit / 3 << std::endl;
       }
     }
-
+    if (trial == 3 )
+    {
+      std::cout << "t:" << t0 << ", it: " << i << ", |dx|: " << dx.norm() << ", dx: " << dx.transpose() << ", resid: " << goutput.transpose() << std::endl;
+    }
     // Get the infinity norm of the weighted update vector.
     dx_state_->get_mutable_vector().SetFromVector(dx);
     T dx_norm = this->CalcStateChangeNorm(*dx_state_);
@@ -245,7 +240,15 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
       if (theta > 1) {
         SPDLOG_DEBUG(drake::log(), "Newton-Raphson divergence detected for "
             "h={}", h);
+        theta_greater_than_one_forgiveness_count++;
         //break;
+        if (this->get_reuse() && theta_greater_than_one_forgiveness_count > theta_greater_than_one_limit)
+        {
+          SPDLOG_DEBUG(drake::log(), "Newton-Raphson divergence detected for "
+            "h={}", h);
+            std::cout << theta_greater_than_one_forgiveness_count << " iterations grown by it " << i << ", while lim is " << theta_greater_than_one_limit << std::endl;
+          break;
+        }
       }
 
       // Look for convergence using Equation 8.10 from [Hairer, 1996].
@@ -266,8 +269,20 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
 
     // Update the state in the context and compute g(xⁱ⁺¹).
     goutput = g();
+    if(maybe_refresh_jacobians_with_x_iter > 0)
+    {
+      /* refresh Jacobians - trial 3 */
+      //std::cout << "refreshing, trial " << trial << std::endl;
+      /* consider always use trial 3 - improves stability */
+      /* in the future, consider changing this back, because it's better to adjust step size */
+      this->force_recompute_jacobian_next_call();
+      this->MaybeFreshenMatrices(tf, *xtplus, h, /* trial */  3,
+        compute_and_factor_iteration_matrix, &iteration_matrix_);
+      if (this->get_reuse())
+        maybe_refresh_jacobians_with_x_iter-- ;
+    }
   }
-
+std::cout << i << "iterations " << std::endl;
   SPDLOG_DEBUG(drake::log(), "StepAbstract() convergence failed");
 
   // If Jacobian and iteration matrix factorizations are not reused, there

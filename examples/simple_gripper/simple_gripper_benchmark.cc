@@ -18,14 +18,17 @@
 #include "drake/multibody/plant/multibody_plant.h"
 #include "drake/multibody/tree/prismatic_joint.h"
 #include "drake/systems/analysis/implicit_euler_integrator.h"
+#include "drake/systems/analysis/radau_integrator.h"
 #include "drake/systems/analysis/runge_kutta2_integrator.h"
 #include "drake/systems/analysis/runge_kutta3_integrator.h"
+#include "drake/systems/analysis/bogacki_shampine3_integrator.h"
 #include "drake/systems/analysis/semi_explicit_euler_integrator.h"
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/primitives/sine.h"
 
 #include <iostream>
+#undef PRINT_VAR
 #define PRINT_VAR(a) std::cout << #a": " << a << std::endl;
 
 namespace drake {
@@ -57,7 +60,7 @@ DEFINE_double(target_realtime_rate, 1.0,
               "Desired rate relative to real time.  See documentation for "
               "Simulator::set_target_realtime_rate() for details.");
 
-DEFINE_double(simulation_time, 1.0,
+DEFINE_double(simulation_time, 10.0,
               "Desired duration of the simulation. [s].");
 
 DEFINE_double(grip_width, 0.095,
@@ -122,7 +125,7 @@ DEFINE_double(frequency, 2.0, "The frequency of the harmonic oscillations "
 DEFINE_string(contact_model, "point",
               "Contact model. Options are: 'point', 'hydroelastic'.");              
 DEFINE_double(elastic_modulus, 2.5e5, "Elastic modulus, in Pa.");
-DEFINE_double(dissipation, 5.0, "dissipation, in s/m.");              
+DEFINE_double(dissipation, 5.0, "dissipation, in s/m.");            
 
 // The pad was measured as a torus with the following major and minor radii.
 const double kPadMajorRadius = 14e-3;  // 14 mm.

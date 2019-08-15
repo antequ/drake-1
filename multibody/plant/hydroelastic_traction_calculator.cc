@@ -256,11 +256,11 @@ HydroelasticTractionCalculator<T>::CalcTractionAtQHelper(
   };
   unused(sigmoid_atan);
   unused(sigmoid_logistic); 
-  unused(sigmoid_linear);
+  unused(sigmoid_quadratic);
   /* const T frictional_scalar = mu_coulomb * normal_traction *
       2.0 / M_PI * atan(norm_vt / T(vslip_regularizer_));*/
   const T frictional_scalar = mu_coulomb * normal_traction *
-      sigmoid_quadratic(soft_norm_vt / vslip_regularizer_);
+      sigmoid_linear(soft_norm_vt / vslip_regularizer_);
 
   traction_data.traction_Aq_W = nhat_W * normal_traction -
       vt_hat_BqAq_W * frictional_scalar;

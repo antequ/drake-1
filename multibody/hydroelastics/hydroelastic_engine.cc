@@ -314,7 +314,7 @@ float fBox(vec3 p, vec3 b) {
   
   if (elastic_modulus != std::numeric_limits<double>::infinity()) {
       // Soft mesh field model
-      const T mesh_size = box.size().maxCoeff() / 5;
+      const T mesh_size = box.size().minCoeff() / 5;
       auto box_field = MakeBoxHydroelasticField<T>(box, mesh_size);
       auto model =
           std::make_unique<HydroelasticGeometry<T>>(std::move(box_field));
