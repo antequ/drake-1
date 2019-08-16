@@ -44,6 +44,7 @@ drake_cc_binary(
         "//multibody/plant",
         "//multibody/plant:contact_results_to_lcm",
         "//systems/analysis:implicit_euler_integrator",
+        "//systems/analysis:radau_integrator",
         "//systems/analysis:runge_kutta2_integrator",
         "//systems/analysis:runge_kutta3_integrator",
         "//systems/analysis:semi_explicit_euler_integrator",

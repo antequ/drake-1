@@ -321,7 +321,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
   std::unique_ptr<ContinuousState<T>> x_kp1 = x_k->Clone();
   bool run_all_the_way = false;
   int theta_greater_than_one_forgiveness_count = 0;
-  int theta_greater_than_one_limit = 1;
+  int theta_greater_than_one_limit = 0;
   // Do the Newton-Raphson iterations.
   for (int iter = 0; iter < max_iterations; ++iter) {
     SPDLOG_DEBUG(drake::log(), "Newton-Raphson iteration {}", iter);
@@ -361,7 +361,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
     }
     x_k->SetFromVector(x_iter);
     x_kp1->SetFromVector(x_iter+dx);
-    if ( iter == 0 || maybe_refresh_jacobians_with_x_iter > 0 )
+    if ( (trial == 3 ) && ( true || iter == 0 || maybe_refresh_jacobians_with_x_iter > 0 ))
     {
       double alpha = iteration_limiting_alpha_function(*context,*x_k, *x_kp1);
       if ( alpha < 1.) // TODO: change to a threshold
@@ -373,10 +373,11 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
         //std::cout << "\ndx \n" << dx << std::endl;
         dx *= alpha;
         dZ *= alpha;
-        maybe_refresh_jacobians_with_x_iter = 2;
+        maybe_refresh_jacobians_with_x_iter = 4;
         //run_all_the_way = true;
         theta_greater_than_one_limit += 2; // empirically this is how many iterations it grew by
         //std::cout << "iteration " << iter << ", alpha: " << alpha << std::endl;
+        std::cout << trial <<  " " << iter << " " << alpha << " " << theta_greater_than_one_limit / 2 << std::endl;
       }
     }
     // Update the iterate.

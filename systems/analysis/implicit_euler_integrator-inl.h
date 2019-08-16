@@ -178,7 +178,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
   std::unique_ptr<ContinuousState<T>> x_kp1 = x_k->Clone();
   int theta_greater_than_one_forgiveness_count = 0;
-  int theta_greater_than_one_limit = 1;
+  int theta_greater_than_one_limit = 0;
   // Do the Newton-Raphson iterations.
   int i;
   //std::cout << "x0 : " << xt0.transpose() << std::endl;
@@ -192,7 +192,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
     VectorX<T> dx = iteration_matrix_.Solve(-goutput);
     x_k->SetFromVector(*xtplus);
     x_kp1->SetFromVector(*xtplus + dx);
-    if ( trial == 3 && ( i == 0 || maybe_refresh_jacobians_with_x_iter > 0 ))
+    if ( (trial == 3 )&& ( true || i == 0 || maybe_refresh_jacobians_with_x_iter > 0 ))
     {
       double alpha = iteration_limiting_alpha_function(*context, *x_k, *x_kp1);
       if ( alpha < 1.) // TODO: change to a threshold
@@ -283,7 +283,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
         maybe_refresh_jacobians_with_x_iter-- ;
     }
   }
-std::cout << i << "iterations " << std::endl;
+//std::cout << i << "iterations " << std::endl;
   SPDLOG_DEBUG(drake::log(), "StepAbstract() convergence failed");
 
   // If Jacobian and iteration matrix factorizations are not reused, there

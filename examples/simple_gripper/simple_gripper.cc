@@ -18,6 +18,7 @@
 #include "drake/multibody/plant/multibody_plant.h"
 #include "drake/multibody/tree/prismatic_joint.h"
 #include "drake/systems/analysis/implicit_euler_integrator.h"
+#include "drake/systems/analysis/radau_integrator.h"
 #include "drake/systems/analysis/runge_kutta2_integrator.h"
 #include "drake/systems/analysis/runge_kutta3_integrator.h"
 #include "drake/systems/analysis/semi_explicit_euler_integrator.h"
@@ -416,6 +417,14 @@ int do_main() {
     integrator =
         simulator.reset_integrator<SemiExplicitEulerIntegrator<double>>(
             *diagram, max_time_step, &simulator.get_mutable_context());
+  } else if (FLAGS_integration_scheme == "radau1") {
+    integrator =
+        simulator.reset_integrator<systems::RadauIntegrator<double,1>>(
+            *diagram, &simulator.get_mutable_context());
+    if(FLAGS_fixed_step)
+    {
+      integrator->set_target_accuracy(FLAGS_fixed_tolerance);
+    }
   } else {
     throw std::runtime_error(
         "Integration scheme '" + FLAGS_integration_scheme +
@@ -490,7 +499,16 @@ int do_main() {
   // We matched hydroelastic compliance to get the same level of squishing that
   // we get wit the point contact model.
   PRINT_VAR(FLAGS_grip_width + finger_slider.get_translation(plant_context));  
-
+  std::cout << "\nPlant state: " << plant_context.get_continuous_state_vector().CopyToVector().transpose()  << std::endl;
+  std::cout << "Plant position: " << plant.GetPositions(plant_context)  << std::endl;
+  std::cout << "Plant velocity: " << plant.GetVelocities(plant_context)  << std::endl;
+  std::cout << "mug position (rot, trans): " << mug.EvalPoseInWorld(plant_context).rotation().ToQuaternionAsVector4().transpose() << ", " 
+             << mug.EvalPoseInWorld(plant_context).translation().transpose() << std::endl;
+  std::cout << "mug velocity (rot, trans): " << mug.EvalSpatialVelocityInWorld(plant_context).rotational().transpose() << ", " 
+             << mug.EvalSpatialVelocityInWorld(plant_context).translational().transpose() << std::endl;
+  std::cout << "z (pos, vel): " << translate_joint.get_translation(plant_context) << ", " << translate_joint.get_translation_rate(plant_context) << std::endl;
+  std::cout << "grip width (pos, vel): " << finger_slider.get_translation(plant_context) << ", " << finger_slider.get_translation_rate(plant_context) << std::endl;
+  
   return 0;
 }
 
