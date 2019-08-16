@@ -386,7 +386,12 @@ int do_main() {
   // around this initial position.
   translate_joint.set_translation(&plant_context, 0.0);
   translate_joint.set_translation_rate(&plant_context, v0);
-
+  drake::VectorX<double> state(17);
+  state << 3.65753e-09, 1.47011e-06 ,   0.00169911 ,    0.999997,
+           1.76415e-07  , -0.00377307  , -2.3465e-05   , -0.00790356,
+           -0.0935193   ,   -1.13275   ,  0.00098008  , -2.43834e-06,
+           5.88051e-05  ,  0.0679464  ,  -0.00782166   ,   -2.63452    ,  0.493556;
+  plant.SetPositionsAndVelocities(&plant_context,state);
   // Set up simulator.
   systems::Simulator<double> simulator(*diagram, std::move(diagram_context));
   systems::IntegratorBase<double>* integrator{nullptr};
@@ -447,6 +452,16 @@ int do_main() {
   simulator.set_publish_every_time_step(true);
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.Initialize();
+
+  std::cout << "Plant state: " << plant_context.get_continuous_state_vector().CopyToVector().transpose()  << std::endl;
+  std::cout << "Plant position: " << plant.GetPositions(plant_context)  << std::endl;
+  std::cout << "Plant velocity: " << plant.GetVelocities(plant_context)  << std::endl;
+  std::cout << "mug position (rot, trans): " << mug.EvalPoseInWorld(plant_context).rotation().ToQuaternionAsVector4().transpose() << ", " 
+             << mug.EvalPoseInWorld(plant_context).translation().transpose() << std::endl;
+  std::cout << "mug velocity (rot, trans): " << mug.EvalSpatialVelocityInWorld(plant_context).rotational().transpose() << ", " 
+             << mug.EvalSpatialVelocityInWorld(plant_context).translational().transpose() << std::endl;
+  std::cout << "z (pos, vel): " << translate_joint.get_translation(plant_context) << ", " << translate_joint.get_translation_rate(plant_context) << std::endl;
+  std::cout << "grip width (pos, vel): " << finger_slider.get_translation(plant_context) << ", " << finger_slider.get_translation_rate(plant_context) << std::endl;
   simulator.AdvanceTo(FLAGS_simulation_time);
 
   if (FLAGS_time_stepping) {

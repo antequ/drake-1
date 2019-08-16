@@ -1269,6 +1269,7 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                 EvalContactJacobians(mbp_ctx_0);
             drake::VectorX<T> vt = contact_jacobians.Jt * v_k;
             drake::VectorX<T> dvt = contact_jacobians.Jt * (v_kp1 - v_k);
+            //std::cout << "vt: " << vt.transpose() << "\n dvt: " << dvt.transpose() << std::endl;
             return ExtractDoubleOrThrow( GetAlphaFromVtDvtVectors( vt, dvt, stribeck_model_.stiction_tolerance()));
           }
         }

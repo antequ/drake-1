@@ -160,7 +160,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
 
   // Calculate Jacobian and iteration matrices (and factorizations), as needed,
   // around (tf, xtplus).
-  if (!this->MaybeFreshenMatrices(tf, *xtplus, h, trial,
+  if (!this->MaybeFreshenMatrices(t0, *xtplus, h, trial,
       compute_and_factor_iteration_matrix, &iteration_matrix_)) {
     return false;
   }
@@ -178,9 +178,10 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
   std::unique_ptr<ContinuousState<T>> x_kp1 = x_k->Clone();
   int theta_greater_than_one_forgiveness_count = 0;
-  int theta_greater_than_one_limit = 15;
+  int theta_greater_than_one_limit = 1;
   // Do the Newton-Raphson iterations.
   int i;
+  //std::cout << "x0 : " << xt0.transpose() << std::endl;
   for (i = 0; i < max_iterations; ++i) {
     // Update the number of Newton-Raphson iterations.
     num_nr_iterations_++;
@@ -191,7 +192,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
     VectorX<T> dx = iteration_matrix_.Solve(-goutput);
     x_k->SetFromVector(*xtplus);
     x_kp1->SetFromVector(*xtplus + dx);
-    if ( true || i == 0 || maybe_refresh_jacobians_with_x_iter > 0 )
+    if ( trial == 3 && ( i == 0 || maybe_refresh_jacobians_with_x_iter > 0 ))
     {
       double alpha = iteration_limiting_alpha_function(*context, *x_k, *x_kp1);
       if ( alpha < 1.) // TODO: change to a threshold
@@ -204,12 +205,12 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
         dx *= alpha;
         maybe_refresh_jacobians_with_x_iter = 4;
         theta_greater_than_one_limit += 2;
-        std::cout << alpha << " " << theta_greater_than_one_limit / 3 << std::endl;
+        std::cout << trial <<  " " << i << " " << alpha << " " << theta_greater_than_one_limit / 2 << std::endl;
       }
     }
     if (trial == 3 )
     {
-      std::cout << "t:" << t0 << ", it: " << i << ", |dx|: " << dx.norm() << ", dx: " << dx.transpose() << ", resid: " << goutput.transpose() << std::endl;
+      //std::cout << "t:" << t0 << ", it: " << i << ", |dx|: " << dx.norm() << ", dx: " << dx.transpose() << ", resid: " << goutput.transpose() << std::endl;
     }
     // Get the infinity norm of the weighted update vector.
     dx_state_->get_mutable_vector().SetFromVector(dx);
