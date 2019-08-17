@@ -793,6 +793,7 @@ class IntegratorBase {
    */
   const T& get_ideal_next_step_size() const { return ideal_next_step_size_; }
 
+  bool get_convergence_control() const { return convergence_control_; }
   /**
    * Returns a const reference to the internally-maintained Context holding
    * the most recent state in the trajectory. This is suitable for publishing or
@@ -1201,6 +1202,12 @@ class IntegratorBase {
     initialization_done_ = false;
     return z_weight_.head(z_weight_.rows());
   }
+  /**
+   * Set this to false to make the integrators throw when convergence fails.
+   * 
+   * 
+   */
+  void set_convergence_control(bool convergence_control) { convergence_control_ = convergence_control; }
 
   /**
    * @}
@@ -1590,6 +1597,9 @@ class IntegratorBase {
   // TODO(edrumwri): Allow subdivision factor to be user-tweakable.
   const double subdivision_factor_{0.5};
 
+  // whether to scale a step size after a failed step (true), or just throw (false)
+  bool convergence_control_{true};
+
   // The accuracy being used.
   double accuracy_in_use_{nan()};
 
@@ -1740,6 +1750,10 @@ bool IntegratorBase<T>::StepOnceErrorControlledAtMost(const T& dt_max) {
     T adjusted_step_size = step_size_to_attempt;
     while (!Step(adjusted_step_size)) {
       SPDLOG_DEBUG(drake::log(), "Sub-step failed at {}", adjusted_step_size);
+      if(!convergence_control_)
+      {
+        throw std::runtime_error("Error controlled integrator failed to converge!");
+      }
       adjusted_step_size *= subdivision_factor_;
 
       // Note: we could give the user more rope to hang themselves by looking
@@ -2081,7 +2095,10 @@ typename IntegratorBase<T>::StepResult
   if (this->get_fixed_step_mode()) {
     T adjusted_dt = dt;
     while (!Step(adjusted_dt)) {
-      //throw std::runtime_error("Fixed-step integrator failed to converge at this dt.");
+      if (!convergence_control_)
+      {
+        throw std::runtime_error("Fixed-step integrator failed to converge at this dt.");
+      }
       ++num_shrinkages_from_substep_failures_;
       ++num_substep_failures_;
       adjusted_dt *= subdivision_factor_;

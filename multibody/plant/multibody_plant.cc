@@ -1013,7 +1013,7 @@ void MultibodyPlant<T>::set_penetration_allowance(
 }
 
 template <typename T>
-inline T GetAlphaFromVtDvtVectors(const drake::VectorX<T>& vt, const drake::VectorX<T>& dvt, double v_stiction)
+inline T GetAlphaFromVtDvtVectors(const drake::VectorX<T>& vt, const drake::VectorX<T>& dvt, double v_stiction, const drake::VectorX<T>& force_mags)
 {
   const int num_contacts = vt.rows() / 2;
   const double relative_tolerance = 0.01; /* from implicit_stribeck_solver code */
@@ -1021,13 +1021,14 @@ inline T GetAlphaFromVtDvtVectors(const drake::VectorX<T>& vt, const drake::Vect
   const double cos_theta_max =  0.5 /* std::cos(M_PI / 3.0) */;
   using std::min;
   T alpha = 1.0;
+  T total_force = force_mags.sum();
   /*
   #pragma omp declare reduction \
   (alpha_min:T:omp_out=min(omp_out, omp_in) ) \
   initializer(omp_priv=1.0)*/
   // this is slow
   //#pragma omp parallel for reduction(alpha_min:alpha)
-  //std::vector<T> alpha_list(num_contacts);
+  std::vector<std::pair<T,T>> alpha_list(num_contacts);
   for (int ic = 0; ic < num_contacts; ++ic) {  // Index ic scans contact points.
     const int ik = 2 * ic;  // Index ik scans contact vector quantities.
     const auto vt_ic = vt.template segment<2>(ik);
@@ -1035,15 +1036,38 @@ inline T GetAlphaFromVtDvtVectors(const drake::VectorX<T>& vt, const drake::Vect
     T local_alpha = internal::DirectionChangeLimiter<T>::CalcAlpha(
             vt_ic, dvt_ic,
             cos_theta_max, v_stiction, relative_tolerance);
-    //alpha_list[ic] = local_alpha;
+    alpha_list[ic] = std::pair<T,T>(local_alpha, force_mags[ic]);
     alpha = min(
         alpha,
         local_alpha);
   }
-  /*std::sort(alpha_list.begin(), alpha_list.end());
-  //alpha = alpha_list[num_contacts/4];
-  if( alpha_list.size() != 0)
-    alpha = alpha_list[0];*/
+  
+  
+
+  std::sort(alpha_list.begin(), alpha_list.end());
+  // return median force element
+  T median_force_element = total_force / 2.;
+  T force_count = 0.0;
+  // don't binary search because building the cumulative force list takes just as long
+  for( int ic = 0; ic < num_contacts; ++ic)
+  {
+    force_count += alpha_list[ic].second;
+    if(force_count >= median_force_element || alpha_list[ic].first == 1.0)
+    {
+      alpha = alpha_list[ic].first;
+      break;
+    }
+  }
+/*  if( alpha_list.size() != 0)
+  {
+    // alpha = alpha_list[ num_contacts - 1];
+    // alpha = alpha_list[0];
+    // median
+    alpha = alpha_list[ num_contacts/ 2];
+    // mean
+    //alpha = std::accumulate(alpha_list.begin(), alpha_list.end(), T(0.0)) / num_contacts;
+  }
+  */
   DRAKE_DEMAND(0 < alpha && alpha <= 1.0);
   return alpha;
 }
@@ -1117,9 +1141,11 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
 #ifdef VERTEX_COMP
               VectorX<T> vt(surface.mesh().num_vertices() * 2);
               VectorX<T> dvt(surface.mesh().num_vertices() * 2);
+              VectorX<T> force_mags(surface.mesh().num_vertices() );
 #else
               VectorX<T> vt(surface.mesh().num_faces() * 2);
               VectorX<T> dvt(surface.mesh().num_faces() * 2);
+              VectorX<T> force_mags( surface.mesh().num_faces() );
               const Vector3<T> Q ={T(1./3), T(1./3), T(1./3)};
 
 #endif
@@ -1127,6 +1153,13 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
               // compute the static friction force
               const GeometryId geometryM_id = surface.id_M();
               const GeometryId geometryN_id = surface.id_N();
+              const int collision_indexM =
+                  geometry_id_to_collision_index_.at(geometryM_id);
+              const int collision_indexN =
+                  geometry_id_to_collision_index_.at(geometryN_id);
+              const double dm = default_dissipation_[collision_indexM];
+              const double dn = default_dissipation_[collision_indexN];
+              const double dissipation = dm + dn;
 
               // Get the transform of the geometry for M to the world frame.
               const RigidTransform<T> X_WM = query_object.X_WG(surface.id_M());
@@ -1196,6 +1229,12 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                 // Get the slip velocity at the point.
                 const Vector3<T> vt_BqAq_Wk   = v_BqAq_Wk - nhat_W * nhat_W.dot(v_BqAq_Wk);
                 const Vector3<T> dvt_BqAq_W   = dv_BqAq_W - nhat_W * nhat_W.dot(dv_BqAq_W);
+                const T e = surface.EvaluateE_MN(face_index, Q);
+                const T vn_BqAq_Wk = v_BqAq_Wk.dot(nhat_W);
+                const T c = dissipation * e;
+                using std::max;
+                const T normal_traction = max(e - vn_BqAq_Wk * c, T(0));
+                
                 bool write_out = false;
                 if( write_out && dvt_BqAq_W.squaredNorm() > 1e-6 )
                 {
@@ -1216,16 +1255,19 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                   const Vector3<T> larger = vt_BqAq_Wk.squaredNorm() > dvt_BqAq_W.squaredNorm() ? vt_BqAq_Wk : dvt_BqAq_W;
                   const Vector3<T> l_hat = larger.normalized();
                   const Vector3<T> l_hat_perp = nhat_W.cross(l_hat);
+                  using std::abs;
 #ifdef VERTEX_COMP
                   vt(vertex_index * 2 + 0)  = l_hat.dot(vt_BqAq_Wk) ;
                   dvt(vertex_index * 2 + 0) = l_hat.dot(dvt_BqAq_W) ;
                   vt(vertex_index * 2 + 1)  = l_hat_perp.dot(vt_BqAq_Wk) ;
                   dvt(vertex_index * 2 + 1) = l_hat_perp.dot(dvt_BqAq_W) ;
+                  force_mags[vertex_index] = abs(normal_traction);
 #else
                   vt(face_index * 2 + 0)  = l_hat.dot(vt_BqAq_Wk) ;
                   dvt(face_index * 2 + 0) = l_hat.dot(dvt_BqAq_W) ;
                   vt(face_index * 2 + 1)  = l_hat_perp.dot(vt_BqAq_Wk) ;
                   dvt(face_index * 2 + 1) = l_hat_perp.dot(dvt_BqAq_W) ;
+                  force_mags[face_index] = abs(normal_traction);
 
 #endif
                 }
@@ -1255,7 +1297,7 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                 }
               }
               using std::min;
-              alpha = min(alpha, GetAlphaFromVtDvtVectors(vt, dvt, stribeck_model_.stiction_tolerance()));
+              alpha = min(alpha, GetAlphaFromVtDvtVectors(vt, dvt, stribeck_model_.stiction_tolerance(), force_mags));
             }
             return ExtractDoubleOrThrow(alpha);
           }
@@ -1269,8 +1311,9 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                 EvalContactJacobians(mbp_ctx_0);
             drake::VectorX<T> vt = contact_jacobians.Jt * v_k;
             drake::VectorX<T> dvt = contact_jacobians.Jt * (v_kp1 - v_k);
+            drake::VectorX<T> force_mags = drake::VectorX<T>::Zero(vt.rows()/2); // use the zero vector to retrieve minimum
             //std::cout << "vt: " << vt.transpose() << "\n dvt: " << dvt.transpose() << std::endl;
-            return ExtractDoubleOrThrow( GetAlphaFromVtDvtVectors( vt, dvt, stribeck_model_.stiction_tolerance()));
+            return ExtractDoubleOrThrow( GetAlphaFromVtDvtVectors( vt, dvt, stribeck_model_.stiction_tolerance() , force_mags));
           }
         }
 
@@ -2588,7 +2631,8 @@ T MultibodyPlant<T>::StribeckModel::ComputeFrictionCoefficient(
   } else if (v >= 1) {
     return mu_s - (mu_s - mu_d) * step5((v - 1) / 2);
   } else {
-    return mu_s * v * (2 - v) /* mu_s * step5(v) */; /* change to mu_s * v * (2 - v) */
+    //return mu_s * v * (2 - v) /* mu_s * step5(v) */; /* change to mu_s * v * (2 - v) */
+    return mu_s * v;
   }
 }
 

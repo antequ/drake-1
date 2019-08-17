@@ -85,6 +85,8 @@ DEFINE_bool(iteration_limit, true, "Set true to use iteration limiter.");
 DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
 DEFINE_double(fixed_tolerance, 1.e-4, "Tolerance for Newton iterations of fixed implicit integrators.");
 
+DEFINE_bool(full_newton, false, "set this to ensure implicit integrators do the full Newton-Raphson.");
+DEFINE_bool(convergence_control, false, "set this to allow convergence control.");
 
 DEFINE_bool(visualize, true, "Set true to visualize.");
 // Contact parameters
@@ -402,6 +404,7 @@ int do_main() {
     {
       integrator->set_target_accuracy(FLAGS_fixed_tolerance);
     }
+    static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_reuse(!FLAGS_full_newton);
   } else if (FLAGS_integration_scheme == "runge_kutta2") {
     integrator =
         simulator.reset_integrator<RungeKutta2Integrator<double>>(
@@ -443,6 +446,7 @@ int do_main() {
     std::cout << "Setting target accuracy ... " << std::endl;
     integrator->set_target_accuracy(FLAGS_accuracy);
   }
+  integrator->set_convergence_control(FLAGS_convergence_control);
 
   // The error controlled integrators might need to take very small time steps
   // to compute a solution to the desired accuracy. Therefore, to visualize

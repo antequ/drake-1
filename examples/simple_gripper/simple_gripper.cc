@@ -83,6 +83,8 @@ DEFINE_bool(iteration_limit, true, "Set true to use iteration limiter.");
 DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
 DEFINE_double(fixed_tolerance, 1.e-4, "Tolerance for Newton iterations of fixed implicit integrators.");
 
+DEFINE_bool(full_newton, false, "set this to ensure implicit integrators do the full Newton-Raphson.");
+DEFINE_bool(convergence_control, false, "set this to allow convergence control.");
 
 DEFINE_bool(visualize, true, "Set true to visualize.");
 // Contact parameters
@@ -392,7 +394,7 @@ int do_main() {
            1.76415e-07  , -0.00377307  , -2.3465e-05   , -0.00790356,
            -0.0935193   ,   -1.13275   ,  0.00098008  , -2.43834e-06,
            5.88051e-05  ,  0.0679464  ,  -0.00782166   ,   -2.63452    ,  0.493556;
-  plant.SetPositionsAndVelocities(&plant_context,state);
+  unused(state);//plant.SetPositionsAndVelocities(&plant_context,state);
   // Set up simulator.
   systems::Simulator<double> simulator(*diagram, std::move(diagram_context));
   systems::IntegratorBase<double>* integrator{nullptr};
@@ -405,6 +407,7 @@ int do_main() {
     {
       integrator->set_target_accuracy(FLAGS_fixed_tolerance);
     }
+    static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_reuse(!FLAGS_full_newton);
   } else if (FLAGS_integration_scheme == "runge_kutta2") {
     integrator =
         simulator.reset_integrator<RungeKutta2Integrator<double>>(
@@ -425,6 +428,7 @@ int do_main() {
     {
       integrator->set_target_accuracy(FLAGS_fixed_tolerance);
     }
+    static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_reuse(!FLAGS_full_newton);
   } else {
     throw std::runtime_error(
         "Integration scheme '" + FLAGS_integration_scheme +
@@ -454,6 +458,7 @@ int do_main() {
     std::cout << "Setting target accuracy ... " << std::endl;
     integrator->set_target_accuracy(FLAGS_accuracy);
   }
+  integrator->set_convergence_control(FLAGS_convergence_control);
 
   // The error controlled integrators might need to take very small time steps
   // to compute a solution to the desired accuracy. Therefore, to visualize
