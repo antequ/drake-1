@@ -1267,7 +1267,7 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                   dvt(face_index * 2 + 0) = l_hat.dot(dvt_BqAq_W) ;
                   vt(face_index * 2 + 1)  = l_hat_perp.dot(vt_BqAq_Wk) ;
                   dvt(face_index * 2 + 1) = l_hat_perp.dot(dvt_BqAq_W) ;
-                  force_mags[face_index] = abs(normal_traction);
+                  force_mags[face_index] = abs(normal_traction) * surface.mesh().area(face_index);
 
 #endif
                 }
@@ -1311,7 +1311,7 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                 EvalContactJacobians(mbp_ctx_0);
             drake::VectorX<T> vt = contact_jacobians.Jt * v_k;
             drake::VectorX<T> dvt = contact_jacobians.Jt * (v_kp1 - v_k);
-            drake::VectorX<T> force_mags = drake::VectorX<T>::Zero(vt.rows()/2); // use the zero vector to retrieve minimum
+            drake::VectorX<T> force_mags = drake::VectorX<T>::Ones(vt.rows()/2); // use the zero vector to retrieve minimum
             //std::cout << "vt: " << vt.transpose() << "\n dvt: " << dvt.transpose() << std::endl;
             return ExtractDoubleOrThrow( GetAlphaFromVtDvtVectors( vt, dvt, stribeck_model_.stiction_tolerance() , force_mags));
           }

@@ -322,6 +322,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
   bool run_all_the_way = false;
   int theta_greater_than_one_forgiveness_count = 0;
   int theta_greater_than_one_limit = 0;
+  bool jacobian_is_dirty = false;
   // Do the Newton-Raphson iterations.
   for (int iter = 0; iter < max_iterations; ++iter) {
     SPDLOG_DEBUG(drake::log(), "Newton-Raphson iteration {}", iter);
@@ -470,7 +471,10 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
       this->MaybeFreshenMatrices(t0 + h, x_iter, h, /* trial */ 3,
         construct_iteration_matrix, &iteration_matrix_radau3_);
       if (this->get_reuse())
+      {
        maybe_refresh_jacobians_with_x_iter-- ;
+       jacobian_is_dirty = true;
+      }
     }
   }
 
@@ -481,6 +485,13 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
   if (!this->get_reuse())
     return false;
 
+  if(jacobian_is_dirty && ( trial == 3 ))
+  {
+    // help out the jacobian refresh logic
+    this->force_recompute_jacobian_next_call();
+    this->MaybeFreshenMatrices(t0 , xt0, h, /* trial */ 3,
+        construct_iteration_matrix, &iteration_matrix_radau3_);
+  }
   // Try StepRadau again, freshening Jacobians and iteration matrix
   // factorizations as helpful.
   return StepRadau(t0, h, xt0, xtplus, trial+1);

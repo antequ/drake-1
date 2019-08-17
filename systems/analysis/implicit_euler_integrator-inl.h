@@ -179,6 +179,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   std::unique_ptr<ContinuousState<T>> x_kp1 = x_k->Clone();
   int theta_greater_than_one_forgiveness_count = 0;
   int theta_greater_than_one_limit = 0;
+  bool jacobian_is_dirty = false;
   // Do the Newton-Raphson iterations.
   int i;
   //std::cout << "x0 : " << xt0.transpose() << std::endl;
@@ -280,7 +281,10 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
       this->MaybeFreshenMatrices(tf, *xtplus, h, /* trial */  3,
         compute_and_factor_iteration_matrix, &iteration_matrix_);
       if (this->get_reuse())
+      {
         maybe_refresh_jacobians_with_x_iter-- ;
+        jacobian_is_dirty = true;
+      }
     }
   }
 //std::cout << i << "iterations " << std::endl;
@@ -291,6 +295,13 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   if (!this->get_reuse())
     return false;
 
+  if(jacobian_is_dirty && ( trial == 3 ))
+  {
+    // help out the jacobian refresh logic
+    this->force_recompute_jacobian_next_call();
+    this->MaybeFreshenMatrices(t0, xt0, h, /* trial */  3,
+        compute_and_factor_iteration_matrix, &iteration_matrix_);
+  }
   // Try StepAbstract again, freshening Jacobians and iteration matrix
   // factorizations as helpful.
   return StepAbstract(
