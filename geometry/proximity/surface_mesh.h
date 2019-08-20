@@ -197,7 +197,7 @@ class SurfaceMesh {
               std::vector<SurfaceVertex<T>>&& vertices)
       : faces_(std::move(faces)), vertices_(std::move(vertices)),
         area_(faces_.size()) {  // Pre-allocate here, not yet calculated.
-    //SetReferringTriangles();
+    SetReferringTriangles();
     CalcAreasAndCentroid();
   }
 

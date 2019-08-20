@@ -271,6 +271,7 @@ drake_cc_googletest(
     name = "make_box_mesh_test",
     deps = [
         ":make_box_mesh",
+        "//common/test_utilities:eigen_matrix_compare",
     ],
 )
 
@@ -294,6 +295,11 @@ drake_cc_googletest(
         "//common/test_utilities:eigen_matrix_compare",
         "//geometry/proximity:mesh_intersection",
     ],
+)
+
+drake_cc_googletest(
+    name = "proximity_utilities_test",
+    deps = [":proximity_utilities"],
 )
 
 add_lint_tests()
