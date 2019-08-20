@@ -27,6 +27,7 @@
 #include "drake/systems/primitives/sine.h"
 
 #include <iostream>
+#undef PRINT_VAR
 #define PRINT_VAR(a) std::cout << #a": " << a << std::endl;
 
 namespace drake {
@@ -515,6 +516,7 @@ int do_main() {
   std::cout << "z (pos, vel): " << translate_joint.get_translation(plant_context) << ", " << translate_joint.get_translation_rate(plant_context) << std::endl;
   std::cout << "grip width (pos, vel): " << finger_slider.get_translation(plant_context) << ", " << finger_slider.get_translation_rate(plant_context) << std::endl;
   
+
   return 0;
 }
 

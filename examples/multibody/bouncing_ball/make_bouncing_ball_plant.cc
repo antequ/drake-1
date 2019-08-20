@@ -23,8 +23,18 @@ MakeBouncingBallPlant(double radius, double mass,
                       double elastic_modulus, double dissipation,
                       const CoulombFriction<double>& surface_friction,
                       const Vector3<double>& gravity_W,
+                      const std::string& contact_model,
                       SceneGraph<double>* scene_graph) {
   auto plant = std::make_unique<MultibodyPlant<double>>();
+
+  if (contact_model == "hydroelastic") {
+    plant->use_hydroelastic_model(true);
+  } else if (contact_model == "point") {
+    plant->use_hydroelastic_model(false);
+  } else {
+    throw std::runtime_error("Invalid contact model: '" + contact_model +
+                             "'.");
+  }
 
   UnitInertia<double> G_Bcm = UnitInertia<double>::SolidSphere(radius);
   SpatialInertia<double> M_Bcm(mass, Vector3<double>::Zero(), G_Bcm);

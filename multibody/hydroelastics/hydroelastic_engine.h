@@ -66,8 +66,8 @@ class HydroelasticGeometry {
   void set_elastic_modulus(double elastic_modulus) {
     DRAKE_THROW_UNLESS(is_soft());
     DRAKE_THROW_UNLESS(elastic_modulus > 0);
-    DRAKE_THROW_UNLESS(elastic_modulus !=
-                       std::numeric_limits<double>::infinity());
+    //DRAKE_THROW_UNLESS(elastic_modulus !=
+    //                   std::numeric_limits<double>::infinity());
     elastic_modulus_ = elastic_modulus;
   }
 

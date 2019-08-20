@@ -31,8 +31,9 @@ using drake::math::RigidTransform;
 
 #include <iostream>
 #include <fstream>
+#undef PRINT_VAR
 //#define PRINT_VAR(a) std::cout << #a": " << a << std::endl;
-//#define PRINT_VAR(a) (void) (a);
+#define PRINT_VAR(a) (void) (a);
 
 namespace drake {
 namespace multibody {
@@ -135,8 +136,8 @@ std::vector<ContactSurface<T>> HydroelasticEngine<T>::ComputeContactSurfaces(
     const HydroelasticGeometry<T>& model_R =
         model_M->is_soft() ? *model_N : *model_M;
 
-    //PRINT_VAR(model_S.hydroelastic_field().volume_mesh().num_vertices());
-    //PRINT_VAR(model_S.hydroelastic_field().volume_mesh().num_elements());
+    PRINT_VAR(model_S.hydroelastic_field().volume_mesh().num_vertices());
+    PRINT_VAR(model_S.hydroelastic_field().volume_mesh().num_elements());
 
     optional<ContactSurface<T>> surface =
         CalcContactSurface(id_S, model_S, id_R, model_R, X_RS);
@@ -298,13 +299,6 @@ void HydroelasticEngine<T>::ImplementGeometry(const Cylinder& cylinder,
 
 template <typename T>
 void HydroelasticEngine<T>::ImplementGeometry(const Box& box, void* user_data) {
-#if 0        
-    // Box: correct distance to corners
-float fBox(vec3 p, vec3 b) {
-	vec3 d = abs(p) - b;
-	return length(max(d, vec3(0))) + vmax(min(d, vec3(0)));
-}
-#endif
   // No-op. Enable this when  needed.
   //return;
 

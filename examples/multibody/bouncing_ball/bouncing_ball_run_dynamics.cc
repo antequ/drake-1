@@ -10,6 +10,7 @@
 #include "drake/lcm/drake_lcm.h"
 #include "drake/math/random_rotation.h"
 #include "drake/multibody/math/spatial_velocity.h"
+#include "drake/multibody/plant/contact_results_to_lcm.h"
 #include "drake/systems/analysis/implicit_euler_integrator.h"
 #include "drake/systems/analysis/runge_kutta2_integrator.h"
 #include "drake/systems/analysis/runge_kutta3_integrator.h"
@@ -19,6 +20,7 @@
 
 
 #include <iostream>
+#undef PRINT_VAR
 #define PRINT_VAR(a) std::cout << #a": " << a << std::endl;
 
 using drake::multibody::SpatialVelocity;
@@ -93,16 +95,7 @@ int do_main() {
   MultibodyPlant<double>& plant = *builder.AddSystem(MakeBouncingBallPlant(
       radius, mass, 
       FLAGS_elastic_modulus, FLAGS_dissipation,
-      coulomb_friction, -g * Vector3d::UnitZ(), &scene_graph));
-
-  if (FLAGS_contact_model == "hydroelastic") {
-    plant.use_hydroelastic_model(true);
-  } else if (FLAGS_contact_model == "point") {
-    plant.use_hydroelastic_model(false);
-  } else {
-    throw std::runtime_error("Invalid contact model: '" + FLAGS_contact_model +
-                             "'.");
-  }
+      coulomb_friction, -g * Vector3d::UnitZ(), FLAGS_contact_model, &scene_graph));
 
   // Set how much penetration (in meters) we are willing to accept.
   plant.set_penetration_allowance(0.001);
@@ -125,6 +118,9 @@ int do_main() {
   builder.Connect(
       plant.get_geometry_poses_output_port(),
       scene_graph.get_source_pose_port(plant.get_source_id().value()));
+
+  if (!plant.uses_hydroelastic_model())
+    ConnectContactResultsToDrakeVisualizer(&builder, plant);
 
   geometry::ConnectDrakeVisualizer(&builder, scene_graph);
   auto diagram = builder.Build();
@@ -214,9 +210,17 @@ int do_main() {
 
   // We made a good guess for max_time_step and therefore we expect no
   // failures when taking a time step.
-  DRAKE_DEMAND(integrator->get_num_substep_failures() == 0);
-  DRAKE_DEMAND(
-      integrator->get_num_step_shrinkages_from_substep_failures() == 0);
+  PRINT_VAR(integrator->get_num_substep_failures());
+  PRINT_VAR(
+      integrator->get_num_step_shrinkages_from_substep_failures());
+
+  if (!integrator->get_fixed_step_mode()) {
+    PRINT_VAR(integrator->get_target_accuracy());
+    PRINT_VAR(integrator->get_accuracy_in_use());
+    PRINT_VAR(integrator->get_smallest_adapted_step_size_taken());
+    PRINT_VAR(integrator->get_largest_step_size_taken());
+  }
+  PRINT_VAR(integrator->get_num_steps_taken());
 
   if (!integrator->get_fixed_step_mode()) {
     PRINT_VAR(integrator->get_target_accuracy());

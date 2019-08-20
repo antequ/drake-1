@@ -34,8 +34,9 @@
 #include "drake/systems/framework/scalar_conversion_traits.h"
 
 #include <iostream>
+#undef PRINT_VAR
 //#define PRINT_VAR(a) std::cout << #a": " << a << std::endl;
-//#define PRINT_VAR(a) (void) a;
+#define PRINT_VAR(a) (void) a;
 
 namespace drake {
 namespace multibody {
@@ -2731,6 +2732,8 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
     return default_coulomb_friction_[collision_index];
   }
 
+  bool uses_hydroelastic_model() const { return use_hydroelastic_model_; }
+
   /// If `use_hydro` MBP uses the hydroelastic model. Otherwise it uses point
   /// contact model.
   void use_hydroelastic_model(bool use_hydro = true) {
@@ -3579,13 +3582,15 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
       const std::vector<geometry::PenetrationAsPointPair<T>>&
       point_pairs) const;
 
+  // Calc method to EvalContactResultsByPenaltyMethod.
+  void CalcContactResultsByPenaltyMethod(
+      const systems::Context<T>& context,
+      ContactResults<T>* contact_results) const;
+
   // (Advanced) Helper method to compute contact forces in the normal direction
   // using a penalty method.
   void CalcAndAddContactForcesByPenaltyMethod(
       const systems::Context<T>& context,
-      const internal::PositionKinematicsCache<T>& pc,
-      const internal::VelocityKinematicsCache<T>& vc,
-      const std::vector<geometry::PenetrationAsPointPair<T>>& point_pairs,
       std::vector<SpatialForce<T>>* F_BBo_W_array) const;
 
   void MakeHydroelasticModels();

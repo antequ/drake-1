@@ -31,7 +31,7 @@ namespace internal {
 /// requirements; a quadratic function of the radius, ε(r) = 0.5 [1 - (r / R)²].
 template <typename T>
 std::unique_ptr<HydroelasticField<T>> MakeBoxHydroelasticField(
-    const geometry::Box& box, const T& target_edge_length) {
+    const geometry::Box& box, double target_edge_length) {
   const Vector3<double> half_sizes = box.size() / 2.0;
   const double min_half_size = half_sizes.minCoeff();
 
@@ -71,8 +71,7 @@ std::unique_ptr<HydroelasticField<T>> MakeBoxHydroelasticField(
       };
 
   auto mesh = std::make_unique<geometry::VolumeMesh<T>>(
-      geometry::internal::MakeBoxVolumeMesh<T>::generate(box,
-                                                         target_edge_length));
+      geometry::internal::MakeBoxVolumeMesh<T>(box, target_edge_length));
 
   // Analytic pressure field and gradient.
   std::vector<T> e_m_values(mesh->vertices().size());
