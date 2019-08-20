@@ -133,7 +133,7 @@ void DoEvalGeneric(const MultibodyPlant<T>& plant, systems::Context<T>* context,
   const Vector3<T> b_unit_A = R_AB * b_unit_B.cast<T>();
   *y = a_unit_A.transpose() * b_unit_A;
   EvalConstraintGradient(*context, plant, frameA, frameB, a_unit_A, b_unit_B,
-                         R_AB.matrix(), x, y);
+                         R_AB, x, y);
 }
 
 void AngleBetweenVectorsConstraint::DoEval(

@@ -136,7 +136,7 @@ void DoEvalGeneric(const MultibodyPlant<T>& plant, systems::Context<T>* context,
                         m(2, 0) - m(0, 2),
                         m(0, 1) - m(1, 0)};
   EvalConstraintGradient(*context, plant, frameAbar, frameBbar, R_AbarA,
-                         R_AB.matrix(), r_AB, x, y);
+                         R_AB, r_AB, x, y);
 }
 
 void OrientationConstraint::DoEval(const Eigen::Ref<const Eigen::VectorXd>& x,
