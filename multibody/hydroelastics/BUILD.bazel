@@ -69,7 +69,6 @@ drake_cc_library(
 )
 
 drake_cc_library(
-<<<<<<< HEAD
     name = "hydroelastic_field_box",
     hdrs = [
         "hydroelastic_field_box.h",
@@ -94,8 +93,6 @@ drake_cc_library(
 )
 
 drake_cc_library(
-=======
->>>>>>> b6bf71291... Implements HydroelasticEngine (#11713)
     name = "hydroelastic_field_sphere",
     hdrs = [
         "hydroelastic_field_sphere.h",
@@ -113,7 +110,6 @@ drake_cc_library(
     deps = ["//common:essential"],
 )
 
-<<<<<<< HEAD
 drake_cc_library(
     name = "write_meshes",
     srcs = ["write_meshes.cc"],
@@ -125,8 +121,6 @@ drake_cc_library(
     ],
 )
 
-=======
->>>>>>> b6bf71291... Implements HydroelasticEngine (#11713)
 drake_cc_googletest(
     name = "contact_surface_from_level_set_test",
     deps = [

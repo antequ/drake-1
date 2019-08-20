@@ -2,6 +2,7 @@
 
 #include <limits>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "drake/common/default_scalars.h"
@@ -54,7 +55,7 @@ template <typename T>
 void HydroelasticEngine<T>::MakeModels(
     const geometry::SceneGraphInspector<T>& inspector) {
   // Only reify geometries with proximity roles.
-  for (const geometry::GeometryId geometry_id : inspector.all_geometry_ids()) {
+  for (const geometry::GeometryId geometry_id : inspector.GetAllGeometryIds()) {
     if (const geometry::ProximityProperties* properties =
             inspector.GetProximityProperties(geometry_id)) {
       const Shape& shape = inspector.GetShape(geometry_id);
@@ -186,17 +187,8 @@ optional<ContactSurface<T>> HydroelasticEngine<T>::CalcContactSurface(
   // In consistency with ContactSurface's contract, the first id must belong
   // to the geometry associated with the frame in which quantities are
   // expressed, in this case id_R.
-  ContactSurface<T> contact_surface(id_R, id_S, std::move(surface_R),
-                                    std::move(e_s),
-                                    std::move(grad_level_set_R));
-  // ContactSurface's contract is that id_M < id_N. We make sure this is the
-  // case by swapping if needed.
-  // TODO(amcastro-tri): Update to pass X_SR to ContactSurface's constructor
-  // once ContactSurface takes care of the swapping at construction.
-  if (id_S < id_R) {
-    contact_surface.SwapMAndN(X_RS.inverse());
-  }
-  return contact_surface;
+  return ContactSurface<T>(id_R, id_S, std::move(surface_R), std::move(e_s),
+                           std::move(grad_level_set_R), X_RS);
 }
 
 template <typename T>
@@ -308,6 +300,13 @@ void HydroelasticEngine<T>::ImplementGeometry(const Cylinder& cylinder,
 
 template <typename T>
 void HydroelasticEngine<T>::ImplementGeometry(const Box& box, void* user_data) {
+#if 0        
+    // Box: correct distance to corners
+float fBox(vec3 p, vec3 b) {
+	vec3 d = abs(p) - b;
+	return length(max(d, vec3(0))) + vmax(min(d, vec3(0)));
+}
+#endif
   // No-op. Enable this when  needed.
   //return;
 
@@ -317,7 +316,7 @@ void HydroelasticEngine<T>::ImplementGeometry(const Box& box, void* user_data) {
   
   if (elastic_modulus != std::numeric_limits<double>::infinity()) {
       // Soft mesh field model
-      const T mesh_size = box.size().minCoeff() / 5;
+      const double mesh_size = box.size().maxCoeff() / 5;
       auto box_field = MakeBoxHydroelasticField<T>(box, mesh_size);
       auto model =
           std::make_unique<HydroelasticGeometry<T>>(std::move(box_field));
