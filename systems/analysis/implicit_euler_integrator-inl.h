@@ -159,8 +159,14 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   T last_dx_norm = std::numeric_limits<double>::infinity();
 
   // Calculate Jacobian and iteration matrices (and factorizations), as needed,
-  // around (tf, xtplus).
-  if (!this->MaybeFreshenMatrices(t0, *xtplus, h, trial,
+  // around (t0, xt0).
+  if( this->get_reuse() && trial <= 3 && jacobian_invalidated_by_itlimiter_)
+  {   
+    this->MaybeFreshenMatrices(t0, xt0, h, /* trial */  3,
+        compute_and_factor_iteration_matrix, &iteration_matrix_);
+    jacobian_invalidated_by_itlimiter_ = false;
+  }
+  else if (!this->MaybeFreshenMatrices(t0, xt0, h, trial,
       compute_and_factor_iteration_matrix, &iteration_matrix_)) {
     return false;
   }
@@ -179,7 +185,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   std::unique_ptr<ContinuousState<T>> x_kp1 = x_k->Clone();
   int theta_greater_than_one_forgiveness_count = 0;
   int theta_greater_than_one_limit = 0;
-  bool jacobian_is_dirty = false;
+
   // Do the Newton-Raphson iterations.
   int i;
   //std::cout << "x0 : " << xt0.transpose() << std::endl;
@@ -203,16 +209,22 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
         //std::cout << "\nA matrix \n" << iteration_matrix_.Get_Matrix() << std::endl;
         //std::cout << "\nxtplus \n" << *xtplus << std::endl;
         //std::cout << "\ndx \n" << dx << std::endl;
+        //if (trial == 3 && t0 <= 0.8 && t0 >= 0.6)
+        //{
+        //  std::cout << "t:" << t0 << ", it: " << i << ", |dx|: " << dx.norm() << ", dx: " << dx.transpose() << ", resid: " << goutput.transpose() << std::endl;
+        //  std::cout << "x:" << xtplus->transpose() << std::endl;
+        //}
         dx *= alpha;
         maybe_refresh_jacobians_with_x_iter = 4;
         theta_greater_than_one_limit += 2;
         std::cout << trial <<  " " << i << " " << alpha << " " << theta_greater_than_one_limit / 2 << std::endl;
       }
     }
-    if (trial == 3 )
-    {
-      //std::cout << "t:" << t0 << ", it: " << i << ", |dx|: " << dx.norm() << ", dx: " << dx.transpose() << ", resid: " << goutput.transpose() << std::endl;
-    }
+    //if ( t0 <= 0.701 && t0 >= 0.689)
+    //{
+    //  std::cout << "t:" << t0 << ", it: " << i << ", |dx|: " << dx.norm() << ", dx: " << dx.transpose() << ", resid: " << goutput.transpose() << std::endl;
+    //  std::cout << "trial: " << trial << ", x: " << xtplus->transpose() << std::endl;
+    //}
     // Get the infinity norm of the weighted update vector.
     dx_state_->get_mutable_vector().SetFromVector(dx);
     T dx_norm = this->CalcStateChangeNorm(*dx_state_);
@@ -283,7 +295,8 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
       if (this->get_reuse())
       {
         maybe_refresh_jacobians_with_x_iter-- ;
-        jacobian_is_dirty = true;
+        this->force_recompute_jacobian_next_call();
+        jacobian_invalidated_by_itlimiter_ = true;
       }
     }
   }
@@ -295,13 +308,6 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   if (!this->get_reuse())
     return false;
 
-  if(jacobian_is_dirty && ( trial == 3 ))
-  {
-    // help out the jacobian refresh logic
-    this->force_recompute_jacobian_next_call();
-    this->MaybeFreshenMatrices(t0, xt0, h, /* trial */  3,
-        compute_and_factor_iteration_matrix, &iteration_matrix_);
-  }
   // Try StepAbstract again, freshening Jacobians and iteration matrix
   // factorizations as helpful.
   return StepAbstract(
@@ -337,7 +343,6 @@ bool ImplicitEulerIntegrator<T>::StepImplicitEuler(const T& t0, const T& h,
   // Use the current state as the candidate value for the next state.
   // [Hairer 1996] validates this choice (p. 120).
   *xtplus = xt0;
-
   // Attempt the step.
   return StepAbstract(
       t0, h, xt0, g, ComputeAndFactorImplicitEulerIterationMatrix, &*xtplus);
@@ -384,7 +389,6 @@ bool ImplicitEulerIntegrator<T>::StepImplicitTrapezoid(const T& t0, const T& h,
   int64_t stored_num_jacobian_function_evaluations =
       this->get_num_derivative_evaluations_for_jacobian();
   int stored_num_nr_iterations = this->get_num_newton_raphson_iterations();
-
   // Attempt to step.
   bool success = StepAbstract(
       t0, h, xt0, g, ComputeAndFactorImplicitTrapezoidIterationMatrix, xtplus);

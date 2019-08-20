@@ -206,6 +206,15 @@ class ImplicitIntegrator : public IntegratorBase<T> {
     Eigen::HouseholderQR<MatrixX<AutoDiffXd>> QR_;
   };
 
+  /// computes whether the Jacobian is fresh, from whether the iteration succeeded
+  virtual bool GetJacobianIsFreshAndStartNextStep(bool integration_result) 
+  {
+    // If the implicit step is successful (result is true), we need a new
+    // Jacobian (fresh is false). Otherwise, a failed step (result is false)
+    // means we can keep the Jacobian (fresh is true). Therefore fresh =
+    // !result, always.
+    return !integration_result;
+  }
   /// Computes necessary matrices (Jacobian and iteration matrix) for
   /// Newton-Raphson (NR) iterations, as necessary. his method has been designed
   /// for use in DoImplicitIntegratorStep() processes that follow this model:
@@ -315,11 +324,8 @@ class ImplicitIntegrator : public IntegratorBase<T> {
  private:
   bool DoStep(const T& h) final {
     bool result = DoImplicitIntegratorStep(h);
-    // If the implicit step is successful (result is true), we need a new
-    // Jacobian (fresh is false). Otherwise, a failed step (result is false)
-    // means we can keep the Jacobian (fresh is true). Therefore fresh =
-    // !result, always.
-    jacobian_is_fresh_ = !result;
+
+    jacobian_is_fresh_ = GetJacobianIsFreshAndStartNextStep(result);
 
     return result;
   }

@@ -77,6 +77,25 @@ class RadauIntegrator final : public ImplicitIntegrator<T> {
   bool supports_error_estimation() const final { return false; }
 
   int get_error_estimate_order() const final { return 0; }
+ protected:
+  // this calculates whether the Jacobian(xt0) is actually fresh based on whether the it limiter 
+  //  invalidated it by computing Jacobian(xtk)
+  // the other option is to cache a copy.
+  bool GetJacobianIsFreshAndStartNextStep(bool integration_result) override {
+    if (jacobian_invalidated_by_itlimiter_)
+    {
+      // case where it limiter invalidated Jacobian
+      // when a step succeeds, jacobian is now valid. If it fails, Jacobian is invalid
+      jacobian_invalidated_by_itlimiter_ = !integration_result;
+      // however, the jacobian is not necessarily "fresh", for future steps.
+      return false;
+    }
+    else
+    {
+      // case where it limiter did not activate
+      return !integration_result;
+    }
+  }
 
  private:
   int64_t do_get_num_newton_raphson_iterations() const final {
@@ -130,6 +149,7 @@ class RadauIntegrator final : public ImplicitIntegrator<T> {
 
   // The iteration matrix for the Radau method.
   typename ImplicitIntegrator<T>::IterationMatrix iteration_matrix_radau3_;
+  bool jacobian_invalidated_by_itlimiter_ = false;
 
   // The (constant) tensor product between A_ and an identity matrix. This
   // product is computed only at initialization.
@@ -298,7 +318,13 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
   };
 
   // Calculate Jacobian and iteration matrices (and factorizations), as needed.
-  if (!this->MaybeFreshenMatrices(t0, xt0, h, trial, construct_iteration_matrix,
+  if( this->get_reuse() && trial <= 3 && jacobian_invalidated_by_itlimiter_)
+  {   
+    this->MaybeFreshenMatrices(t0, xt0, h, /*trial*/ 3, construct_iteration_matrix,
+      &iteration_matrix_radau3_);
+    jacobian_invalidated_by_itlimiter_ = false;
+  }
+  else if (!this->MaybeFreshenMatrices(t0, xt0, h, trial, construct_iteration_matrix,
       &iteration_matrix_radau3_)) {
     return false;
   }
@@ -322,7 +348,6 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
   bool run_all_the_way = false;
   int theta_greater_than_one_forgiveness_count = 0;
   int theta_greater_than_one_limit = 0;
-  bool jacobian_is_dirty = false;
   // Do the Newton-Raphson iterations.
   for (int iter = 0; iter < max_iterations; ++iter) {
     SPDLOG_DEBUG(drake::log(), "Newton-Raphson iteration {}", iter);
@@ -472,8 +497,9 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
         construct_iteration_matrix, &iteration_matrix_radau3_);
       if (this->get_reuse())
       {
-       maybe_refresh_jacobians_with_x_iter-- ;
-       jacobian_is_dirty = true;
+        maybe_refresh_jacobians_with_x_iter-- ;
+        this->force_recompute_jacobian_next_call();
+        jacobian_invalidated_by_itlimiter_ = true;
       }
     }
   }
@@ -485,13 +511,6 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
   if (!this->get_reuse())
     return false;
 
-  if(jacobian_is_dirty && ( trial == 3 ))
-  {
-    // help out the jacobian refresh logic
-    this->force_recompute_jacobian_next_call();
-    this->MaybeFreshenMatrices(t0 , xt0, h, /* trial */ 3,
-        construct_iteration_matrix, &iteration_matrix_radau3_);
-  }
   // Try StepRadau again, freshening Jacobians and iteration matrix
   // factorizations as helpful.
   return StepRadau(t0, h, xt0, xtplus, trial+1);

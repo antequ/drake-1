@@ -91,6 +91,26 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   /// difference between these two methods (from which the error estimate is
   /// computed) is O(h²).
   int get_error_estimate_order() const final { return 2; }
+ protected:
+  
+  // this calculates whether the Jacobian(xt0) is actually fresh based on whether the it limiter 
+  //  invalidated it by computing Jacobian(xtk)
+  // the other option is to cache a copy.
+  bool GetJacobianIsFreshAndStartNextStep(bool integration_result) override {
+    if (jacobian_invalidated_by_itlimiter_)
+    {
+      // case where it limiter invalidated Jacobian
+      // when a step succeeds, jacobian is now valid. If it fails, Jacobian is invalid
+      jacobian_invalidated_by_itlimiter_ = !integration_result;
+      // however, the jacobian is not necessarily "fresh", for future steps.
+      return false;
+    }
+    else
+    {
+      // case where it limiter did not activate
+      return !integration_result;
+    }
+  }
 
  private:
   int64_t do_get_num_newton_raphson_iterations() const final {
@@ -149,6 +169,7 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   // The last computed iteration matrix and factorization, used for both the
   // integrator and the error estimator.
   typename ImplicitIntegrator<T>::IterationMatrix iteration_matrix_;
+  bool jacobian_invalidated_by_itlimiter_ = false;
 
   // Vector used in error estimate calculations.
   VectorX<T> err_est_vec_;
