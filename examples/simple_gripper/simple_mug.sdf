@@ -4,7 +4,7 @@
       <pose frame=''>0 0 0 0 -0 0</pose>
       <inertial>
         <pose frame=''>0.00 0 -0.01 0 -0 0</pose>
-        <mass>0.094</mass>
+        <mass>0.0094</mass>
         <inertia>
           <ixx>0.000156</ixx>
           <ixy>0</ixy>
@@ -18,7 +18,7 @@
         <pose frame=''>0 0 -0.01 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <length>0.1</length>
+            <length>0.2</length>
             <radius>0.04</radius>
           </cylinder>
         </geometry>
@@ -37,7 +37,7 @@
         <pose frame=''>0 0 -0.01 0 -0 0</pose>
         <geometry>
           <cylinder>
-            <length>0.1</length>
+            <length>0.2</length>
             <radius>0.04</radius>
           </cylinder>
         </geometry>

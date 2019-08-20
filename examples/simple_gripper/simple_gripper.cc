@@ -111,6 +111,7 @@ DEFINE_double(ry, 0, "The y-rotation of the mug around its origin - the center "
 DEFINE_double(rz, 0, "The z-rotation of the mug around its origin - the center "
               "of its bottom. [degrees]. Extrinsic rotation order: X, Y, Z");
 
+DEFINE_double(mz, 0., "The z translation of the mug from original");
 // Gripping force.
 DEFINE_double(gripper_force, 10, "The force to be applied by the gripper. [N]. "
               "A value of 0 indicates a fixed grip width as set with option "
@@ -381,7 +382,7 @@ int do_main() {
   RigidTransformd X_WM(
       RollPitchYawd(FLAGS_rx * M_PI / 180, FLAGS_ry * M_PI / 180,
                     (FLAGS_rz * M_PI / 180) + M_PI),
-      Vector3d(0.0, mug_y_W, 0.0));
+      Vector3d(0.0, mug_y_W, FLAGS_mz));
   plant.SetFreeBodyPose(&plant_context, mug, X_WM);
 
   // Set the initial height of the gripper and its initial velocity so that with

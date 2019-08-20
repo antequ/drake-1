@@ -98,6 +98,9 @@ DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
 DEFINE_bool(autodiff, false, "Set true to use AutoDiff in Jacobian computation.");
 DEFINE_double(fixed_tolerance, 1.e-4, "Tolerance for Newton iterations of fixed implicit integrators.");
 
+DEFINE_bool(full_newton, false, "set this to ensure implicit integrators do the full Newton-Raphson.");
+DEFINE_bool(convergence_control, false, "set this to allow convergence control.");
+
 DEFINE_string(truth_integration_scheme, "runge_kutta2",
               "Integration scheme for computing truth (fixed). Available options are: "
               "'fixed_implicit_euler', 'implicit_euler' (ec), 'semi_explicit_euler',"
@@ -344,6 +347,7 @@ int do_main() {
     {
       integrator->set_target_accuracy(FLAGS_fixed_tolerance);
     }
+    static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_reuse(!FLAGS_full_newton);
 
   } else if (FLAGS_integration_scheme == "runge_kutta2") {
     integrator =
@@ -361,7 +365,7 @@ int do_main() {
     integrator =
         simulator.reset_integrator<systems::SemiExplicitEulerIntegrator<double>>(
             *diagram, FLAGS_max_time_step, &simulator.get_mutable_context());
-  } else if (FLAGS_integration_scheme == "fixed_implicit_euler") {
+  } else if (FLAGS_integration_scheme == "fixed_implicit_euler" || FLAGS_integration_scheme == "radau1") {
     integrator =
         simulator.reset_integrator<systems::RadauIntegrator<double,1>>(
             *diagram, &simulator.get_mutable_context());
@@ -374,7 +378,8 @@ int do_main() {
     {
       integrator->set_target_accuracy(FLAGS_fixed_tolerance);
     }
-  } else if (FLAGS_integration_scheme == "radau") {
+    static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_reuse(!FLAGS_full_newton);
+  } else if (FLAGS_integration_scheme == "radau" || FLAGS_integration_scheme == "radau3") {
     integrator =
         simulator.reset_integrator<systems::RadauIntegrator<double,2>>(
             *diagram, &simulator.get_mutable_context());
@@ -387,6 +392,7 @@ int do_main() {
     {
       integrator->set_target_accuracy(FLAGS_fixed_tolerance);
     }
+    static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_reuse(!FLAGS_full_newton);
   } else {
     throw std::runtime_error(
         "Integration scheme '" + FLAGS_integration_scheme +
@@ -414,6 +420,7 @@ int do_main() {
   if (!integrator->get_fixed_step_mode())
     integrator->set_target_accuracy(FLAGS_accuracy);
 
+  integrator->set_convergence_control(FLAGS_convergence_control);
   if (FLAGS_visualize )
   {
     // The error controlled integrators might need to take very small time steps
