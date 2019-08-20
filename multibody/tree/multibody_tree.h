@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -522,6 +523,9 @@ class MultibodyTree {
   ///   HasJointActuatorNamed().
   /// @param[in] joint
   ///   The Joint to be actuated by the new JointActuator.
+  /// @param[in] effort_limit
+  ///   The maximum effort for the actuator. It must be greater than 0. If
+  ///   the user does not set this value, the default value is +∞.
   /// @returns A constant reference to the new JointActuator just added, which
   /// will remain valid for the lifetime of `this` %MultibodyTree.
   /// @throws std::exception if `this` model already contains a joint actuator
@@ -530,7 +534,8 @@ class MultibodyTree {
   // TODO(amcastro-tri): consider adding sugar method to declare an actuated
   // joint with a single call. Maybe MBT::AddActuatedJoint() or the like.
   const JointActuator<T>& AddJointActuator(
-      const std::string& name, const Joint<T>& joint);
+      const std::string& name, const Joint<T>& joint,
+      double effort_limit = std::numeric_limits<double>::infinity());
 
   /// Creates a new model instance.  Returns the index for a new model
   /// instance (as there is no concrete object beyond the index).
@@ -1233,6 +1238,38 @@ class MultibodyTree {
       EigenPtr<MatrixX<T>> p_AQi) const;
 
   /// See MultibodyPlant method.
+  Vector3<T> CalcCenterOfMassPosition(const systems::Context<T>& context) const;
+
+  /// See MultibodyPlant method.
+  Vector3<T> CalcCenterOfMassPosition(
+      const systems::Context<T>& context,
+      const std::vector<ModelInstanceIndex>& model_instances) const;
+
+  /// This method computes the center of mass position p_WCcm of specified
+  /// bodies measured and expressed in world frame W. The specified bodies
+  /// are considered as a single composite body C, whose center of mass
+  /// `composite_mass` is located at Ccm. The bodies are selected by a vector of
+  /// body indexes `body_indexes`. This function does not distinguish between
+  /// welded bodies, joint connected bodies and floating bodies. The
+  /// world_body() is ignored.
+  ///
+  /// @param[in] context
+  ///   The context containing the state of the model. It stores the
+  ///   generalized positions q of the model.
+  /// @param[in] body_indexes
+  ///   The vector of selected bodies. `body_indexes` **must** not be empty.
+  /// @retval p_WCcm
+  ///   The output position of center of mass in the world frame W.
+  ///
+  /// @throws std::runtime_error if `MultibodyPlant` has no body except
+  ///   `world_body()`.
+  /// @throws std::runtime_error if `body_indexes.empty() == true`.
+  /// @throws std::runtime_error unless `composite_mass > 0`.
+  Vector3<T> CalcCenterOfMassPosition(
+      const systems::Context<T>& context,
+      const std::vector<BodyIndex>& body_indexes) const;
+
+  /// See MultibodyPlant method.
   const math::RigidTransform<T>& EvalBodyPoseInWorld(
       const systems::Context<T>& context,
       const Body<T>& body_B) const;
@@ -1279,13 +1316,6 @@ class MultibodyTree {
       const Eigen::Ref<const MatrixX<T>>& p_FP_list,
       EigenPtr<MatrixX<T>> p_WP_list,
       EigenPtr<MatrixX<T>> Jq_WFp) const;
-
-  /// See MultibodyPlant method.
-  void CalcFrameGeometricJacobianExpressedInWorld(
-      const systems::Context<T>& context,
-      const Frame<T>& frame_F,
-      const Eigen::Ref<const Vector3<T>>& p_FP,
-      EigenPtr<MatrixX<T>> Jv_WFp) const;
 
   /// See MultibodyPlant method.
   Vector6<T> CalcBiasForJacobianSpatialVelocity(

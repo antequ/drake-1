@@ -195,6 +195,24 @@ GTEST_TEST(RigidTransform, ConstructorAngleAxisPositionVector) {
   EXPECT_TRUE(X.translation() == position);
 }
 
+// Tests constructing a RigidTransform from a 4x4 matrix.
+GTEST_TEST(RigidTransform, FromMatrix4) {
+  const RotationMatrixd R = GetRotationMatrixB();
+  const Vector3<double> position(4, 5, 6);
+  Matrix4<double> matrix;
+  matrix <<
+      R.matrix(), position,
+      0, 0, 0, 1;
+  const RigidTransformd X = RigidTransformd::FromMatrix4(matrix);
+  EXPECT_TRUE(CompareMatrices(X.GetAsMatrix4(), matrix));
+
+  if (kDrakeAssertIsArmed) {
+    // Corrupt the matrix.
+    matrix(3, 3) += 1e-5;
+    EXPECT_THROW((RigidTransformd::FromMatrix4(matrix)), std::logic_error);
+  }
+}
+
 // Tests getting a 4x4 and 3x4 matrix from a RigidTransform.
 GTEST_TEST(RigidTransform, GetAsMatrices) {
   const RotationMatrix<double> R = GetRotationMatrixB();
@@ -496,6 +514,42 @@ GTEST_TEST(RigidTransform, ConstructRigidTransformFromTranslation3) {
   EXPECT_EQ(X_AB.translation(), p_AoBo_A);
   EXPECT_TRUE(X_AB.rotation().IsExactlyIdentity());
   EXPECT_TRUE(X_AB.IsExactlyEqualTo(X_AB_implicit));
+}
+
+// Test the RigidTransform set_rotation() methods.
+GTEST_TEST(RigidTransform, SetRotationMethods) {
+  const Vector3d p_AoBo_A(1.0, 2.0, 3.0);
+  RigidTransformd X_AB(p_AoBo_A);
+  EXPECT_TRUE(X_AB.rotation().IsExactlyIdentity());
+
+  // Test RigidTransform set_rotation() method with a RollPitchYaw.
+  const RollPitchYaw<double> rpy(0.1, 0.2, 0.3);
+  X_AB.set_rotation(rpy);
+  EXPECT_TRUE(X_AB.rotation().IsExactlyEqualTo(RotationMatrix<double>(rpy)));
+  EXPECT_EQ(X_AB.translation(), p_AoBo_A);
+  X_AB.set_rotation(RotationMatrix<double>::Identity());
+  EXPECT_TRUE(X_AB.rotation().IsExactlyIdentity());
+
+  // Test RigidTransform set_rotation() method with a Quaternion.
+  Eigen::Quaterniond quat(1, 2, 3, 4);
+  quat.normalize();
+  X_AB.set_rotation(quat);
+  EXPECT_TRUE(X_AB.rotation().IsExactlyEqualTo(RotationMatrix<double>(quat)));
+  EXPECT_EQ(X_AB.translation(), p_AoBo_A);
+  X_AB.set_rotation(RotationMatrix<double>::Identity());
+  EXPECT_TRUE(X_AB.rotation().IsExactlyIdentity());
+
+  // Test RigidTransform set_rotation() method with a Quaternion.
+  // Choose a unit vector using a Pythagorean quadruple, i.e., a set of integers
+  // a, b, c and d, such that a² + b² + c² = d².  One set is [1, 2, 2, 3].
+  const Eigen::Vector3d axis(1.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0);
+  const Eigen::AngleAxis<double> angle_axis(0.234, axis);
+  X_AB.set_rotation(angle_axis);
+  EXPECT_TRUE(
+      X_AB.rotation().IsExactlyEqualTo(RotationMatrix<double>(angle_axis)));
+  EXPECT_EQ(X_AB.translation(), p_AoBo_A);
+  X_AB.set_rotation(RotationMatrix<double>::Identity());
+  EXPECT_TRUE(X_AB.rotation().IsExactlyIdentity());
 }
 
 // Test multiplying a RigidTransform by an Eigen::Translation3 and vice-versa.

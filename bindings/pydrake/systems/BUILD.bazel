@@ -41,21 +41,6 @@ drake_py_library(
     ],
 )
 
-drake_cc_library(
-    name = "systems_pybind",
-    hdrs = ["systems_pybind.h"],
-    declare_installed_headers = 0,
-    deprecation = "This will be removed on or around 2019-08-01. Please " +
-                  "use constituent libraries instead.",
-    tags = ["manual"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//bindings/pydrake:pydrake_pybind",
-        "//bindings/pydrake/common:default_scalars_pybind",
-        "//bindings/pydrake/common:value_pybind",
-    ],
-)
-
 drake_pybind_library(
     name = "framework_py",
     cc_deps = [
@@ -147,9 +132,8 @@ drake_pybind_library(
         ":primitives_py",
         "//bindings/pydrake:math_py",
         "//bindings/pydrake:symbolic_py",
-        "//bindings/pydrake/multibody:multibody_tree_py",
+        "//bindings/pydrake/multibody:plant_py",
     ],
-    py_srcs = ["_controllers_extra.py"],
 )
 
 drake_pybind_library(
@@ -185,8 +169,8 @@ drake_pybind_library(
         ":module_py",
         "//bindings/pydrake/common:cpp_template_py",
         "//bindings/pydrake/common:eigen_geometry_py",
+        "//bindings/pydrake:geometry_py",
     ],
-    py_srcs = ["_sensors_extra.py"],
 )
 
 drake_pybind_library(
@@ -355,7 +339,8 @@ drake_py_binary(
         ":primitives_py",
         "//bindings/pydrake:geometry_py",
         "//bindings/pydrake:lcm_py",
-        "//bindings/pydrake/multibody:multibody_tree_py",
+        "//bindings/pydrake/multibody:parsing_py",
+        "//bindings/pydrake/multibody:plant_py",
     ],
 )
 
@@ -415,7 +400,9 @@ drake_py_unittest(
     deps = [
         ":controllers_py",
         "//bindings/pydrake/examples:pendulum_py",
+        "//bindings/pydrake/multibody:parsing_py",
         "//bindings/pydrake/multibody:plant_py",
+        "//bindings/pydrake/multibody:tree_py",
     ],
 )
 
@@ -427,6 +414,11 @@ drake_py_unittest(
         "//examples/quadrotor:models",
         "//manipulation/models/iiwa_description:models",
         "//systems/sensors:test_models",
+    ],
+    # Defects related to ZMQ when run under DRD or Helgrind.
+    tags = [
+        "no_drd",
+        "no_helgrind",
     ],
     deps = [
         ":analysis_py",
@@ -467,7 +459,9 @@ drake_py_unittest(
     data = ["//multibody/benchmarks/acrobot:models"],
     deps = [
         ":rendering_py",
-        "//bindings/pydrake/multibody:multibody_tree_py",
+        "//bindings/pydrake/multibody:math_py",
+        "//bindings/pydrake/multibody:parsing_py",
+        "//bindings/pydrake/multibody:plant_py",
     ],
 )
 
@@ -485,7 +479,10 @@ drake_py_unittest(
         "//systems/sensors:test_models",
     ],
     tags = vtk_test_tags(),
-    deps = [":sensors_py"],
+    deps = [
+        ":sensors_py",
+        "//bindings/pydrake:geometry_py",
+    ],
 )
 
 drake_py_unittest(

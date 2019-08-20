@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+
 #include "drake/common/drake_copyable.h"
 
 namespace drake {
@@ -17,7 +18,7 @@ namespace fbstab {
  */
 class DenseData {
  public:
-  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(DenseData);
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(DenseData)
   /**
    * Stores the problem data and performs input validation.
    * This class assumes that the pointers to the data remain valid.
@@ -34,16 +35,16 @@ class DenseData {
             const Eigen::MatrixXd* A, const Eigen::VectorXd* b);
 
   /** Read only accessor for the H matrix. */
-  const Eigen::MatrixXd& H() const { return *H_; };
+  const Eigen::MatrixXd& H() const { return *H_; }
 
   /** Read only accessor for the f vector. */
-  const Eigen::VectorXd& f() const { return *f_; };
+  const Eigen::VectorXd& f() const { return *f_; }
 
   /** Read only accessor for the A matrix. */
-  const Eigen::MatrixXd& A() const { return *A_; };
+  const Eigen::MatrixXd& A() const { return *A_; }
 
   /** Read only accessor for the b vector. */
-  const Eigen::VectorXd& b() const { return *b_; };
+  const Eigen::VectorXd& b() const { return *b_; }
 
   /**
    * @return number of decision variables (i.e., dimension of z)

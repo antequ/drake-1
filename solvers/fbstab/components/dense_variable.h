@@ -3,6 +3,7 @@
 #include <memory>
 
 #include <Eigen/Dense>
+
 #include "drake/common/drake_copyable.h"
 #include "drake/solvers/fbstab/components/dense_data.h"
 
@@ -17,9 +18,9 @@ namespace fbstab {
  * operations.
  *
  * Primal-dual variables have 3 components:
- * z: Decision variables
- * v: Inequality duals
- * y: Inequality margins
+ * - z: Decision variables
+ * - v: Inequality duals
+ * - y: Inequality margins
  *
  * where
  * length(z) = nz
@@ -28,7 +29,7 @@ namespace fbstab {
  */
 class DenseVariable {
  public:
-  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(DenseVariable);
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(DenseVariable)
 
   /**
    * Allocates memory for a primal-dual variables.
@@ -53,7 +54,7 @@ class DenseVariable {
    * Calculations cannot be performed until a data object is provided.
    * @param[in] data Pointer to the problem data
    */
-  void LinkData(const DenseData* data) { data_ = data; };
+  void LinkData(const DenseData* data) { data_ = data; }
 
   /**
    * Fills the variable with one value,
@@ -71,19 +72,19 @@ class DenseVariable {
   void InitializeConstraintMargin();
 
   /**
-   * Performs the operation u <- a*x + u
+   * Performs the operation *this <- a*x + *this
    * (where u is this object).
    * This is a level 1 BLAS operation for this object;
    * see http://www.netlib.org/blas/blasqr.pdf.
    *
-   * @param[in] x the other variable
    * @param[in] a scalar
+   * @param[in] x vector
    *
    * Note that this handles the constraint margin correctly, i.e., after the
    * operation u.y = b - A*(u.z + a*x.z).
    * Throws an exception if problem data has not been linked.
    */
-  void axpy(const DenseVariable& x, double a);
+  void axpy(double a, const DenseVariable& x);
 
   /**
    * Performs a deep copy operation.
@@ -106,22 +107,22 @@ class DenseVariable {
   double Norm() const;
 
   /** Accessor for the primal variable. */
-  Eigen::VectorXd& z() { return *z_; };
+  Eigen::VectorXd& z() { return *z_; }
 
   /** Accessor for the dual variable. */
-  Eigen::VectorXd& v() { return *v_; };
+  Eigen::VectorXd& v() { return *v_; }
 
   /** Accessor for the constraint margin. */
-  Eigen::VectorXd& y() { return *y_; };
+  Eigen::VectorXd& y() { return *y_; }
 
   /** Accessor for the primal variable. */
-  const Eigen::VectorXd& z() const { return *z_; };
+  const Eigen::VectorXd& z() const { return *z_; }
 
   /** Accessor for the dual variable. */
-  const Eigen::VectorXd& v() const { return *v_; };
+  const Eigen::VectorXd& v() const { return *v_; }
 
   /** Accessor for the constraint margin. */
-  const Eigen::VectorXd& y() const { return *y_; };
+  const Eigen::VectorXd& y() const { return *y_; }
 
   int num_constraints() const { return nv_; }
   int num_variables() const { return nz_; }
@@ -130,6 +131,7 @@ class DenseVariable {
   int nz_ = 0;  // Number of decision variable
   int nv_ = 0;  // Number of inequality constraints
   const DenseData* data_ = nullptr;
+  const DenseData* data() const;
   Eigen::VectorXd* z_ = nullptr;  // primal variable
   Eigen::VectorXd* v_ = nullptr;  // dual variable
   Eigen::VectorXd* y_ = nullptr;  // inequality margin

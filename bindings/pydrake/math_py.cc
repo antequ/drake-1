@@ -37,13 +37,16 @@ void DoScalarDependentDefinitions(py::module m, T) {
 
   // NOLINTNEXTLINE(build/namespaces): Emulate placement in namespace.
   using namespace drake::math;
-  const char* doc_iso3_deprecation =
-      "DO NOT USE!. We only offer this API for backwards compatibility with "
-      "Isometry3 and it will be deprecated soon with the resolution of "
-      "#9865. This will be removed on or around 2019-08-01.";
-
   constexpr auto& doc = pydrake_doc.drake.math;
+
   {
+    // N.B. Keep the deprecation date here in sync with the deprecation comment
+    // inside drake/math/rigid_transform.h.
+    const char* doc_rigid_transform_linear_matrix_deprecation =
+        "DO NOT USE! We offer this API for backwards compatibility with "
+        "Isometry3, but it will be removed on or around 2019-12-01. "
+        "See drake issue #9865 for details.";
+
     using Class = RigidTransform<T>;
     constexpr auto& cls_doc = doc.RigidTransform;
     auto cls = DefineTemplateClassWithDefault<Class>(
@@ -67,14 +70,34 @@ void DoScalarDependentDefinitions(py::module m, T) {
             cls_doc.ctor.doc_1args_p)
         .def(py::init<const Isometry3<T>&>(), py::arg("pose"),
             cls_doc.ctor.doc_1args_pose)
+        // Since Python doesn't suffer from ambiguities that C++ is, we can
+        // bind the Matrix4 constructor.
+        .def(py::init([](const Matrix4<T>& matrix) {
+          return Class::FromMatrix4(matrix);
+        }),
+            py::arg("matrix"), "Python-specific alias for ``FromMatrix4``.")
+        .def_static("FromMatrix4", &Class::FromMatrix4, py::arg("matrix"),
+            cls_doc.FromMatrix4.doc)
         .def("set", &Class::set, py::arg("R"), py::arg("p"), cls_doc.set.doc)
         .def("SetFromIsometry3", &Class::SetFromIsometry3, py::arg("pose"),
             cls_doc.SetFromIsometry3.doc)
         .def_static("Identity", &Class::Identity, cls_doc.Identity.doc)
         .def("rotation", &Class::rotation, py_reference_internal,
             cls_doc.rotation.doc)
-        .def("set_rotation", &Class::set_rotation, py::arg("R"),
-            cls_doc.set_rotation.doc)
+        .def("set_rotation",
+            py::overload_cast<const RotationMatrix<T>&>(&Class::set_rotation),
+            py::arg("R"), cls_doc.set_rotation.doc_1args_R)
+        .def("set_rotation",
+            py::overload_cast<const RollPitchYaw<T>&>(&Class::set_rotation),
+            py::arg("rpy"), cls_doc.set_rotation.doc_1args_rpy)
+        .def("set_rotation",
+            py::overload_cast<const Eigen::Quaternion<T>&>(
+                &Class::set_rotation),
+            py::arg("quaternion"), cls_doc.set_rotation.doc_1args_quaternion)
+        .def("set_rotation",
+            py::overload_cast<const Eigen::AngleAxis<T>&>(&Class::set_rotation),
+            py::arg("theta_lambda"),
+            cls_doc.set_rotation.doc_1args_theta_lambda)
         .def("translation", &Class::translation,
             return_value_policy_for_scalar_type<T>(), cls_doc.translation.doc)
         .def("set_translation", &Class::set_translation, py::arg("p"),
@@ -95,11 +118,19 @@ void DoScalarDependentDefinitions(py::module m, T) {
               return *self * p_BoQ_B;
             },
             py::arg("p_BoQ_B"), cls_doc.operator_mul.doc_1args_p_BoQ_B)
-        .def("matrix", &RigidTransform<T>::matrix, doc_iso3_deprecation)
+        .def("multiply",
+            [](const Class* self, const Matrix3X<T>& p_BoQ_B) {
+              return *self * p_BoQ_B;
+            },
+            py::arg("p_BoQ_B"),
+            cls_doc.operator_mul.doc_1args_constEigenMatrixBase)
+        .def("matrix", &RigidTransform<T>::matrix,
+            doc_rigid_transform_linear_matrix_deprecation)
         .def("linear", &RigidTransform<T>::linear, py_reference_internal,
-            doc_iso3_deprecation);
+            doc_rigid_transform_linear_matrix_deprecation);
     cls.attr("__matmul__") = cls.attr("multiply");
     DefCopyAndDeepCopy(&cls);
+    DefCast<T>(&cls, cls_doc.cast.doc);
     // .def("IsNearlyEqualTo", ...)
     // .def("IsExactlyEqualTo", ...)
   }
@@ -136,7 +167,15 @@ void DoScalarDependentDefinitions(py::module m, T) {
         .def("col", &Class::col, py::arg("index"), cls_doc.col.doc)
         .def("multiply",
             [](const Class& self, const Class& other) { return self * other; },
-            cls_doc.operator_mul.doc_1args_other)
+            py::arg("other"), cls_doc.operator_mul.doc_1args_other)
+        .def("multiply",
+            [](const Class& self, const Vector3<T>& v_B) { return self * v_B; },
+            py::arg("v_B"), cls_doc.operator_mul.doc_1args_v_B)
+        .def("multiply",
+            [](const Class& self, const Matrix3X<T>& v_B) {
+              return self * v_B;
+            },
+            py::arg("v_B"), cls_doc.operator_mul.doc_1args_constEigenMatrixBase)
         .def("IsValid", overload_cast_explicit<boolean<T>>(&Class::IsValid),
             cls_doc.IsValid.doc_0args)
         .def("IsExactlyIdentity", &Class::IsExactlyIdentity,
@@ -155,6 +194,7 @@ void DoScalarDependentDefinitions(py::module m, T) {
             cls_doc.ToQuaternion.doc_0args);
     cls.attr("__matmul__") = cls.attr("multiply");
     DefCopyAndDeepCopy(&cls);
+    DefCast<T>(&cls, cls_doc.cast.doc);
   }
 
   {
@@ -206,6 +246,7 @@ void DoScalarDependentDefinitions(py::module m, T) {
             py::arg("alpha_AD_D"),
             cls_doc.CalcRpyDDtFromAngularAccelInChild.doc);
     DefCopyAndDeepCopy(&cls);
+    // N.B. `RollPitchYaw::cast` is not defined in C++.
   }
 
   auto eigen_geometry_py = py::module::import("pydrake.common.eigen_geometry");
