@@ -148,7 +148,16 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   // Advance the context time and state to compute derivatives at t0 + h.
   const T tf = t0 + h;
   Context<T>* context = this->get_mutable_context();
-  context->SetTimeAndContinuousState(tf, *xtplus);
+  context->SetTimeAndContinuousState(t0, xt0);
+  /*if(ctx0_.get() == nullptr)
+  {
+    ctx0_ = context->Clone();
+  }
+  else
+  {
+    ctx0_->get_mutable_state().SetFrom(context->get_state());
+  }*/
+  
 
   // Evaluate the residual error using:
   // g(x(t0+h)) = x(t0+h) - x(t0) - h f(t0+h,x(t0+h)).
@@ -199,8 +208,13 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
     VectorX<T> dx = iteration_matrix_.Solve(-goutput);
     x_k->SetFromVector(*xtplus);
     x_kp1->SetFromVector(*xtplus + dx);
-    if ( (trial == 3 )&& ( true || i == 0 || maybe_refresh_jacobians_with_x_iter > 0 ))
+    /*
+    // FREEZE positions
+    x_kp1->get_mutable_generalized_position().SetFrom(x_k->get_generalized_position());
+    dx = dx = x_kp1->CopyToVector() - *xtplus;*/
+    if ( (trial == 3  )&& ( true ||i == 0 || maybe_refresh_jacobians_with_x_iter > 0   ))
     {
+      //double alpha = iteration_limiting_alpha_function(*ctx0_, *x_k, *x_kp1);
       double alpha = iteration_limiting_alpha_function(*context, *x_k, *x_kp1);
       if ( alpha < 1.) // TODO: change to a threshold
       {
@@ -214,20 +228,50 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
         //  std::cout << "t:" << t0 << ", it: " << i << ", |dx|: " << dx.norm() << ", dx: " << dx.transpose() << ", resid: " << goutput.transpose() << std::endl;
         //  std::cout << "x:" << xtplus->transpose() << std::endl;
         //}
-        dx *= alpha;
+        //dx *= alpha;
+        int j = 0;
+        double r = 0.2;
+        while( alpha < 1. && j < 10)
+        {
+          double average = std::min((1. - r) * alpha + r * 1., (1 + r) * alpha );
+          //x_k->SetFromVector(*xtplus + average * dx);
+          //x_kp1->get_mutable_generalized_position().SetFrom(x_k->get_generalized_position());
+          //x_kp1->get_mutable_misc_continuous_state().SetFrom(x_k->get_misc_continuous_state());
+          //x_kp1->get_mutable_generalized_velocity().SetFrom(x_k->get_generalized_velocity());
+          //x_k->SetFromVector(*xtplus);
+          x_kp1->SetFromVector(*xtplus + average * dx);
+          context->SetTimeAndContinuousState(tf, *xtplus + alpha * dx);
+          std::cout << trial <<  " " << i << " " << j << " " << alpha << " " << theta_greater_than_one_limit / 2 << std::endl;
+          dx *= alpha;
+          if (alpha > 0.99)
+          {
+            break;
+          }
+          alpha = iteration_limiting_alpha_function(*context, *x_k, *x_kp1);
+          j++;
+          r *= 0.5;
+        }
         maybe_refresh_jacobians_with_x_iter = 4;
         theta_greater_than_one_limit += 2;
         std::cout << trial <<  " " << i << " " << alpha << " " << theta_greater_than_one_limit / 2 << std::endl;
       }
     }
-    //if ( t0 <= 0.701 && t0 >= 0.689)
-    //{
-    //  std::cout << "t:" << t0 << ", it: " << i << ", |dx|: " << dx.norm() << ", dx: " << dx.transpose() << ", resid: " << goutput.transpose() << std::endl;
-    //  std::cout << "trial: " << trial << ", x: " << xtplus->transpose() << std::endl;
-    //}
+    if ( false && t0 >= 0.115 && t0 <= 0.130)
+    {
+      //std::cout << "t:" << t0 << ", it: " << i << ", |dx|: " << dx.norm() << ", dx: " << dx.transpose() << ", resid: " << goutput.transpose() << std::endl;
+      //std::cout << "trial: " << trial << ", x: " << xtplus->transpose() << std::endl;
+      std::cout << "t:" << t0 << ", it: " << i << ", |dx|: " << dx.norm() << ", |resid|: " << goutput.norm() << std::endl;
+      std::cout << "trial: " << trial << ", |x|: " << xtplus->norm() << std::endl;
+    }
     // Get the infinity norm of the weighted update vector.
     dx_state_->get_mutable_vector().SetFromVector(dx);
     T dx_norm = this->CalcStateChangeNorm(*dx_state_);
+    // just use l2 norm
+    //T dx_norm = dx.norm();
+    if ( false && t0 >= 0.115 && t0 <= 0.130)
+    {
+      std::cout << "dxnorm: " << dx_norm << std::endl;
+    }
 
     // The check below looks for convergence by identifying cases where the
     // update to the state results in no change. We do this check only after
@@ -247,13 +291,15 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
     if (i >= 1) {
       const T theta = dx_norm / last_dx_norm;
       const T eta = theta / (1 - theta);
+    if ( false && t0 >= 0.121 && t0 <= 0.126)
+    {
+      std::cout << "theta: " << theta << ", eta: " << eta << std::endl;
+    }
       SPDLOG_DEBUG(drake::log(), "Newton-Raphson loop {} theta: {}, eta: {}",
                    i, theta, eta);
 
       // Look for divergence.
       if (theta > 1) {
-        SPDLOG_DEBUG(drake::log(), "Newton-Raphson divergence detected for "
-            "h={}", h);
         theta_greater_than_one_forgiveness_count++;
         //break;
         if (this->get_reuse() && theta_greater_than_one_forgiveness_count > theta_greater_than_one_limit)
@@ -264,7 +310,6 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
           break;
         }
       }
-
       // Look for convergence using Equation 8.10 from [Hairer, 1996].
       // [Hairer, 1996] determined values of kappa in [0.01, 0.1] work most
       // efficiently on a number of test problems with Radau5 (a fifth order
@@ -344,8 +389,20 @@ bool ImplicitEulerIntegrator<T>::StepImplicitEuler(const T& t0, const T& h,
   // [Hairer 1996] validates this choice (p. 120).
   *xtplus = xt0;
   // Attempt the step.
-  return StepAbstract(
+  bool success = StepAbstract(
       t0, h, xt0, g, ComputeAndFactorImplicitEulerIterationMatrix, &*xtplus);
+  /* SEMI IMPLICIT EULER LOGIC. THIS KINDA SUCKS */
+  /* if (success)
+  {
+    context->SetTimeAndContinuousState(t0 + h, *xtplus);
+    std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
+    BasicVector<T> qdot(x_k->num_q());
+    this->get_system().MapVelocityToQDot(*context, x_k->get_generalized_velocity(), &qdot);
+    VectorBase<T>& q = x_k->get_mutable_generalized_position();
+    q.PlusEqScaled(h, qdot);
+    *xtplus = x_k->CopyToVector();
+  } */
+  return success;
 }
 
 // Steps forward by a single step of `h` using the implicit trapezoid
@@ -392,7 +449,16 @@ bool ImplicitEulerIntegrator<T>::StepImplicitTrapezoid(const T& t0, const T& h,
   // Attempt to step.
   bool success = StepAbstract(
       t0, h, xt0, g, ComputeAndFactorImplicitTrapezoidIterationMatrix, xtplus);
-
+  /*if (success)
+  {
+    context->SetTimeAndContinuousState(t0 + h, *xtplus);
+    std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
+    BasicVector<T> qdot(x_k->num_q());
+    this->get_system().MapVelocityToQDot(*context, x_k->get_generalized_velocity(), &qdot);
+    VectorBase<T>& q = x_k->get_mutable_generalized_position();
+    q.PlusEqScaled(h, qdot);
+    *xtplus = x_k->CopyToVector();
+  }*/
   // Move statistics to implicit trapezoid-specific.
   num_err_est_jacobian_reforms_ +=
       this->get_num_jacobian_evaluations() - stored_num_jacobian_evaluations;

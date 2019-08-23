@@ -397,6 +397,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
         //std::cout << "\nA matrix \n" << iteration_matrix_.Get_Matrix() << std::endl;
         //std::cout << "\nxtplus \n" << *xtplus << std::endl;
         //std::cout << "\ndx \n" << dx << std::endl;
+        
         dx *= alpha;
         dZ *= alpha;
         maybe_refresh_jacobians_with_x_iter = 4;
@@ -404,6 +405,7 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
         theta_greater_than_one_limit += 2; // empirically this is how many iterations it grew by
         //std::cout << "iteration " << iter << ", alpha: " << alpha << std::endl;
         std::cout << trial <<  " " << iter << " " << alpha << " " << theta_greater_than_one_limit / 2 << std::endl;
+        std::cout << "dx: " << dx.transpose() << std::endl;
       }
     }
     // Update the iterate.
@@ -473,12 +475,12 @@ bool RadauIntegrator<T, num_stages>::StepRadau(const T& t0, const T& h,
 
     if (converged && ( !run_all_the_way || iter == max_iterations - 1 )) {
       // Set the solution using (IV.8.2b) in [Hairer, 1996].
-      xtplus->setZero();
+     /* xtplus->setZero();
       for (int i = 0, j = 0; i < num_stages; ++i, j += state_dim) {
         if (d_[i] != 0.0)
           *xtplus += d_[i] * Z_.segment(j, state_dim);
-      }
-      *xtplus += xt0;
+      }*/
+      *xtplus = x_iter;
 
       SPDLOG_DEBUG(drake::log(), "Final state: {}", xtplus->transpose());
       return true;

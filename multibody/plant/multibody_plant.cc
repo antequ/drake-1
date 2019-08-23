@@ -1046,6 +1046,7 @@ inline T GetAlphaFromVtDvtVectors(const drake::VectorX<T>& vt, const drake::Vect
   // this is slow
   //#pragma omp parallel for reduction(alpha_min:alpha)
   std::vector<std::pair<T,T>> alpha_list(num_contacts);
+  int min_alpha = -1;
   for (int ic = 0; ic < num_contacts; ++ic) {  // Index ic scans contact points.
     const int ik = 2 * ic;  // Index ik scans contact vector quantities.
     const auto vt_ic = vt.template segment<2>(ik);
@@ -1054,10 +1055,17 @@ inline T GetAlphaFromVtDvtVectors(const drake::VectorX<T>& vt, const drake::Vect
             vt_ic, dvt_ic,
             cos_theta_max, v_stiction, relative_tolerance);
     alpha_list[ic] = std::pair<T,T>(local_alpha, force_mags[ic]);
+    if (local_alpha < alpha)
+       min_alpha = ic;
     alpha = min(
         alpha,
         local_alpha);
+    if( local_alpha <= 0 || local_alpha > 1.0)
+       std::cout << "local alpha is " << local_alpha << " vt: " << vt_ic.transpose() << " dvt: " << dvt_ic.transpose() << std::endl ;
   }
+  //if( alpha < T(1.0) ) 
+  //  std::cout << "index: " << min_alpha << ", ";
+  unused(min_alpha);
   
   
 
@@ -1328,9 +1336,14 @@ double MultibodyPlant<T>::CalcIterationLimiterAlpha(const systems::Context<T>& m
                 EvalContactJacobians(mbp_ctx_0);
             drake::VectorX<T> vt = contact_jacobians.Jt * v_k;
             drake::VectorX<T> dvt = contact_jacobians.Jt * (v_kp1 - v_k);
-            drake::VectorX<T> force_mags = drake::VectorX<T>::Ones(vt.rows()/2); // use the zero vector to retrieve minimum
-            //std::cout << "vt: " << vt.transpose() << "\n dvt: " << dvt.transpose() << std::endl;
-            return ExtractDoubleOrThrow( GetAlphaFromVtDvtVectors( vt, dvt, stribeck_model_.stiction_tolerance() , force_mags));
+            drake::VectorX<T> force_mags = drake::VectorX<T>::Zero(vt.rows()/2); // use the zero vector to retrieve minimum
+            
+            double return_alpha = ExtractDoubleOrThrow( GetAlphaFromVtDvtVectors( vt, dvt, stribeck_model_.stiction_tolerance() , force_mags));
+            if (return_alpha < 1.0)
+            {
+           //   std::cout << " vt: " << vt.transpose() << "\nindex: [p], dvt: " << dvt.transpose() << std::endl;
+            }
+            return return_alpha;
           }
         }
 
