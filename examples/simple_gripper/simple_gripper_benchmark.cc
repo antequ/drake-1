@@ -84,9 +84,23 @@ DEFINE_bool(time_stepping, true, "If 'true', the plant is modeled as a "
 DEFINE_bool(iteration_limit, true, "Set true to use iteration limiter.");
 DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
 DEFINE_double(fixed_tolerance, 1.e-4, "Tolerance for Newton iterations of fixed implicit integrators.");
+DEFINE_bool(autodiff, false, "Set true to use AutoDiff in Jacobian computation.");
 
 DEFINE_bool(full_newton, false, "set this to ensure implicit integrators do the full Newton-Raphson.");
 DEFINE_bool(convergence_control, false, "set this to allow convergence control.");
+
+DEFINE_string(truth_integration_scheme, "runge_kutta2",
+              "Integration scheme for computing truth (fixed). Available options are: "
+              "'fixed_implicit_euler', 'implicit_euler' (ec), 'semi_explicit_euler',"
+              "'runge_kutta2', 'runge_kutta3' (ec), 'bogacki_shampine3' (ec), 'radau'");
+DEFINE_bool(truth_autodiff, false, "Set true to use AutoDiff in Jacobian computation in truth.");
+DEFINE_double(truth_integration_step, 3.0e-7,
+              "Timestep size for integrating the truth.");
+
+DEFINE_bool(truth_fixed_step, true, "Use fixed steps for truth.");
+DEFINE_double(truth_accuracy, 1e-17, "Target accuracy for truth.");
+DEFINE_double(error_reporting_step, 1.0e-2,
+              "Period between which local error is calculated.");
 
 DEFINE_bool(visualize, true, "Set true to visualize.");
 // Contact parameters
