@@ -208,10 +208,13 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
     VectorX<T> dx = iteration_matrix_.Solve(-goutput);
     x_k->SetFromVector(*xtplus);
     x_kp1->SetFromVector(*xtplus + dx);
-    /*
+    
     // FREEZE positions
+//#define SEMI_IMPLICIT
+#ifdef SEMI_IMPLICIT
     x_kp1->get_mutable_generalized_position().SetFrom(x_k->get_generalized_position());
-    dx = dx = x_kp1->CopyToVector() - *xtplus;*/
+    dx = x_kp1->CopyToVector() - *xtplus;
+#endif
     if ( (trial == 3  )&& ( true ||i == 0 || maybe_refresh_jacobians_with_x_iter > 0   ))
     {
       //double alpha = iteration_limiting_alpha_function(*ctx0_, *x_k, *x_kp1);
@@ -229,6 +232,8 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
         //  std::cout << "x:" << xtplus->transpose() << std::endl;
         //}
         //dx *= alpha;
+//#define LINE_SEARCH
+#ifdef LINE_SEARCH
         int j = 0;
         double r = 0.2;
         while( alpha < 1. && j < 10)
@@ -251,6 +256,9 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
           j++;
           r *= 0.5;
         }
+#else
+        dx *= alpha;
+#endif
         maybe_refresh_jacobians_with_x_iter = 4;
         theta_greater_than_one_limit += 2;
         std::cout << trial <<  " " << i << " " << alpha << " " << theta_greater_than_one_limit / 2 << std::endl;
@@ -392,16 +400,18 @@ bool ImplicitEulerIntegrator<T>::StepImplicitEuler(const T& t0, const T& h,
   bool success = StepAbstract(
       t0, h, xt0, g, ComputeAndFactorImplicitEulerIterationMatrix, &*xtplus);
   /* SEMI IMPLICIT EULER LOGIC. THIS KINDA SUCKS */
-  /* if (success)
+#ifdef SEMI_IMPLICIT
+  if (success)
   {
     context->SetTimeAndContinuousState(t0 + h, *xtplus);
-    std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
-    BasicVector<T> qdot(x_k->num_q());
-    this->get_system().MapVelocityToQDot(*context, x_k->get_generalized_velocity(), &qdot);
-    VectorBase<T>& q = x_k->get_mutable_generalized_position();
+    //std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
+    BasicVector<T> qdot(context->get_continuous_state().num_q());
+    this->get_system().MapVelocityToQDot(*context, context->get_continuous_state().get_generalized_velocity(), &qdot);
+    VectorBase<T>& q = context->get_mutable_continuous_state().get_mutable_generalized_position();
     q.PlusEqScaled(h, qdot);
-    *xtplus = x_k->CopyToVector();
-  } */
+    *xtplus = context->get_continuous_state().CopyToVector();
+  } 
+#endif
   return success;
 }
 
@@ -449,16 +459,18 @@ bool ImplicitEulerIntegrator<T>::StepImplicitTrapezoid(const T& t0, const T& h,
   // Attempt to step.
   bool success = StepAbstract(
       t0, h, xt0, g, ComputeAndFactorImplicitTrapezoidIterationMatrix, xtplus);
-  /*if (success)
+#ifdef SEMI_IMPLICIT
+  if (success)
   {
     context->SetTimeAndContinuousState(t0 + h, *xtplus);
-    std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
-    BasicVector<T> qdot(x_k->num_q());
-    this->get_system().MapVelocityToQDot(*context, x_k->get_generalized_velocity(), &qdot);
-    VectorBase<T>& q = x_k->get_mutable_generalized_position();
+    //std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
+    BasicVector<T> qdot(context->get_continuous_state().num_q());
+    this->get_system().MapVelocityToQDot(*context, context->get_continuous_state().get_generalized_velocity(), &qdot);
+    VectorBase<T>& q = context->get_mutable_continuous_state().get_mutable_generalized_position();
     q.PlusEqScaled(h, qdot);
-    *xtplus = x_k->CopyToVector();
-  }*/
+    *xtplus = context->get_continuous_state().CopyToVector();
+  }
+#endif
   // Move statistics to implicit trapezoid-specific.
   num_err_est_jacobian_reforms_ +=
       this->get_num_jacobian_evaluations() - stored_num_jacobian_evaluations;

@@ -2748,15 +2748,16 @@ T MultibodyPlant<T>::StribeckModel::ComputeFrictionCoefficient(
     const CoulombFriction<double>& friction) const {
   DRAKE_ASSERT(speed_BcAc >= 0);
   const double mu_d = friction.dynamic_friction();
+  unused(mu_d);
   const double mu_s = friction.static_friction();
   const T v = speed_BcAc * inv_v_stiction_tolerance_;
   if (v >= 3) {
-    return mu_d;
+    return mu_s;
   } else if (v >= 1) {
-    return mu_s - (mu_s - mu_d) * step5((v - 1) / 2);
+    return mu_s; //- (mu_s - mu_d) * step5((v - 1) / 2);
   } else {
     //return mu_s * v * (2 - v) /* mu_s * step5(v) */; /* change to mu_s * v * (2 - v) */
-    return mu_s * v;
+    return mu_s * v * (2 - v); // return mu_s * v; 
   }
 }
 
