@@ -705,6 +705,7 @@ void MultibodyPlant<T>::FinalizePlantOnly() {
     ImplicitStribeckSolverParameters solver_parameters;
     solver_parameters.stiction_tolerance =
         stribeck_model_.stiction_tolerance();
+    solver_parameters.linear_friction = use_linear_friction_;
     implicit_stribeck_solver_->set_solver_parameters(solver_parameters);
   } else {
     // We only build hydroelastics if the user requested it AND if geometry was
@@ -1575,7 +1576,7 @@ void MultibodyPlant<T>::CalcContactResultsByPenaltyMethod(
         slip_velocity = sqrt(vt_squared);
         // Stribeck friction coefficient.
         const T mu_stribeck = stribeck_model_.ComputeFrictionCoefficient(
-            slip_velocity, combined_friction_pairs[icontact]);
+            slip_velocity, combined_friction_pairs[icontact], use_linear_friction_);
         // Tangential direction.
         const Vector3<T> that_W = vt_AcBc_W / slip_velocity;
 
@@ -2745,7 +2746,7 @@ void MultibodyPlant<T>::ThrowIfNotFinalized(const char* source_method) const {
 template <typename T>
 T MultibodyPlant<T>::StribeckModel::ComputeFrictionCoefficient(
     const T& speed_BcAc,
-    const CoulombFriction<double>& friction) const {
+    const CoulombFriction<double>& friction, bool linear) const {
   DRAKE_ASSERT(speed_BcAc >= 0);
   const double mu_d = friction.dynamic_friction();
   unused(mu_d);
@@ -2757,7 +2758,7 @@ T MultibodyPlant<T>::StribeckModel::ComputeFrictionCoefficient(
     return mu_s; //- (mu_s - mu_d) * step5((v - 1) / 2);
   } else {
     //return mu_s * v * (2 - v) /* mu_s * step5(v) */; /* change to mu_s * v * (2 - v) */
-    return mu_s * v * (2 - v); // return mu_s * v; 
+    return linear ? mu_s * v : mu_s * v * (2 - v); // return mu_s * v; 
   }
 }
 

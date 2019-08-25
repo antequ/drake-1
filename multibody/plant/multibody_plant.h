@@ -1365,6 +1365,8 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
     internal_tree().SetVelocitiesInArray(model_instance, v_instance, v);
   }
 
+  
+
   /// @}
 
   /// @name Accessing the state
@@ -2796,6 +2798,17 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
     use_hydroelastic_model_ = use_hydro;
   }
 
+void use_linear_friction(bool use_linear_friction = true)
+{
+  use_linear_friction_ = use_linear_friction;
+  if (implicit_stribeck_solver_ )
+  {
+  ImplicitStribeckSolverParameters params =
+      implicit_stribeck_solver_->get_solver_parameters();
+    params.linear_friction = use_linear_friction_;
+    implicit_stribeck_solver_->set_solver_parameters(params);
+  }
+}
   /// Specifies the `elastic_modulus` for a geometry identified by its `id`.
   /// @throws std::exception if `id` does not correspond to a collision
   /// geometry previously registered with this model.
@@ -3801,7 +3814,7 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
     /// See contact_model_doxygen.h @section tangent_force for details.
     T ComputeFrictionCoefficient(
         const T& speed_BcAc,
-        const CoulombFriction<double>& friction) const;
+        const CoulombFriction<double>& friction, bool linear) const;
 
     /// Evaluates an S-shaped quintic curve, f(x), mapping the domain [0, 1] to
     /// the range [0, 1] where f(0) = f''(0) = f''(1) = f'(0) = f'(1) = 0 and
@@ -3949,6 +3962,8 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   // time_step_ corresponds to the period of those updates. Otherwise, if the
   // plant is modeled as a continuous system, it is exactly zero.
   double time_step_{0};
+
+  bool use_linear_friction_ {true};
 
   // The solver used when the plant is modeled as a discrete system.
   std::unique_ptr<ImplicitStribeckSolver<T>> implicit_stribeck_solver_;

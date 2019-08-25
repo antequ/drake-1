@@ -362,7 +362,7 @@ void ImplicitStribeckSolver<T>::CalcFrictionForces(
     // "soft" tangent vector:
     const Vector2<T> that_ic = vt_ic / v_slip(ic);
     t_hat.template segment<2>(ik) = that_ic;
-    mu_stribeck(ic) = ModifiedStribeck(v_slip(ic) / v_stiction, mu(ic));
+    mu_stribeck(ic) = ModifiedStribeck(v_slip(ic) / v_stiction, mu(ic), parameters_.linear_friction);
     // Friction force.
     ft->template segment<2>(ik) = -mu_stribeck(ic) * that_ic * fn(ic);
   }
@@ -395,7 +395,7 @@ void ImplicitStribeckSolver<T>::CalcFrictionForcesGradient(
     // Compute dmu/dv = (1/v_stiction) * dmu/dx
     // where x = v_slip / v_stiction is the dimensionless slip velocity.
     const T x = v_slip(ic) / v_stiction;
-    const T dmudv = ModifiedStribeckDerivative(x, mu(ic)) / v_stiction;
+    const T dmudv = ModifiedStribeckDerivative(x, mu(ic), parameters_.linear_friction) / v_stiction;
 
     const auto t_hat_ic = t_hat.template segment<2>(ik);
 
@@ -757,25 +757,45 @@ ImplicitStribeckSolverResult ImplicitStribeckSolver<T>::SolveWithGuess(
   // without converging to the specified tolerance.
   return ImplicitStribeckSolverResult::kMaxIterationsReached;
 }
-
+bool reported = false;
 template <typename T>
-T ImplicitStribeckSolver<T>::ModifiedStribeck(const T& s, const T& mu) {
+T ImplicitStribeckSolver<T>::ModifiedStribeck(const T& s, const T& mu, const bool linear_friction) {
   DRAKE_ASSERT(s >= 0);
+  if( !reported )
+  {
+    if (linear_friction)
+       std::cout << "using linear friction." << std::endl;
+    else
+    {
+      std::cout << "using quadratic friction" << std::endl;
+    }
+    reported = true;
+  }
   if (s >= 1) {
     return mu;
   } else {
-    return mu * s * (2.0 - s);
+    return linear_friction ?  mu * s : mu * s * (2.0 - s);
   }
 }
-
+bool reported2 = false;
 template <typename T>
 T ImplicitStribeckSolver<T>::ModifiedStribeckDerivative(
-    const T& s, const T& mu) {
+    const T& s, const T& mu,  const bool linear_friction) {
   DRAKE_ASSERT(s >= 0);
+    if( !reported2 )
+  {
+    if (linear_friction)
+       std::cout << "using linear friction in der." << std::endl;
+    else
+    {
+      std::cout << "using quadratic friction in der." << std::endl;
+    }
+    reported2 = true;
+  }
   if (s >= 1) {
     return 0;
   } else {
-    return mu * (2 * (1 - s));
+    return linear_friction ? mu  : mu * (2 * (1 - s));
   }
 }
 

@@ -228,6 +228,8 @@ struct ImplicitStribeckSolverParameters {
   /// solver. We choose a conservative number by default that we found to work
   /// well in most practical problems of interest.
   double theta_max{M_PI / 3.0};
+   // use linear friction
+  bool linear_friction{false};
 };
 
 /// Struct used to store information about the iteration process performed by
@@ -1127,14 +1129,14 @@ class ImplicitStribeckSolver {
   //   2. Non-zero derivative at s = 0 (zero slip velocity). This provides a
   //      good strong gradient in the neighborhood to zero slip velocities that
   //      aids in finding a good solution update.
-  static T ModifiedStribeck(const T& s, const T& mu);
+  static T ModifiedStribeck(const T& s, const T& mu, const bool linear_friction);
 
   // Derivative of the dimensionless modified Stribeck function:
   // d/ds ms(s) = ⌈ mu * (2 * (1 − s)),  s  < 1
   //              ⌊ 0                 ,  s >= 1
   // where s corresponds to the dimensionless tangential speed
   // s = ‖v‖ / vₛ.
-  static T ModifiedStribeckDerivative(const T& speed_BcAc, const T& mu);
+  static T ModifiedStribeckDerivative(const T& speed_BcAc, const T& mu, const bool linear_friction);
 
   int nv_;  // Number of generalized velocities.
   int nc_;  // Number of contact points.
