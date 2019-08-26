@@ -73,6 +73,7 @@ DEFINE_double(box_v0, 0.0,
               "The initial x velocity of the box. [m].");
 
 DEFINE_bool(use_friction, true, "Simulate with friction.");
+DEFINE_bool(use_linear_friction, true, "Simulate with linear friction.");
 DEFINE_bool(use_discrete_states, false, "uses discrete implicit stribeck");
 // Integration parameters:
 DEFINE_string(integration_scheme, "implicit_euler",
@@ -230,6 +231,7 @@ int do_main() {
     }
     
   }
+  plant.use_linear_friction(FLAGS_use_linear_friction);
   // Now the model is complete.
   plant.Finalize();
 

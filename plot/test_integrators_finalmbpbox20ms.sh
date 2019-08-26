@@ -120,109 +120,6 @@ nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --i
 nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
 
 
-# Conv Controlled, EC, FULL NEWTON-RAPHSON, with it limiter
-export TEST_SCHEME=implicit_euler
-export FIXED=false
-export CONV=true
-export FNR=true
-export ITLIM=true
-# 'fixed' step vs error control
-if [ $FIXED == "true" ]; then export STRF="fx"; else export STRF="ec"; fi
-# convergence control vs throw
-if [ $CONV == "true" ]; then export STRC="cc"; else export STRC="tr"; fi
-# full newton vs quasi newton
-if [ $FNR == "true" ]; then export STRN="fn"; else export STRN="qn"; fi
-# TALS vs default
-if [ $ITLIM == "true" ]; then export STRI="ta"; else export STRI="df"; fi
-
-cd '/home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d.runfiles/drake/'
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}1" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}2" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-4 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}3" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-5 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}4" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-6 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}5" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-7 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}6" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-8 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}7" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
-
-
-# Conv Controlled, EC, FULL NEWTON-RAPHSON, with no it limiter
-export TEST_SCHEME=implicit_euler
-export FIXED=false
-export CONV=true
-export FNR=true
-export ITLIM=false
-# 'fixed' step vs error control
-if [ $FIXED == "true" ]; then export STRF="fx"; else export STRF="ec"; fi
-# convergence control vs throw
-if [ $CONV == "true" ]; then export STRC="cc"; else export STRC="tr"; fi
-# full newton vs quasi newton
-if [ $FNR == "true" ]; then export STRN="fn"; else export STRN="qn"; fi
-# TALS vs default
-if [ $ITLIM == "true" ]; then export STRI="ta"; else export STRI="df"; fi
-
-cd '/home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d.runfiles/drake/'
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}1" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}2" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-4 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}3" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-5 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}4" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-6 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}5" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-7 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}6" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-8 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}7" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
-
-
-# Conv Controlled, EC, QUASI NEWTON, with it limiter
-export TEST_SCHEME=implicit_euler
-export FIXED=false
-export CONV=true
-export FNR=false
-export ITLIM=true
-# 'fixed' step vs error control
-if [ $FIXED == "true" ]; then export STRF="fx"; else export STRF="ec"; fi
-# convergence control vs throw
-if [ $CONV == "true" ]; then export STRC="cc"; else export STRC="tr"; fi
-# full newton vs quasi newton
-if [ $FNR == "true" ]; then export STRN="fn"; else export STRN="qn"; fi
-# TALS vs default
-if [ $ITLIM == "true" ]; then export STRI="ta"; else export STRI="df"; fi
-
-cd '/home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d.runfiles/drake/'
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}1" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}2" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-4 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}3" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-5 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}4" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-6 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}5" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-7 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}6" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-8 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}7" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
-
-
-# Conv Controlled, EC, QUASI NEWTON, with no it limiter
-export TEST_SCHEME=implicit_euler
-export FIXED=false
-export CONV=true
-export FNR=false
-export ITLIM=false
-# 'fixed' step vs error control
-if [ $FIXED == "true" ]; then export STRF="fx"; else export STRF="ec"; fi
-# convergence control vs throw
-if [ $CONV == "true" ]; then export STRC="cc"; else export STRC="tr"; fi
-# full newton vs quasi newton
-if [ $FNR == "true" ]; then export STRN="fn"; else export STRN="qn"; fi
-# TALS vs default
-if [ $ITLIM == "true" ]; then export STRI="ta"; else export STRI="df"; fi
-
-cd '/home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d.runfiles/drake/'
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}1" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}2" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-4 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}3" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-5 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}4" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-6 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}5" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-7 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}6" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-8 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}7" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
-
 
 # 'Fixed' Step, FULL NEWTON-RAPHSON, with it limiter
 export TEST_SCHEME=implicit_euler
@@ -325,6 +222,110 @@ nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --i
 nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=1e-4 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}6" &
 nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=3e-5 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}7" &
 nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=1e-5 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
+
+
+# Conv Controlled, EC, FULL NEWTON-RAPHSON, with it limiter
+export TEST_SCHEME=implicit_euler
+export FIXED=false
+export CONV=true
+export FNR=true
+export ITLIM=true
+# 'fixed' step vs error control
+if [ $FIXED == "true" ]; then export STRF="fx"; else export STRF="ec"; fi
+# convergence control vs throw
+if [ $CONV == "true" ]; then export STRC="cc"; else export STRC="tr"; fi
+# full newton vs quasi newton
+if [ $FNR == "true" ]; then export STRN="fn"; else export STRN="qn"; fi
+# TALS vs default
+if [ $ITLIM == "true" ]; then export STRI="ta"; else export STRI="df"; fi
+
+cd '/home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d.runfiles/drake/'
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}1" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}2" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-4 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}3" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-5 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}4" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-6 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}5" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-7 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}6" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-8 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}7" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
+
+
+# Conv Controlled, EC, FULL NEWTON-RAPHSON, with no it limiter
+export TEST_SCHEME=implicit_euler
+export FIXED=false
+export CONV=true
+export FNR=true
+export ITLIM=false
+# 'fixed' step vs error control
+if [ $FIXED == "true" ]; then export STRF="fx"; else export STRF="ec"; fi
+# convergence control vs throw
+if [ $CONV == "true" ]; then export STRC="cc"; else export STRC="tr"; fi
+# full newton vs quasi newton
+if [ $FNR == "true" ]; then export STRN="fn"; else export STRN="qn"; fi
+# TALS vs default
+if [ $ITLIM == "true" ]; then export STRI="ta"; else export STRI="df"; fi
+
+cd '/home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d.runfiles/drake/'
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}1" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}2" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-4 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}3" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-5 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}4" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-6 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}5" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-7 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}6" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-8 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}7" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
+
+
+# Conv Controlled, EC, QUASI NEWTON, with it limiter
+export TEST_SCHEME=implicit_euler
+export FIXED=false
+export CONV=true
+export FNR=false
+export ITLIM=true
+# 'fixed' step vs error control
+if [ $FIXED == "true" ]; then export STRF="fx"; else export STRF="ec"; fi
+# convergence control vs throw
+if [ $CONV == "true" ]; then export STRC="cc"; else export STRC="tr"; fi
+# full newton vs quasi newton
+if [ $FNR == "true" ]; then export STRN="fn"; else export STRN="qn"; fi
+# TALS vs default
+if [ $ITLIM == "true" ]; then export STRI="ta"; else export STRI="df"; fi
+
+cd '/home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d.runfiles/drake/'
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}1" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}2" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-4 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}3" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-5 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}4" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-6 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}5" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-7 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}6" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-8 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}7" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
+
+
+# Conv Controlled, EC, QUASI NEWTON, with no it limiter
+export TEST_SCHEME=implicit_euler
+export FIXED=false
+export CONV=true
+export FNR=false
+export ITLIM=false
+# 'fixed' step vs error control
+if [ $FIXED == "true" ]; then export STRF="fx"; else export STRF="ec"; fi
+# convergence control vs throw
+if [ $CONV == "true" ]; then export STRC="cc"; else export STRC="tr"; fi
+# full newton vs quasi newton
+if [ $FNR == "true" ]; then export STRN="fn"; else export STRN="qn"; fi
+# TALS vs default
+if [ $ITLIM == "true" ]; then export STRI="ta"; else export STRI="df"; fi
+
+cd '/home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d.runfiles/drake/'
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}1" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}2" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-4 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}3" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-5 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}4" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-6 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}5" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-7 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}6" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-8 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}7" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-9 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
 
 
 # Conv Controlled, 'Fixed' Step, FULL NEWTON-RAPHSON, with it limiter

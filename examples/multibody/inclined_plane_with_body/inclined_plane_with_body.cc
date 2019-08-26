@@ -137,8 +137,8 @@ int do_main() {
 
   // Publish contact results for visualization.
   // TODO(Mitiguy) Ensure contact forces can be displayed when time_step = 0.
-  if (FLAGS_time_step > 0)
-    ConnectContactResultsToDrakeVisualizer(&builder, plant);
+  //if (FLAGS_time_step > 0)
+    //ConnectContactResultsToDrakeVisualizer(&builder, plant);
 
   geometry::ConnectDrakeVisualizer(&builder, pair.scene_graph);
   auto diagram = builder.Build();
@@ -157,7 +157,7 @@ int do_main() {
   // Overwrite B's default initial position so it is somewhere above the
   // inclined plane provided `0 < inclined_plane_angle < 40`.
   const drake::multibody::Body<double>& bodyB = plant.GetBodyByName("BodyB");
-  const Vector3<double> p_WoBo_W(-1.0, 0, 1.2);
+  const Vector3<double> p_WoBo_W(-0.3, 0, 0.3);
   const math::RigidTransform<double> X_WB(p_WoBo_W);
   plant.SetFreeBodyPoseInWorldFrame(&plant_context, bodyB, X_WB);
 

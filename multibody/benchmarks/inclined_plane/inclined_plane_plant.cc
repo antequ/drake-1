@@ -25,7 +25,7 @@ void AddInclinedPlaneAndGravityToPlant(
       RotationMatrix<double>::MakeYRotation(inclined_plane_angle);
 
   // The inclined plane A is either a half-space or a box.
-  const Vector4<double> green(0.5, 1.0, 0.5, 1.0);
+  const Vector4<double> better_green(0.3, 0.7, 0.3, 1.0);
   if (inclined_plane_dimensions == nullopt) {
     // Set A's geometry so its top surface passes through world origin Wo.
     const Vector3<double> p_WoAo_W = Vector3<double>::Zero();
@@ -33,7 +33,7 @@ void AddInclinedPlaneAndGravityToPlant(
     plant->RegisterVisualGeometry(plant->world_body(), X_WA,
                                   geometry::HalfSpace(),
                                   "InclinedPlaneVisualGeometry",
-                                  green);
+                                  better_green);
     plant->RegisterCollisionGeometry(plant->world_body(), X_WA,
                                      geometry::HalfSpace(),
                                      "InclinedPlaneCollisionGeometry",
@@ -54,7 +54,7 @@ void AddInclinedPlaneAndGravityToPlant(
     plant->RegisterVisualGeometry(plant->world_body(), X_WA,
                                   geometry::Box(LAx, LAy, LAz),
                                   "InclinedPlaneVisualGeometry",
-                                  green);
+                                  better_green);
     plant->RegisterCollisionGeometry(plant->world_body(), X_WA,
                                      geometry::Box(LAx, LAy, LAz),
                                      "InclinedPlaneCollisionGeometry",

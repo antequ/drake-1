@@ -78,6 +78,7 @@ DEFINE_double(accuracy, 1.0e-4, "Sets the simulation accuracy for variable step"
 DEFINE_bool(time_stepping, true, "If 'true', the plant is modeled as a "
     "discrete system with periodic updates of period 'max_time_step'."
     "If 'false', the plant is modeled as a continuous system.");
+DEFINE_bool(use_linear_friction, true, "Simulate with linear friction.");
 
 DEFINE_bool(iteration_limit, true, "Set true to use iteration limiter.");
 DEFINE_bool(fixed_step, false, "Set true to force fixed timesteps.");
@@ -269,7 +270,7 @@ int do_main() {
     AddGripperPads(&plant, -pad_offset, right_finger);
     AddGripperPads(&plant, +pad_offset, left_finger);
   }
-
+  plant.use_linear_friction(FLAGS_use_linear_friction);
   // Now the model is complete.
   plant.Finalize();
 
