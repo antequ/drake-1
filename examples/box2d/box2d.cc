@@ -504,6 +504,7 @@ int do_main() {
   Eigen::MatrixXi error_meta = Eigen::MatrixXi::Zero(nsteps+1, nmetadata);
   double time = 0;
   int progress_out_rate = nsteps / 25;
+  // TODO: NEED TO STORE STATE AT TIME ZERO
   for(int next_step_ind = 1; next_step_ind <= nsteps; ++next_step_ind)
   {
 
