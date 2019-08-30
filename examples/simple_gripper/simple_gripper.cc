@@ -65,6 +65,8 @@ DEFINE_double(simulation_time, 1.0,
 DEFINE_double(grip_width, 0.095,
               "The initial distance between the gripper fingers. [m].");
 
+DEFINE_bool(use_linear_friction, true, "Simulate with linear friction.");
+
 // Integration parameters:
 DEFINE_string(integration_scheme, "implicit_euler",
               "Integration scheme to be used. Available options are: "
@@ -271,6 +273,7 @@ int do_main() {
     AddGripperPads(&plant, +pad_offset, left_finger);
   }
 
+  plant.use_linear_friction(FLAGS_use_linear_friction);
   // Now the model is complete.
   plant.Finalize();
 

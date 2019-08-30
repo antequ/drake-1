@@ -193,7 +193,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(const T& t0, const T& h,
   std::unique_ptr<ContinuousState<T>> x_k = context->get_continuous_state().Clone();
   std::unique_ptr<ContinuousState<T>> x_kp1 = x_k->Clone();
   int theta_greater_than_one_forgiveness_count = 0;
-  int theta_greater_than_one_limit = 0;
+  int theta_greater_than_one_limit = 2;
 
   // Do the Newton-Raphson iterations.
   int i;
