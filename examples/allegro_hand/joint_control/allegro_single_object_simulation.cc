@@ -35,7 +35,8 @@
 #include "drake/systems/lcm/lcm_publisher_system.h"
 #include "drake/systems/lcm/lcm_subscriber_system.h"
 #include "drake/systems/primitives/matrix_gain.h"
-
+#include "drake/systems/analysis/implicit_euler_integrator.h"
+#include <chrono>
 #include <iostream>
 #define PRINT_VAR(a) std::cout << #a": " << a << std::endl;
 
@@ -49,14 +50,20 @@ using math::RigidTransformd;
 using math::RollPitchYawd;
 using multibody::MultibodyPlant;
 
-DEFINE_double(simulation_time, std::numeric_limits<double>::infinity(),
+
+DEFINE_bool(iteration_limit, false, "Set true to use iteration limiter.");
+DEFINE_bool(fixed_step, true, "Set true to force fixed timesteps.");
+DEFINE_bool(full_newton, false, "set this to ensure implicit integrators do the full Newton-Raphson.");
+DEFINE_double(simulation_time, 30.0,
               "Desired duration of the simulation in seconds");
 DEFINE_bool(use_right_hand, true,
             "Which hand to model: true for right hand or false for left hand");
-DEFINE_double(max_time_step, 0,
+DEFINE_double(max_time_step, 3e-3,
               "Simulation time step used for intergrator.");
+DEFINE_bool(use_discrete_states, false, "uses discrete implicit stribeck");
 DEFINE_bool(add_gravity, false,
             "Whether adding gravity (9.81 m/s^2) in the simulation");
+DEFINE_bool(see_contact_forces, false, "set to enable contact force visualization");
 DEFINE_double(target_realtime_rate, 1,
               "Desired rate relative to real time.  See documentation for "
               "Simulator::set_target_realtime_rate() for details.");
@@ -79,7 +86,7 @@ void DoMain() {
   scene_graph.set_name("scene_graph");
 
   MultibodyPlant<double>& plant =
-      *builder.AddSystem<MultibodyPlant>(FLAGS_max_time_step);
+      *builder.AddSystem<MultibodyPlant>(FLAGS_use_discrete_states ? FLAGS_max_time_step: 0);
   if (FLAGS_contact_model == "hydroelastic") {
     plant.use_hydroelastic_model(true);
   } else if (FLAGS_contact_model == "point") {
@@ -167,7 +174,7 @@ void DoMain() {
                   plant.get_geometry_query_input_port());
 
   // Publish contact results for visualization.
-  if (plant.is_discrete())
+  if (plant.is_discrete() && FLAGS_see_contact_forces)
     multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant, lcm);
 
   // PID controller for position control of the finger joints
@@ -245,7 +252,41 @@ void DoMain() {
 
   // Set up simulator.
   systems::Simulator<double> simulator(*diagram, std::move(diagram_context));
-  simulator.get_mutable_integrator().set_target_accuracy(FLAGS_accuracy);
+  systems::IntegratorBase<double>* integrator = nullptr;
+  if (!FLAGS_use_discrete_states)
+  {
+  
+        integrator = simulator.reset_integrator<systems::ImplicitEulerIntegrator<double>>(
+            *diagram, &simulator.get_mutable_context());
+        static_cast<systems::ImplicitIntegrator<double>*>(integrator)->set_reuse(!FLAGS_full_newton);
+  }
+      // Set the iteration limiter method.
+  std::unique_ptr<systems::Context<double>> scratch_ctx_k = plant.CreateDefaultContext();
+  std::unique_ptr<systems::Context<double>> scratch_ctx_kp1 = plant.CreateDefaultContext();
+    auto iteration_limiter = [&diagram, &plant, &scratch_ctx_k, &scratch_ctx_kp1](const systems::Context<double>& ctx0,
+    const systems::ContinuousState<double>& x_k, const systems::ContinuousState<double>& x_kp1) -> double {
+         const systems::Context<double>& plant_ctx0 = diagram->GetSubsystemContext(plant, ctx0);
+         /* this method is very poorly named but gets the subsystem continuous state */
+         Eigen::VectorXd v_k = diagram->GetSubsystemDerivatives(plant, x_k).get_generalized_velocity().CopyToVector();
+         Eigen::VectorXd v_kp1 = diagram->GetSubsystemDerivatives(plant, x_kp1).get_generalized_velocity().CopyToVector();
+         return plant.CalcIterationLimiterAlpha(plant_ctx0, v_k, v_kp1, scratch_ctx_k.get(), scratch_ctx_kp1.get());
+      };
+  if (!FLAGS_use_discrete_states)
+  {
+        if(FLAGS_fixed_step)
+        {
+        integrator->set_target_accuracy(1e-9);
+        }
+    if(FLAGS_iteration_limit )
+    {
+        integrator->set_iteration_limiter(iteration_limiter);
+    } 
+    integrator->set_maximum_step_size(FLAGS_max_time_step);
+    if (integrator->supports_error_estimation())
+        integrator->set_fixed_step_mode( FLAGS_fixed_step );
+    if (!integrator->get_fixed_step_mode())
+        integrator->set_target_accuracy(FLAGS_accuracy);
+  }
   simulator.set_publish_every_time_step(true);
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.Initialize();
@@ -255,8 +296,11 @@ void DoMain() {
       &diagram->GetMutableSubsystemContext(hand_command_receiver,
                                            &simulator.get_mutable_context()),
       VectorX<double>::Zero(plant.num_actuators()));
-
+    auto startClockTime = std::chrono::steady_clock::now();
   simulator.AdvanceTo(FLAGS_simulation_time);
+  auto currentClockTime = std::chrono::steady_clock::now();
+  std::cout << "\nTotal sim time: " << FLAGS_simulation_time << " s\nTotal wall clock time: " 
+           << std::chrono::duration_cast<std::chrono::microseconds>(currentClockTime - startClockTime).count() << " us." << std::endl;
 }
 
 }  // namespace

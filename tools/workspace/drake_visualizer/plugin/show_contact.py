@@ -80,20 +80,20 @@ class ContactVisualizer(object):
 
             if key1 in collision_pair_to_forces:
                 collision_pair_to_forces[key1].append(
-                    (point, point + mag * force))
+                    (point, point + 0.35 * mag * force))
             elif key2 in collision_pair_to_forces:
                 collision_pair_to_forces[key2].append(
-                    (point, point + mag * force))
+                    (point, point + 0.35 * mag * force))
             else:
-                collision_pair_to_forces[key1] = [(point, point + mag * force)]
+                collision_pair_to_forces[key1] = [(point, point + 0.35 * mag * force)]
 
         for key, list_of_forces in iteritems(collision_pair_to_forces):
             d = DebugData()
             for force_pair in list_of_forces:
                 d.addArrow(start=force_pair[0],
                            end=force_pair[1],
-                           tubeRadius=0.005,
-                           headRadius=0.01)
+                           tubeRadius=0.005/1.5,
+                           headRadius=0.01/1.5)
 
             vis.showPolyData(d.getPolyData(), str(key), parent=folder,
                              color=[0.2, 0.8, 0.2])

@@ -4,24 +4,120 @@
 rk2 = read_scheme('runge_kutta2', true, true, false, false, normstyle);
 rk3 = read_scheme('runge_kutta3', false, true, false, false, normstyle);
 
-rk2succeeded=rk2;
-rk2succeeded{1} = rk2{1}(6:8);
-rk2succeeded{2} = rk2{2}(6:8); % index 5 also failed
-rk2failed=rk2;
-rk2failed{1}=rk2{1}(1:6);
-rk2failed{2}=rk2{2}(1:6); % index 6 succeeded
+if(0) 
+figure();
+p = loglog(tttt{1}, tttt{2}, '-*', ...
+    tttf{1}, tttf{2}, '-x', ...
+    ttft{1}, ttft{2}, '-*', ...
+    ttff{1}, ttff{2}, '-x', ...
+    tftt{1}, tftt{2}, '--+', ...
+    tftf{1}, tftf{2}, '--o', ...
+    tfft{1}, tfft{2}, '--+', ...
+    tfff{1}, tfff{2}, '--o');
+p(8).Color=[0.32,0.32,0.32];
+%p(9).Color=[0.2, 0.4, 0.2];
+%p(10).Color=[0.5, 0.4, 0.2];
+hold on;
+if(any(tttt{4}))
+    display([tttt{3} num2str(tttt{4})])
+end
+if(any(tttf{4}))
+    display([tttf{3} num2str(tttf{4})])
+end
+if(any(ttft{4}))
+    display([ttft{3} num2str(ttft{4})])
+end
+if(any(ttff{4}))
+    display([ttff{3} num2str(ttff{4})])
+end
+if(any(tftt{4}))
+    display([tftt{3} num2str(tftt{4})])
+end
+if(any(tftf{4}))
+    display([tftf{3} num2str(tftf{4})])
+end
+if(any(tfft{4}))
+    display([tfft{3} num2str(tfft{4})])
+end
+if(any(tfff{4}))
+    display([tfff{3} num2str(tfff{4})])
+end
+%legend('Radau 3 Fixed', 'Radau 1 Fixed', 'RK3 EC', 'RK3 Fixed', 'RK2 Fixed', 'Semi-Explicit Euler Fixed', 'Implicit Euler EC', 'Implicit Euler Fixed', 'Bogacki Shampine3 EC', 'Bogacki Shampine3 Fixed');
+legend(tttt{3}, tttf{3}, ttft{3}, ttff{3}, ...
+       tftt{3}, tftf{3}, tfft{3}, tfff{3});
+if(strcmp(normstyle, 'position_only'))
+    xlabel('RMS of Position Errors (m), global calculated every 1e-2s');
+elseif(strcmp(normstyle, 'velocity_only'))
+    xlabel('RMS of Velocity Errors (m/s), global calculated every 1e-2s');
+else
+    xlabel('RMS of L2 Norm of State Errors, global calculated every 1e-2s');
+end
+ylabel('Number of Derivative Evaluations');
+title(['Evaluations vs Error Plot, Point Contact']);
+for i = 1:size(p,1)
+    p(i).MarkerSize = 10;
+    
+end
+end
 
-rk3succeeded=rk3;
-rk3succeeded{1} = rk3{1}(4:8);
-rk3succeeded{2} = rk3{2}(4:8); % index 4 succeeded
-rk3failed=rk3;
-rk3failed{1}=rk3{1}(1:4); % index 3 also failed
-rk3failed{2}=rk3{2}(1:4);
-
-%radau3 = read_scheme('radau', true, true, true, true, normstyle);
-%iefn = read_scheme('implicit_euler', true, true, true, true, normstyle);
-ieecqn = read_scheme('implicit_euler', false, true, false, true, normstyle);
-
+%%
+ normstyle = 'velocity_only';
+% normstyle = 'both';
+if( 0 )
+figure();
+p = loglog(fttt{1}, fttt{2}, '-*', ...
+    fttf{1}, fttf{2}, '-x', ...
+    ftft{1}, ftft{2}, '-*', ...
+    ftff{1}, ftff{2}, '-x', ...
+    fftt{1}, fftt{2}, '--+', ...
+    fftf{1}, fftf{2}, '--o', ...
+    ffft{1}, ffft{2}, '--+', ...
+    ffff{1}, ffff{2}, '--o');
+p(8).Color=[0.32,0.32,0.32];
+%p(9).Color=[0.2, 0.4, 0.2];
+%p(10).Color=[0.5, 0.4, 0.2];
+hold on;
+if(any(fttt{4}))
+    display([fttt{3} num2str(fttt{4})])
+end
+if(any(fttf{4}))
+    display([fttf{3} num2str(fttf{4})])
+end
+if(any(ftft{4}))
+    display([ftft{3} num2str(ftft{4})])
+end
+if(any(ftff{4}))
+    display([ftff{3} num2str(ftff{4})])
+end
+if(any(fftt{4}))
+    display([fftt{3} num2str(fftt{4})])
+end
+if(any(fftf{4}))
+    display([fftf{3} num2str(fftf{4})])
+end
+if(any(ffft{4}))
+    display([ffft{3} num2str(ffft{4})])
+end
+if(any(ffff{4}))
+    display([ffff{3} num2str(ffff{4})])
+end
+%legend('Radau 3 Fixed', 'Radau 1 Fixed', 'RK3 EC', 'RK3 Fixed', 'RK2 Fixed', 'Semi-Explicit Euler Fixed', 'Implicit Euler EC', 'Implicit Euler Fixed', 'Bogacki Shampine3 EC', 'Bogacki Shampine3 Fixed');
+legend(fttt{3}, fttf{3}, ftft{3}, ftff{3}, ...
+       fftt{3}, fftf{3}, ffft{3}, ffff{3});
+if(strcmp(normstyle, 'position_only'))
+    xlabel('RMS of Position Errors (m), global calculated every 1e-2s');
+elseif(strcmp(normstyle, 'velocity_only'))
+    xlabel('RMS of Velocity Errors (m/s), global calculated every 1e-2s');
+else
+    xlabel('RMS of L2 Norm of State Errors, global calculated every 1e-2s');
+end
+ylabel('Number of Derivative Evaluations');
+title(['Evaluations vs Error Plot, Point Contact']);
+for i = 1:size(p,1)
+    p(i).MarkerSize = 10;
+    
+end
+end
 
 %%
 % combined plot
@@ -29,34 +125,24 @@ width = 230.4;
 height = 230.4;
 fig1 = figure('Units', 'points', 'Position', [1000 1000 width height],'PaperUnits', 'points','PaperSize',[width+8 height+8]);
 v_s = 1e-4;
-p = loglog(rk2succeeded{1}./v_s, rk2succeeded{2}, '-ks', ...
-    rk3succeeded{1}./v_s, rk3succeeded{2}, '-kd', ...
-    ieecqn{1}./v_s, ieecqn{2}, '-k^',...
-    rk2failed{1}./v_s, rk2failed{2}, '-ks', ...
-    rk3failed{1}./v_s, rk3failed{2}, '-kd', ...
-    'MarkerSize', 6, 'LineWidth', 1);
-    %radau3{1}./v_s, radau3{2}, '-k*',...
-    %iefn{1}./v_s, iefn{2}, '-ko',...
-p(1).MarkerFaceColor=[0.5,0.5,0.5];
-p(2).MarkerFaceColor=[0.5,0.5,0.5];
-p(3).MarkerFaceColor=[0.5,0.5,0.5];
-%p(6).MarkerFaceColor=[0.5,0.5,0.5];
-%p(7).MarkerFaceColor=[0.5,0.5,0.5];
+p = loglog(rk2{1}./v_s, rk2{2}, '-ks', ...
+    rk3{1}./v_s, rk3{2}, '-kd', ...
+    'MarkerSize', 4.5, 'LineWidth', 1);
+
 set(gca, 'FontName', 'Times New Roman')
 set(gca, 'FontSize', 8)
-xlim([1e-9, 1e3]);
-ylim([8e2, 1e7]);
-xticks([1e-9,1e-6,1e-3,1,1e3]);
+%xlim([1e-6, 3e-2]/v_s);
+%ylim([7e2, 4e7]);
+%xticks([1e-2, 1e-1, 1, 1e1, 1e2]);
 %yticks([1e3, 1e4, 1e5, 1e6, 1e7]);
 grid on;
-%set(gca, 'xminorgrid', 'off');
+set(gca, 'xminorgrid', 'off');
 set(gca, 'yminorgrid', 'off');
 
 
-%lgd = legend('RK2', 'RK2 Unstable', 'RK3+EC', 'RK3+EC Unstable', 'Radau3+FN+TALS','IE+FN+TALS','IE+EC+QN+TALS' );
-lgd = legend('RK2',  'RK3+EC', 'IE+EC+QN+TALS' );
+lgd = legend('Runge-Kutta2', 'Runge-Kutta3' );
 set(lgd, 'FontSize', 8)
-lgd.Location = 'southwest';
+lgd.Location = 'northeast';
 if(strcmp(normstyle, 'position_only'))
     xlabel('RMS of Position Errors (m), global calculated every 1e-2s');
 elseif(strcmp(normstyle, 'velocity_only'))
@@ -66,7 +152,7 @@ else
 end
 ylabel('Number of Function Evaluations [-]');
 %title(['Work-Precision Plot of Implicit Euler Point Contact']);
-saveas(fig1, '/home/antequ/integratorplots/WorkPrecisionExplicitImplicitIntegrators.pdf')
+saveas(fig1, '/home/antequ/integratorplots/WorkPrecisionExplicitIntegrators.pdf')
 % bottom right
 %%
 
@@ -214,7 +300,7 @@ stateerr7 = vecnorm(diff7(:, normstart:normend),2, 2);
 stateerr8 = vecnorm(diff8(:, normstart:normend),2, 2);
 
 time = result8(:, 1);
-if(0 * strcmp(scheme_fname, 'runge_kutta2'))
+if(1)
 figure(); plot(time, result1(:,[7 10])); title([scheme_fname ' friction comparison step size 2.5e-2 vs truth']) 
 figure(); plot(time, result2(:,[7 10])); title([scheme_fname ' friction comparison step size 1e-2 vs truth']) 
 figure(); plot(time, result3(:,[7 10])); title([scheme_fname ' friction comparison step size 3e-3 vs truth']) 
@@ -223,39 +309,8 @@ figure(); plot(time, result5(:,[7 10])); title([scheme_fname ' friction comparis
 figure(); plot(time, result6(:,[7 10])); title([scheme_fname ' friction comparison step size 1e-4 vs truth']) 
 figure(); plot(time, result7(:,[7 10])); title([scheme_fname ' friction comparison step size 3e-5 vs truth'])
 end
-if( strcmp(scheme_fname, 'runge_kutta2'))
-%figure(); plot(time, result1(:,[6 9])); title([scheme_fname ' velocity comparison largest step vs truth']) 
-width = 230.4;
-height = 230.4/2;
-fig1 = figure('Units', 'points', 'Position', [1000 1000 width height],'PaperUnits', 'points','PaperSize',[width+8 height+8]);
-v_s = 1e-4;
-p=plot(time, result1(:,9), '-k',...
-    time, result1(:,6), '-k');
-p(1).Color=[0.47,0.47,0.47];
-p(1).LineWidth=0.9;
-set(gca, 'FontName', 'Times New Roman')
-set(gca, 'FontSize', 8)
-%xlim([1e-9, 1e3]);
-ylim([-0.35, 0.45]);
-%xticks([1e-9,1e-6,1e-3,1,1e3]);
-%yticks([1e3, 1e4, 1e5, 1e6, 1e7]);
-%grid on;
-%set(gca, 'xminorgrid', 'off');
-set(gca, 'ygrid', 'on');
-set(gca, 'yminorgrid', 'off');
-
-lgd = legend('Control', 'RK2');
-lgd.ItemTokenSize=[15,9];
-set(lgd, 'FontSize', 8)
-lgd.Location = 'northwest';
-xlabel('Time [s]');
-ylabel('Slip Velocity [m/s]');
-%title(['Work-Precision Plot of Implicit Euler Point Contact']);
-saveas(fig1, '/home/antequ/integratorplots/RK2VelocityComparison.pdf')
-end
-
-
-if(0)
+if(1)
+figure(); plot(time, result1(:,[6 9])); title([scheme_fname ' velocity comparison largest step vs truth']) 
 figure(); plot(time, result2(:,[6 9])); title([scheme_fname ' velocity comparison second largest step vs truth'])
 figure(); plot(time, result3(:,[6 9])); title([scheme_fname ' velocity comparison third largest step vs truth'])
 figure(); plot(time, result4(:,[6 9])); title([scheme_fname ' velocity comparison fourth largest step vs truth'])

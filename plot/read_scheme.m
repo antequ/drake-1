@@ -1,5 +1,5 @@
 % function read scheme
-function [l2_errs, nders, scheme_name, vs_skipped] = read_scheme(scheme_fname, fixed, conv, fnr, itlim, normstyle)
+%function [l2_errs, nders, scheme_name, vs_skipped] = read_scheme(scheme_fname, fixed, conv, fnr, itlim, normstyle)
 
 
 %scheme_fname = 'radau';
@@ -167,4 +167,4 @@ vsnorm8 = vecnorm(diff8(stiction_start:stiction_end,2),2);
 vs_threshold = 1e-4; % 2.8e-4 fails; 1.7e-5 is fine
 vsnorms = [vsnorm1 vsnorm2 vsnorm3 vsnorm4 vsnorm5 vsnorm6 vsnorm7 vsnorm8];
 vs_skipped = vsnorms > vs_threshold;
-end
+%end

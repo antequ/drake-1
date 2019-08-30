@@ -18,49 +18,56 @@ mkdir -p /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple
 
 
 
-
+# IS, localized errors
 export TIME_STEPPING=true
 export SIMULATION_TIME=2.5
 cd '/home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark.runfiles/drake'
 
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=2.5e-2 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_1" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-2 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_2" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-3 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_3" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-3 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_4" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-4 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_5" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-4 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_6" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-5 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_7" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-5 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_8" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-6 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_9" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-6 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_10" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-7 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="implicit_stribeck_11" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=2.5e-2 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_1" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-2 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_2" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-3 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_3" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-3 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_4" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-4 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_5" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-4 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_6" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-5 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_7" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-5 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_8" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-6 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_9" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-6 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_10" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-7 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors --errors_filename="implicit_stribeck_11" &
 
 
-# RK3 EC ftff
-export TEST_SCHEME=runge_kutta3
-export FIXED=false
-export CONV=true
-export FNR=false
-export ITLIM=false
-# 'fixed' step vs error control
-if [ $FIXED == "true" ]; then export STRF="fx"; else export STRF="ec"; fi
-# convergence control vs throw
-if [ $CONV == "true" ]; then export STRC="cc"; else export STRC="tr"; fi
-# full newton vs quasi newton
-if [ $FNR == "true" ]; then export STRN="fn"; else export STRN="qn"; fi
-# TALS vs default
-if [ $ITLIM == "true" ]; then export STRI="ta"; else export STRI="df"; fi
+# IS, globalized errors
+export TIME_STEPPING=true
+export SIMULATION_TIME=2.5
+cd '/home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark.runfiles/drake'
 
-cd '/home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d.runfiles/drake/'
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-2 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}1" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-3 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}2" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-4 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}3" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-5 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}4" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-8 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-6 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}5" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-10 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}6" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-12 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=3e-8 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}7" &
-nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/box2d/box2d --integration_scheme="$TEST_SCHEME"  --fixed_step=$FIXED --convergence_control=$CONV --full_newton=$FNR --target_realtime_rate="0" --iteration_limit=$ITLIM --max_time_step=2.5e-2 --accuracy 1e-14 --truth_integration_scheme="runge_kutta3" --fixed_tolerance=1e-9 --truth_integration_step=3e-8 --error_reporting_step=2.5e-2 --errors_filename="finalbox20${TEST_SCHEME}_${STRF}_${STRC}_${STRN}_${STRI}8" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=2.5e-2 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_1" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-2 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_2" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-3 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_3" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-3 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_4" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-4 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_5" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-4 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_6" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-5 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_7" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-5 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_8" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-6 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_9" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=1e-6 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_10" &
+nice -n 2 time /home/antequ/code/github/drake/bazel-bin/examples/simple_gripper/simple_gripper_benchmark --visualize=false --time_stepping=$TIME_STEPPING --simulation_time=$SIMULATION_TIME --max_time_step=3e-7 --truth_integration_step=1e-7 --error_reporting_step=2.5e-2 --localize_errors=false --errors_filename="implicit_stribeck_global_11" &
 
+
+time bazel run //examples/simple_gripper:simple_gripper_benchmark -- --target_realtime_rate=0 --amplitude 0.15 --ring_static_friction=0.05 --contact_model=point --time_stepping=false --full_newton --convergence_control --fixed_step --max_time_step=8e-3 --truth_integration_step=5e-4 --iteration_limit=true --error_reporting_step=2.4e-2 --errors_filename="point_contact_benchmark_itlimiter8ms" --visualize --simulation_time=5
+
+time bazel run //examples/simple_gripper:simple_gripper_benchmark -- --target_realtime_rate=0 --amplitude 0.15 --ring_static_friction=0.05 --contact_model=point --time_stepping=false --full_newton --convergence_control --fixed_step --max_time_step=8e-3 --truth_integration_step=5e-4 --iteration_limit=false --error_reporting_step=2.4e-2 --errors_filename="point_contact_benchmark_noitlimiter8ms" --visualize --simulation_time=5
+
+time bazel run //examples/simple_gripper:simple_gripper_benchmark -- --target_realtime_rate=0 --amplitude 0.15 --ring_static_friction=0.05 --contact_model=point --time_stepping=false --full_newton --convergence_control --fixed_step --max_time_step=5e-3 --truth_integration_step=5e-4 --iteration_limit=false --errors_filename="point_contact_benchmark_itlimiter5ms" --visualize --simulation_time=5
+
+
+time bazel run //examples/simple_gripper:simple_gripper_benchmark -- --target_realtime_rate=0 --amplitude 0.15 --ring_static_friction=0.05 --contact_model=point --time_stepping=false --full_newton --convergence_control --fixed_step --max_time_step=5e-3 --truth_integration_step=5e-4 --iteration_limit=true --errors_filename="point_contact_benchmark_itlimiter5ms" --visualize --simulation_time=5
+
+
+time bazel run //examples/simple_gripper:simple_gripper_benchmark -- --target_realtime_rate=0 --amplitude 0.15 --ring_static_friction=0.05 --contact_model=point --time_stepping=false --full_newton --convergence_control --fixed_step --max_time_step=3e-3 --truth_integration_step=5e-4 --iteration_limit=false --error_reporting_step=2.4e-2 --errors_filename="point_contact_benchmark_noitlimiter3ms" --visualize --simulation_time=5
+
+
+time bazel run //examples/simple_gripper:simple_gripper_benchmark -- --target_realtime_rate=0 --amplitude 0.15 --ring_static_friction=0.05 --contact_model=point --time_stepping=false --full_newton --convergence_control --fixed_step --max_time_step=3e-3 --truth_integration_step=5e-4 --iteration_limit=true --error_reporting_step=2.4e-2 --errors_filename="point_contact_benchmark_itlimiter3ms" --visualize --simulation_time=5
 
 cd ../../../../..
 

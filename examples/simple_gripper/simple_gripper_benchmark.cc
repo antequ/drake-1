@@ -103,8 +103,11 @@ DEFINE_bool(truth_fixed_step, true, "Use fixed steps for truth.");
 DEFINE_double(truth_accuracy, 1e-17, "Target accuracy for truth.");
 DEFINE_double(error_reporting_step, 2.5e-2,
               "Period between which local error is calculated.");
+DEFINE_bool(localize_errors, false, "Use false for global truncation error, true for localized global error.");
 
 DEFINE_bool(visualize, false, "Set true to visualize.");
+
+DEFINE_bool(wall_clock, false, "Set true to print wall clock time instead of n derivative evals.");
 // Contact parameters
 DEFINE_double(penetration_allowance, 1.0e-2,
               "Penetration allowance. [m]. "
@@ -230,7 +233,7 @@ void StoreEigenCSV(const std::string& filename, const Eigen::VectorXd& times, co
   DRAKE_DEMAND(times.rows() == metadata.rows());
   
   std::ofstream file(filename);
-  file << "t, runtime_us, n_steps, truth_n_steps, sim mug_qw, sim mug_qx, sim mug_qy, sim mug_qz, "
+  file << "t, runtime_us/n_ders, n_steps, truth_n_steps, sim mug_qw, sim mug_qx, sim mug_qy, sim mug_qz, "
     << "sim mug_x, sim mug_y, sim mug_z, sim grip_z, sim grip_w, sim mug_wx, sim mug_wy, sim mug_wz, sim mug_vx, sim mug_vy, "
     << "sim mug_vz, sim grip_vz, sim grip_vw, truth mug_qw, truth mug_qx, truth mug_qy, truth mug_qz, "
     << "truth mug_x, truth mug_y, truth mug_z, truth grip_z, truth grip_w, truth mug_wx, truth mug_wy, truth mug_wz, truth mug_vx, truth mug_vy, "
@@ -683,8 +686,8 @@ if (FLAGS_integration_scheme == "implicit_euler") {
       sim_diagram->GetSubsystemContext(sim_plant, simulator.get_context());
     error_results.block(0,next_step_ind,nstate,1) = sim_plant.GetPositionsAndVelocities(sim_plant_context);
     auto currentClockTime = std::chrono::steady_clock::now();
-    error_meta(0, next_step_ind) = (std::chrono::duration_cast<std::chrono::microseconds>(currentClockTime - startClockTime).count() );
-    error_meta(1, next_step_ind) = simulator.get_num_steps_taken();
+    error_meta(0, next_step_ind) = (FLAGS_time_stepping || FLAGS_wall_clock) ? (std::chrono::duration_cast<std::chrono::microseconds>(currentClockTime - startClockTime).count() ) : integrator->get_num_derivative_evaluations();
+    error_meta(1, next_step_ind) = FLAGS_time_stepping ? simulator.get_num_steps_taken() : integrator->get_num_steps_taken();
 
 #ifdef PRINT_PROGRESS_INFO
     if(next_step_ind % progress_out_rate == 0)
@@ -709,16 +712,19 @@ if (FLAGS_integration_scheme == "implicit_euler") {
     {
       next_time = FLAGS_simulation_time;
     }
-    systems::Context<double>& curr_truth_context = truth_simulator.get_mutable_context();
-    //curr_truth_context.get_mutable_state().SetFrom(quick_state_transfer[next_step_ind - 1]);
-    systems::Context<double>& curr_truth_plant_context = truth_diagram->GetMutableSubsystemContext(truth_plant,&curr_truth_context);
-    truth_plant.SetPositionsAndVelocities(&curr_truth_plant_context, error_results.block(0, next_step_ind - 1, nstate,1) );
+    if( FLAGS_localize_errors )
+    {
+      systems::Context<double>& curr_truth_context = truth_simulator.get_mutable_context();
+      //curr_truth_context.get_mutable_state().SetFrom(quick_state_transfer[next_step_ind - 1]);
+      systems::Context<double>& curr_truth_plant_context = truth_diagram->GetMutableSubsystemContext(truth_plant,&curr_truth_context);
+      truth_plant.SetPositionsAndVelocities(&curr_truth_plant_context, error_results.block(0, next_step_ind - 1, nstate,1) );
+    }
     truth_simulator.AdvanceTo(next_time);
     const systems::Context<double>& truth_plant_context =
       truth_diagram->GetSubsystemContext(truth_plant, truth_simulator.get_context());
     times(next_step_ind) = next_time;
     error_results.block(nstate, next_step_ind,nstate,1) = truth_plant.GetPositionsAndVelocities(truth_plant_context);
-    error_meta(2, next_step_ind) = truth_simulator.get_num_steps_taken();
+    error_meta(2, next_step_ind) = FLAGS_time_stepping ? truth_simulator.get_num_steps_taken() : truth_integrator->get_num_steps_taken();
 
     if(next_step_ind % progress_out_rate == 0)
     {
