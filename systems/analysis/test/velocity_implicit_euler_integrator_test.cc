@@ -15,10 +15,12 @@
 #include "drake/systems/analysis/test_utilities/stiff_double_mass_spring_system.h"
 #include "drake/systems/plants/spring_mass_system/spring_mass_system.h"
 
+// #define USE_ERROR_CONTROL  // easiest way to remove error control
 namespace drake {
 namespace systems {
 namespace analysis_test {
 
+#ifdef USE_ERROR_CONTROL
 using analysis_test::CubicScalarSystem;
 using analysis_test::LinearScalarSystem;
 using analysis_test::QuadraticScalarSystem;
@@ -58,7 +60,7 @@ void CheckGeneralStatsValidity(
 // halving the step size should improve the error estimate by a factor of 4.
 // Furthemore, we test that the error estimate gives the exact error, with
 // both the correct sign and magnitude.
-GTEST_TEST(ImplicitIntegratorErrorEstimatorTest, QuadraticSystemAccuracy) {
+GTEST_TEST(VelocityImplicitIntegratorTest, QuadraticSystemErrorEstAccuracy) {
   QuadraticScalarSystem quadratic(7);
   auto quadratic_context = quadratic.CreateDefaultContext();
   const double C = quadratic.Evaluate(0);
@@ -105,6 +107,7 @@ GTEST_TEST(ImplicitIntegratorErrorEstimatorTest, QuadraticSystemAccuracy) {
   // arbitrary values of C, t_final, or polynomial coefficients.
   CheckGeneralStatsValidity(&vie);
 }
+#endif
 
 // Test Velocity-Implicit Euler integrator on common implicit tests.
 typedef ::testing::Types<VelocityImplicitEulerIntegrator<double>> MyTypes;

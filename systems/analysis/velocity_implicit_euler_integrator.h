@@ -12,6 +12,7 @@
 #include "drake/systems/analysis/implicit_integrator.h"
 #include "drake/systems/analysis/runge_kutta2_integrator.h"
 
+// #define USE_ERROR_CONTROL  // minimum effort to remove error control
 namespace drake {
 namespace systems {
 
@@ -87,7 +88,11 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
       : ImplicitIntegrator<T>(system, context) {}
 
   /// The integrator supports error estimation.
+  #ifdef USE_ERROR_CONTROL
   bool supports_error_estimation() const final { return true; }
+  #else
+  bool supports_error_estimation() const final { return false; }
+  #endif
 
   /// The asymptotic order of the difference between the large and small steps
   /// (from which the error estimate is computed) is O(h²).
@@ -110,6 +115,11 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
 
   int get_vie_num_steps_taken() const {
     return 2 * IntegratorBase<T>::get_num_steps_taken();
+  }
+
+ protected:
+  bool do_supports_autodiff_and_central_differencing() const final {
+    return false;
   }
 
  private:
@@ -369,7 +379,7 @@ void VelocityImplicitEulerIntegrator<T>::DoInitialize() {
 
   // Allocate storage for changes to state variables during Newton-Raphson.
   dx_state_ = this->get_system().AllocateTimeDerivatives();
-
+#ifdef USE_ERROR_CONTROL
   const double kDefaultAccuracy = 1e-1;  // Good for this particular integrator.
   const double kLoosestAccuracy = 5e-1;  // Loosest accuracy is quite loose.
 
@@ -395,7 +405,13 @@ void VelocityImplicitEulerIntegrator<T>::DoInitialize() {
   else if (working_accuracy > kLoosestAccuracy)
     working_accuracy = kLoosestAccuracy;
   this->set_accuracy_in_use(working_accuracy);
-
+#else
+  // Arbitrarily chosen accuracy for the fixed step integrator.
+  // this->set_accuracy_in_use(1e-3);
+  // Verify that the maximum step size has been set.
+  if (isnan(this->get_maximum_step_size()))
+    throw std::logic_error("Maximum step size has not been set!");
+#endif
   // Reset the Jacobian matrix (so that recomputation is forced).
   this->get_mutable_velocity_jacobian_implicit_euler().resize(0, 0);
   this->get_mutable_velocity_jacobian_half_implicit_euler().resize(0, 0);
@@ -771,7 +787,14 @@ bool VelocityImplicitEulerIntegrator<T>::StepImplicitEuler(
 
     // Get the infinity norm of the weighted update vector.
     dx_state_->get_mutable_vector().SetFromVector(dx);
+#ifdef USE_ERROR_CONTROL
     T dx_norm = this->CalcStateChangeNorm(*dx_state_);
+#else
+    // TODO(antequ): Replace this with CalcStateChangeNorm() when error
+    // control has been implemented.
+    // Get the norm of the update vector.
+    T dx_norm = dx_state_->CopyToVector().norm();
+#endif
 
     context->SetTimeAndContinuousState(tf, *xtplus);
 
@@ -915,7 +938,7 @@ bool VelocityImplicitEulerIntegrator<T>::AttemptStepPaired(
         h);
     return false;
   }
-
+#ifdef USE_ERROR_CONTROL
   // Do the half Implicit Euler steps.
   // TODO(antequ): consider turning this off for fixed step mode (this needs
   //   to stay on to pass some of the error-control tests.). To do so, just
@@ -936,6 +959,10 @@ bool VelocityImplicitEulerIntegrator<T>::AttemptStepPaired(
         h);
     return false;
   }
+#else
+  this->get_mutable_context()->SetTimeAndContinuousState(t0 + h, *xtplus_ie);
+  return true;
+#endif
 }
 
 template <class T>
@@ -991,7 +1018,7 @@ bool VelocityImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
       return false;
     }
   }
-
+#ifdef USE_ERROR_CONTROL
   // Compute and update the error estimate. IntegratorBase will use the norm of
   // this vector to adjust step size.
   err_est_vec_ = (xtplus_ie_ - xtplus_hie_);
@@ -999,7 +1026,7 @@ bool VelocityImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
   // Update the caller-accessible error estimate.
   this->get_mutable_error_estimate()->get_mutable_vector().SetFromVector(
       err_est_vec_);
-
+#endif
   return true;
 }
 
