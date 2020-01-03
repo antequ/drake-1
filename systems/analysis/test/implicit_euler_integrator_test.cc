@@ -109,3 +109,4 @@ INSTANTIATE_TYPED_TEST_SUITE_P(My, ImplicitIntegratorTest, MyTypes);
 }  // namespace analysis_test
 }  // namespace systems
 }  // namespace drake
+
