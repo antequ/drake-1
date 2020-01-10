@@ -17,6 +17,12 @@
 
 namespace drake {
 namespace systems {
+
+// TODO(antequ): remove this forward declaration once the Velocity-Implicit
+// Euler supports automatic differentiation and central differencing.
+template <typename T>
+class VelocityImplicitEulerIntegrator;
+
 namespace analysis_test {
 
 enum ReuseType { kNoReuse, kReuse };
@@ -48,7 +54,12 @@ class ImplicitIntegratorTest : public ::testing::Test {
     // Separate context necessary for the double spring mass system.
     dspring_context_ = stiff_double_system_->CreateDefaultContext();
 
-    integrator_supports_central_and_auto_diff_ = true;
+    // TODO(antequ): remove this check once the Velocity-Implicit Euler supports
+    // automatic differentiation and central differencing.
+    if constexpr(std::is_same_v<IntegratorType,
+        VelocityImplicitEulerIntegrator<double>>) {
+      integrator_supports_central_and_auto_diff_ = false;
+    }
   }
 
   void MiscAPITest(ReuseType type) {
@@ -807,7 +818,13 @@ TYPED_TEST_P(ImplicitIntegratorTest, FullNewton) {
   using Integrator = TypeParam;
   Integrator integrator(*robertson, context.get());
 
-  integrator.request_initial_step_size_target(1e0);
+  // TODO(antequ): Remove this check once the Velocity-Implicit Euler Integrator
+  // supports error estimation.
+  if (integrator.supports_error_estimation()) {
+    integrator.request_initial_step_size_target(1e0);
+  } else {
+    integrator.set_maximum_step_size(1e0);
+  }
   integrator.set_throw_on_minimum_step_size_violation(false);
   integrator.set_fixed_step_mode(true);
   integrator.set_use_full_newton(true);    // The whole point of this test.
