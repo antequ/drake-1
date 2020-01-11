@@ -331,6 +331,8 @@ void VelocityImplicitEulerIntegrator<T>::DoInitialize() {
 
   // Reset the Jacobian matrix (so that recomputation is forced).
   this->get_mutable_velocity_jacobian_implicit_euler().resize(0, 0);
+
+  this->set_accuracy_in_use(1e-5);
 }
 
 template <class T>
