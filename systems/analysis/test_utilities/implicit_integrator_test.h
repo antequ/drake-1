@@ -126,7 +126,7 @@ class ImplicitIntegratorTest : public ::testing::Test {
     // The velocity solution needs a looser tolerance in Radau1 and Implicit
     // Euler. For reference, the true velocity is about -4.772
     const double sol_tol_vel =
-        integrator.supports_error_estimation() ? 1e-1 : 9e-1;
+        integrator.supports_error_estimation() ? 1.2e-1 : 9e-1;
 
     integrator.set_maximum_step_size(h);
     if (integrator.supports_error_estimation()) {
