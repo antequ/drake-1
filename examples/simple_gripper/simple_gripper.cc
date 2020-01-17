@@ -431,7 +431,7 @@ int do_main() {
           "Number of convergence-based step failures (should match) = {:d}\n",
           integrator->get_num_substep_failures());
     }
-    if (implicit) {
+    if (implicit ) {
       if (vie)
         fmt::print(
             "Implicit Integrator Statistics (total, half-size-steps):\n");
@@ -439,27 +439,30 @@ int do_main() {
         fmt::print(
             "Implicit Integrator Statistics (total, error estimator):\n");
       fmt::print("Number of Derivative Evaluations = {:d}, {:d} \n",
-                 implicit_integrator->get_num_derivative_evaluations(),
+                 implicit_integrator->get_num_derivative_evaluations(),integrator->supports_error_estimation() ? 
                  implicit_integrator
-                     ->get_num_error_estimator_derivative_evaluations());
+                     ->get_num_error_estimator_derivative_evaluations(): 0);
       fmt::print(
           "Number of Jacobian Computations = {:d}, {:d} \n",
           implicit_integrator->get_num_jacobian_evaluations(),
-          implicit_integrator->get_num_error_estimator_jacobian_evaluations());
+          integrator->supports_error_estimation() ? implicit_integrator->get_num_error_estimator_jacobian_evaluations() : 0);
       fmt::print(
           "Number of Derivative Evaluations for Jacobians = {:d}, {:d} \n",
           implicit_integrator->get_num_derivative_evaluations_for_jacobian(),
+          integrator->supports_error_estimation() ? 
           implicit_integrator
-              ->get_num_error_estimator_derivative_evaluations_for_jacobian());
+              ->get_num_error_estimator_derivative_evaluations_for_jacobian() : 0);
       fmt::print(
           "Number of Iteration Matrix Factorizations = {:d}, {:d} \n",
           implicit_integrator->get_num_iteration_matrix_factorizations(),
+          integrator->supports_error_estimation() ? 
           implicit_integrator
-              ->get_num_error_estimator_iteration_matrix_factorizations());
+              ->get_num_error_estimator_iteration_matrix_factorizations() : 0);
       fmt::print("Number of Newton-Raphson Iterations = {:d}, {:d} \n",
                  implicit_integrator->get_num_newton_raphson_iterations(),
+                 integrator->supports_error_estimation() ? 
                  implicit_integrator
-                     ->get_num_error_estimator_newton_raphson_iterations());
+                     ->get_num_error_estimator_newton_raphson_iterations() : 0);
       /*fmt::print("Number of Newton-Raphson Iterations That Lead to Failure =
       {:d}, {:d} \n",
                  implicit_integrator->get_num_newton_raphson_iterations_that_end_in_failure(),
