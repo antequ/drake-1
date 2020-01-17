@@ -332,7 +332,7 @@ void VelocityImplicitEulerIntegrator<T>::DoInitialize() {
   // Reset the Jacobian matrix (so that recomputation is forced).
   this->get_mutable_velocity_jacobian_implicit_euler().resize(0, 0);
 
-  this->set_accuracy_in_use(1e-5);
+  this->set_accuracy_in_use(1e-6);
 }
 
 template <class T>
@@ -724,36 +724,17 @@ bool VelocityImplicitEulerIntegrator<T>::StepImplicitEuler(
 
     context->SetTimeAndContinuousState(tf, *xtplus);
 
-    // Compute the convergence rate and check convergence.
-    // [Hairer, 1996] notes that this convergence strategy should only be
-    // applied after *at least* two iterations (p. 121).
-    if (i >= 1) {
-      const T theta = dx_norm / last_dx_norm;
-      const T eta = theta / (1 - theta);
-      DRAKE_LOGGER_DEBUG(
-          "Newton-Raphson loop {}, dx {}, last dx {}, theta: {}, eta: {}", i,
-          dx_norm, last_dx_norm, theta, eta);
+    // Check for convergence.
+    typename ImplicitIntegrator<T>::ConvergenceStatus status =
+        this->CheckNewtonConvergence(i, *xtplus, dx, dx_norm, last_dx_norm);
+    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kConverged)
+      return true;  // We win.
+    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kDiverged)
+      break;  // Try something else.
+    DRAKE_DEMAND(status ==
+                 ImplicitIntegrator<T>::ConvergenceStatus::kNotConverged);
 
-      // Look for divergence.
-      if (theta > 1) {
-        DRAKE_LOGGER_DEBUG(
-            "Newton-Raphson divergence detected for "
-            "h={}",
-            h);
-        break;
-      }
-
-      // Look for convergence using Equation 8.10 from [Hairer, 1996].
-      // [Hairer, 1996] determined values of kappa in [0.01, 0.1] work most
-      // efficiently on a number of test problems with Radau5 (a fifth order
-      // implicit integrator), p. 121. We select a value halfway in-between.
-      const double kappa = 0.05;
-      const double k_dot_tol = kappa * this->get_accuracy_in_use();
-      if (eta * dx_norm < k_dot_tol) {
-        DRAKE_LOGGER_DEBUG("Newton-Raphson converged; η = {}, h = {}", eta, h);
-        return true;
-      }
-    }
+    // Update the norm of the state update.
     last_dx_norm = dx_norm;
     last_qtplus = qtplus;
 
