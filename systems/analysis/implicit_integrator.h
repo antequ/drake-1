@@ -710,7 +710,7 @@ ImplicitIntegrator<T>::CheckNewtonConvergence(
   // at least one Newton-Raphson update has been applied to ensure that there
   // is at least some change to the state, no matter how small, on a
   // non-stationary system.
-  if (this->IsUpdateZero(xtplus, dx)) {
+  if (iteration > 0 && this->IsUpdateZero(xtplus, dx)) {
     DRAKE_LOGGER_DEBUG("magnitude of state update indicates convergence");
     return ConvergenceStatus::kConverged;
   }
@@ -718,7 +718,7 @@ ImplicitIntegrator<T>::CheckNewtonConvergence(
   // Compute the convergence rate and check convergence.
   // [Hairer, 1996] notes that this convergence strategy should only be
   // applied after *at least* two iterations (p. 121).
-  if (iteration >= 1) {
+  if (iteration > 1) {
     // TODO(edrumwri) Hairer's RADAU5 implementation (allegedly) uses
     // theta = sqrt(dx[k] / dx[k-2]) while DASSL uses
     // theta = pow(dx[k] / dx[0], 1/k), so investigate setting

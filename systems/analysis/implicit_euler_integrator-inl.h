@@ -160,9 +160,11 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
   Context<T>* context = this->get_mutable_context();
   context->SetTimeAndContinuousState(tf, *xtplus);
 
-  // Initialize the "last" state update norm; this will be used to detect
-  // convergence.
+  // Initialize the "last" and current state update norms; this will be used to
+  // detect convergence.
+  VectorX<T> dx;
   T last_dx_norm = std::numeric_limits<double>::infinity();
+  T dx_norm = std::numeric_limits<double>::infinity();
 
   // Calculate Jacobian and iteration matrices (and factorizations), as needed,
   // around (t0, xt0). We do not do this calculation if full Newton is in use;
@@ -177,9 +179,25 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
                                   iteration_matrix)) {
     return false;
   }
-  bool last_check_indicates_convergence_in_one = false;
   // Do the Newton-Raphson iterations.
   for (int i = 0; i < this->max_newton_raphson_iterations(); ++i) {
+
+    // Check for convergence.
+    typename ImplicitIntegrator<T>::ConvergenceStatus status =
+        this->CheckNewtonConvergence(i, *xtplus, dx, dx_norm, last_dx_norm);
+    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kConverged)
+      return true;  // We win.
+    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kDiverged)
+      break;  // Try something else.
+    
+    
+    DRAKE_DEMAND(status ==
+                  ImplicitIntegrator<T>::ConvergenceStatus::kNotConverged || 
+                  status == ImplicitIntegrator<T>::ConvergenceStatus::kConvergesInOneMore);
+    
+
+    // Update the norm of the state update.
+    last_dx_norm = dx_norm;
     this->FreshenMatricesIfFullNewton(tf, *xtplus, h,
                                       compute_and_factor_iteration_matrix,
                                       iteration_matrix);
@@ -194,37 +212,18 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
     // Compute the state update using the equation A*x = -g(), where A is the
     // iteration matrix.
     // TODO(edrumwri): Allow caller to provide their own solver.
-    VectorX<T> dx = iteration_matrix->Solve(-goutput);
+    dx = iteration_matrix->Solve(-goutput);
 
     // Get the infinity norm of the weighted update vector.
     dx_state_->get_mutable_vector().SetFromVector(dx);
-    T dx_norm = this->CalcStateChangeNorm(*dx_state_);
+    dx_norm = this->CalcStateChangeNorm(*dx_state_);
 
     // Update the state vector.
     *xtplus += dx;
     context->SetTimeAndContinuousState(tf, *xtplus);
 
-    // if the last check indicates that it'll converge in this check, we finish.
-    if (last_check_indicates_convergence_in_one)
-      return true;
-    // Check for convergence.
-    typename ImplicitIntegrator<T>::ConvergenceStatus status =
-        this->CheckNewtonConvergence(i, *xtplus, dx, dx_norm, last_dx_norm);
-    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kConverged)
-      return true;  // We win.
-    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kDiverged)
-      break;  // Try something else.
     if (status == ImplicitIntegrator<T>::ConvergenceStatus::kConvergesInOneMore)
-    {
-      last_check_indicates_convergence_in_one = true;  // We win.
-    }
-    else
-    {
-      DRAKE_DEMAND(status ==
-                   ImplicitIntegrator<T>::ConvergenceStatus::kNotConverged);
-    }
-    // Update the norm of the state update.
-    last_dx_norm = dx_norm;
+      return true;  // We win.
   }
 
   DRAKE_LOGGER_DEBUG("StepAbstract() convergence failed");
