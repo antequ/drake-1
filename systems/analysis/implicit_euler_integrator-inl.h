@@ -177,7 +177,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
                                   iteration_matrix)) {
     return false;
   }
-
+  bool last_check_indicates_convergence_in_one = false;
   // Do the Newton-Raphson iterations.
   for (int i = 0; i < this->max_newton_raphson_iterations(); ++i) {
     this->FreshenMatricesIfFullNewton(tf, *xtplus, h,
@@ -204,6 +204,9 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
     *xtplus += dx;
     context->SetTimeAndContinuousState(tf, *xtplus);
 
+    // if the last check indicates that it'll converge in this check, we finish.
+    if (last_check_indicates_convergence_in_one)
+      return true;
     // Check for convergence.
     typename ImplicitIntegrator<T>::ConvergenceStatus status =
         this->CheckNewtonConvergence(i, *xtplus, dx, dx_norm, last_dx_norm);
@@ -211,9 +214,15 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
       return true;  // We win.
     if (status == ImplicitIntegrator<T>::ConvergenceStatus::kDiverged)
       break;  // Try something else.
-    DRAKE_DEMAND(status ==
-                 ImplicitIntegrator<T>::ConvergenceStatus::kNotConverged);
-
+    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kConvergesInOneMore)
+    {
+      last_check_indicates_convergence_in_one = true;  // We win.
+    }
+    else
+    {
+      DRAKE_DEMAND(status ==
+                   ImplicitIntegrator<T>::ConvergenceStatus::kNotConverged);
+    }
     // Update the norm of the state update.
     last_dx_norm = dx_norm;
   }

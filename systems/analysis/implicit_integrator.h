@@ -332,6 +332,7 @@ class ImplicitIntegrator : public IntegratorBase<T> {
   enum class ConvergenceStatus {
     kDiverged,
     kConverged,
+    kConvergesInOneMore,
     kNotConverged,
   };
 
@@ -741,7 +742,7 @@ ImplicitIntegrator<T>::CheckNewtonConvergence(
     const double k_dot_tol = kappa * this->get_accuracy_in_use();
     if (eta * dx_norm < k_dot_tol) {
       DRAKE_LOGGER_DEBUG("Newton-Raphson converged; η = {}", eta);
-      return ConvergenceStatus::kConverged;
+      return ConvergenceStatus::kConvergesInOneMore;
     }
   }
 
