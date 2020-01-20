@@ -16,7 +16,10 @@ trackers. */
 #include "drake/common/text_logging.h"
 #include "drake/systems/framework/cache.h"
 #include "drake/systems/framework/framework_common.h"
-
+#ifdef DRAKE_LOGGER_DEBUG
+#undef DRAKE_LOGGER_DEBUG
+#define DRAKE_LOGGER_DEBUG(...)
+#endif
 namespace drake {
 namespace systems {
 

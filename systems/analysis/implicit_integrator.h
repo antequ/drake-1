@@ -738,7 +738,7 @@ ImplicitIntegrator<T>::CheckNewtonConvergence(
     // [Hairer, 1996] determined values of kappa in [0.01, 0.1] work most
     // efficiently on a number of test problems with *Radau5* (a fifth order
     // implicit integrator), p. 121. We select a value halfway in-between.
-    const double kappa = 0.05;
+    const double kappa = 0.005;
     const double k_dot_tol = kappa * this->get_accuracy_in_use();
     if (eta * dx_norm < k_dot_tol) {
       DRAKE_LOGGER_DEBUG("Newton-Raphson converged; η = {}", eta);

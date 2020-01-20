@@ -369,11 +369,11 @@ void VelocityImplicitEulerIntegrator<T>::ComputeForwardDiffVelocityJacobian(
   const int nv = cstate.num_v();
   const int ny = nv + cstate.num_z();
 
-  DRAKE_LOGGER_DEBUG(
+  DRAKE_LOGGER_TRACE(
       "  ImplicitEulerIntegrator Compute ForwardDiffVelocityJacobian "
       "{}-Jacobian t={}",
       ny, t);
-  DRAKE_LOGGER_DEBUG("  computing from state {}", x.transpose());
+  DRAKE_LOGGER_TRACE("  computing from state {}", x.transpose());
 
   // Initialize the Jacobian.
   Jv->resize(ny, ny);
@@ -627,7 +627,7 @@ bool VelocityImplicitEulerIntegrator<T>::StepImplicitEuler(
 
   // Verify the trial number is valid.
   DRAKE_ASSERT(trial >= 1 && trial <= 4);
-  DRAKE_LOGGER_DEBUG("StepImplicitEuler(h={}) t={}", h, t0);
+  DRAKE_LOGGER_TRACE("StepImplicitEuler(h={}) t={}", h, t0);
 
   const System<T>& system = this->get_system();
   // Verify xtplus
@@ -663,10 +663,11 @@ bool VelocityImplicitEulerIntegrator<T>::StepImplicitEuler(
   const T tf = t0 + h;
   context->SetTimeAndContinuousState(tf, *xtplus);
 
-  // Initialize the "last" state update norm; this will be used to detect
-  // convergence.
+  // Declare the state update vector and initialize the current and last state
+  // update norms; these will be used to detect convergence.
   VectorX<T> dx(xt0.size());
   T last_dx_norm = std::numeric_limits<double>::infinity();
+  T dx_norm = std::numeric_limits<double>::infinity();
 
   // Calculate Jacobian and iteration matrices (and factorizations), as needed,
   // around (t0, xt0). We do not do this calculation if full Newton is in use;
@@ -678,29 +679,39 @@ bool VelocityImplicitEulerIntegrator<T>::StepImplicitEuler(
     return false;
   }
 
-  // Evaluate the residual error, which is the negation of the RHS of the update
-  // equation:
-  //     (I - h Jₗ) Δy = yⁿ - yₖ + h l(yₖ), Δy = yₖ₊₁ - yₖ
-  VectorX<T> residual = ComputeResidualR(qt0, yt0, h);
-
   // Do the Newton-Raphson iterations.
   for (int i = 0; i < this->max_newton_raphson_iterations(); ++i) {
+    DRAKE_LOGGER_TRACE("Newton-Raphson iteration {}", i);
+
+    // Check for convergence.
+    typename ImplicitIntegrator<T>::ConvergenceStatus status =
+        this->CheckNewtonConvergence(i, *xtplus, dx, dx_norm, last_dx_norm);
+    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kConverged)
+      return true;  // We win.
+    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kDiverged)
+      break;  // Try something else.
+
+    DRAKE_DEMAND(
+        status == ImplicitIntegrator<T>::ConvergenceStatus::kNotConverged ||
+        status ==
+            ImplicitIntegrator<T>::ConvergenceStatus::kConvergesInOneMore);
+
+    // Update the norm of the state update.
+    last_dx_norm = dx_norm;
+    last_qtplus = qtplus;
+
     this->FreshenVelocityMatricesIfFullNewton(
         tf, *xtplus, qt0, h, ComputeAndFactorImplicitEulerIterationMatrix,
         iteration_matrix, Jv);
 
     // Update the number of Newton-Raphson iterations.
     num_nr_iterations_++;
-
+    // Evaluate the residual error, which is defined as the following:
+    //     R(y)  = y - yⁿ - h l(y),
+    VectorX<T> residual = ComputeResidualR(qt0, yt0, h);
     // Compute the state update using the equation A*y = -R(), where A is the
     // iteration matrix.
     const VectorX<T> dy = iteration_matrix->Solve(-residual);
-
-    // When dy is 0, we exit because the implicit step no longer provides any
-    // improvement; this is necessary because theta will equal nan in the
-    // iteration that follows where dq = 0, which will fail to trigger the
-    // divergence check.
-    if (i > 0 && this->IsUpdateZero(ytplus, dy)) return true;
 
     // Update the y portion of xtplus to yₖ₊₁.
     ytplus += dy;
@@ -717,31 +728,20 @@ bool VelocityImplicitEulerIntegrator<T>::StepImplicitEuler(
     // Get the infinity norm of the weighted update vector.
     dx_state_->get_mutable_vector().SetFromVector(dx);
 
+    DRAKE_LOGGER_TRACE("dx: {}", dx.transpose());
+
     // TODO(antequ): Replace this with CalcStateChangeNorm() when error
     // control has been implemented.
     // Get the norm of the update vector.
-    T dx_norm = dx_state_->CopyToVector().norm();
+    dx_norm = dx_state_->CopyToVector().norm();
 
     context->SetTimeAndContinuousState(tf, *xtplus);
 
-    // Check for convergence.
-    typename ImplicitIntegrator<T>::ConvergenceStatus status =
-        this->CheckNewtonConvergence(i, *xtplus, dx, dx_norm, last_dx_norm);
-    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kConverged)
+    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kConvergesInOneMore)
       return true;  // We win.
-    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kDiverged)
-      break;  // Try something else.
-    DRAKE_DEMAND(status ==
-                 ImplicitIntegrator<T>::ConvergenceStatus::kNotConverged);
-
-    // Update the norm of the state update.
-    last_dx_norm = dx_norm;
-    last_qtplus = qtplus;
-
-    residual = ComputeResidualR(qt0, yt0, h);
   }
 
-  DRAKE_LOGGER_DEBUG("VIE convergence failed");
+  DRAKE_LOGGER_TRACE("VIE convergence failed");
 
   // If Jacobian and iteration matrix factorizations are not reused, there
   // is nothing else we can try; otherwise, the following code will recurse
@@ -761,7 +761,7 @@ bool VelocityImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
   // Save the current time and state.
   Context<T>* context = this->get_mutable_context();
   const T t0 = context->get_time();
-  DRAKE_LOGGER_DEBUG("IE DoStep(h={}) t={}", h, t0);
+  DRAKE_LOGGER_TRACE("IE DoStep(h={}) t={}", h, t0);
 
   xt0_ = context->get_continuous_state().CopyToVector();
   xtplus_ie_.resize(xt0_.size());
@@ -769,7 +769,7 @@ bool VelocityImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
   // If the requested h is less than the minimum step size, we'll advance time
   // using an explicit Euler step.
   if (h < this->get_working_minimum_step_size()) {
-    DRAKE_LOGGER_DEBUG(
+    DRAKE_LOGGER_TRACE(
         "-- requested step too small, taking explicit "
         "step instead");
 
@@ -785,7 +785,7 @@ bool VelocityImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
 
     // If the step was not successful, reset the time and state.
     if (!success) {
-      DRAKE_LOGGER_DEBUG(
+      DRAKE_LOGGER_TRACE(
           "SO Implicit Euler approach did not converge for "
           "step size {}",
           h);

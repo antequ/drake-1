@@ -3,7 +3,10 @@
 #include <algorithm>
 
 #include "drake/common/unused.h"
-
+#ifdef DRAKE_LOGGER_DEBUG
+#undef DRAKE_LOGGER_DEBUG
+#define DRAKE_LOGGER_DEBUG(...)
+#endif
 namespace drake {
 namespace systems {
 

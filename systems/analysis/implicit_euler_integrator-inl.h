@@ -45,11 +45,11 @@ void ImplicitEulerIntegrator<T>::DoInitialize() {
   if (isnan(this->get_initial_step_size_target())) {
     // Verify that maximum step size has been set.
     if (isnan(this->get_maximum_step_size()))
-      throw std::logic_error("Neither initial step size target nor maximum "
-                                 "step size has been set!");
+      throw std::logic_error(
+          "Neither initial step size target nor maximum "
+          "step size has been set!");
 
-    this->request_initial_step_size_target(
-        this->get_maximum_step_size());
+    this->request_initial_step_size_target(this->get_maximum_step_size());
   }
 
   // Sets the working accuracy to a good value.
@@ -85,22 +85,22 @@ void ImplicitEulerIntegrator<T>::ComputeAndFactorImplicitEulerIterationMatrix(
   // We form the iteration matrix in this particular way to avoid an O(n^2)
   // subtraction as would be the case with:
   // MatrixX<T>::Identity(n, n) - J * h.
-  iteration_matrix->SetAndFactorIterationMatrix(
-      J * -h + MatrixX<T>::Identity(n, n));
+  iteration_matrix->SetAndFactorIterationMatrix(J * -h +
+                                                MatrixX<T>::Identity(n, n));
 }
 
 template <class T>
 void ImplicitEulerIntegrator<T>::
-ComputeAndFactorImplicitTrapezoidIterationMatrix(
-    const MatrixX<T>& J, const T& h,
-    typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix) {
+    ComputeAndFactorImplicitTrapezoidIterationMatrix(
+        const MatrixX<T>& J, const T& h,
+        typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix) {
   const int n = J.rows();
   // TODO(edrumwri) Investigate using a move-type operation below.
   // We form the iteration matrix in this particular way to avoid an O(n^2)
   // subtraction as would be the case with:
   // MatrixX<T>::Identity(n, n) - J * h / 2.
-  iteration_matrix->SetAndFactorIterationMatrix(
-      J * (-h / 2.0) + MatrixX<T>::Identity(n, n));
+  iteration_matrix->SetAndFactorIterationMatrix(J * (-h / 2.0) +
+                                                MatrixX<T>::Identity(n, n));
 }
 
 // Performs the bulk of the stepping computation for both implicit Euler and
@@ -148,8 +148,8 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
   // Verify xtplus
   DRAKE_ASSERT(xtplus && xtplus->size() == xt0.size());
 
-  DRAKE_LOGGER_DEBUG("StepAbstract() entered for t={}, h={}, trial={}",
-      t0, h, trial);
+  DRAKE_LOGGER_DEBUG("StepAbstract() entered for t={}, h={}, trial={}", t0, h,
+                     trial);
 
   // Start from the guess.
   *xtplus = xtplus_guess;
@@ -160,8 +160,8 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
   Context<T>* context = this->get_mutable_context();
   context->SetTimeAndContinuousState(tf, *xtplus);
 
-  // Initialize the "last" and current state update norms; this will be used to
-  // detect convergence.
+  // Declare the state update vector and initialize the current and last state
+  // update norms; these will be used to detect convergence.
   VectorX<T> dx;
   T last_dx_norm = std::numeric_limits<double>::infinity();
   T dx_norm = std::numeric_limits<double>::infinity();
@@ -181,7 +181,6 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
   }
   // Do the Newton-Raphson iterations.
   for (int i = 0; i < this->max_newton_raphson_iterations(); ++i) {
-
     // Check for convergence.
     typename ImplicitIntegrator<T>::ConvergenceStatus status =
         this->CheckNewtonConvergence(i, *xtplus, dx, dx_norm, last_dx_norm);
@@ -189,18 +188,16 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
       return true;  // We win.
     if (status == ImplicitIntegrator<T>::ConvergenceStatus::kDiverged)
       break;  // Try something else.
-    
-    
-    DRAKE_DEMAND(status ==
-                  ImplicitIntegrator<T>::ConvergenceStatus::kNotConverged || 
-                  status == ImplicitIntegrator<T>::ConvergenceStatus::kConvergesInOneMore);
-    
+
+    DRAKE_DEMAND(
+        status == ImplicitIntegrator<T>::ConvergenceStatus::kNotConverged ||
+        status ==
+            ImplicitIntegrator<T>::ConvergenceStatus::kConvergesInOneMore);
 
     // Update the norm of the state update.
     last_dx_norm = dx_norm;
-    this->FreshenMatricesIfFullNewton(tf, *xtplus, h,
-                                      compute_and_factor_iteration_matrix,
-                                      iteration_matrix);
+    this->FreshenMatricesIfFullNewton(
+        tf, *xtplus, h, compute_and_factor_iteration_matrix, iteration_matrix);
 
     // Evaluate the residual error using:
     // g(x(t0+h)) = x(t0+h) - x(t0) - h f(t0+h,x(t0+h)).
@@ -232,8 +229,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
   // is nothing else we can try.  Note that get_reuse() returns false if
   // "full Newton-Raphson" mode is activated (see
   // ImplicitIntegrator::get_use_full_newton()).
-  if (!this->get_reuse())
-    return false;
+  if (!this->get_reuse()) return false;
 
   // Try StepAbstract again. That method will freshen Jacobians and iteration
   // matrix factorizations as necessary.
@@ -252,18 +248,19 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
 //       exit.
 template <class T>
 bool ImplicitEulerIntegrator<T>::StepImplicitEuler(const T& t0, const T& h,
-    const VectorX<T>& xt0, VectorX<T>* xtplus) {
+                                                   const VectorX<T>& xt0,
+                                                   VectorX<T>* xtplus) {
   using std::abs;
 
   DRAKE_LOGGER_DEBUG("StepImplicitEuler(h={}) t={}", h, t0);
 
   // Set g for the implicit Euler method.
   Context<T>* context = this->get_mutable_context();
-  std::function<VectorX<T>()> g =
-      [&xt0, h, context, this]() {
-        return (context->get_continuous_state().CopyToVector() - xt0 -
-            h * this->EvalTimeDerivatives(*context).CopyToVector()).eval();
-      };
+  std::function<VectorX<T>()> g = [&xt0, h, context, this]() {
+    return (context->get_continuous_state().CopyToVector() - xt0 -
+            h * this->EvalTimeDerivatives(*context).CopyToVector())
+        .eval();
+  };
 
   // Use the current state as the candidate value for the next state.
   // [Hairer 1996] validates this choice (p. 120).
@@ -298,12 +295,13 @@ bool ImplicitEulerIntegrator<T>::StepImplicitTrapezoid(
   // Define g(x(t+h)) ≡ x(t0+h) - x(t0) - h/2 (f(t0,x(t0)) + f(t0+h,x(t0+h)) and
   // evaluate it at the current x(t+h).
   Context<T>* context = this->get_mutable_context();
-  std::function<VectorX<T>()> g =
-      [&xt0, h, &dx0, context, this]() {
-        return (context->get_continuous_state().CopyToVector() - xt0 - h/2 *
-            (dx0 + this->EvalTimeDerivatives(
-                *context).CopyToVector().eval())).eval();
-      };
+  std::function<VectorX<T>()> g = [&xt0, h, &dx0, context, this]() {
+    return (context->get_continuous_state().CopyToVector() - xt0 -
+            h / 2 *
+                (dx0 +
+                 this->EvalTimeDerivatives(*context).CopyToVector().eval()))
+        .eval();
+  };
 
   // Store statistics before calling StepAbstract(). The difference between
   // the modified statistics and the stored statistics will be used to compute
@@ -333,8 +331,8 @@ bool ImplicitEulerIntegrator<T>::StepImplicitTrapezoid(
   num_err_est_jacobian_function_evaluations_ +=
       this->get_num_derivative_evaluations_for_jacobian() -
       stored_num_jacobian_function_evaluations;
-  num_err_est_nr_iterations_ += this->get_num_newton_raphson_iterations() -
-      stored_num_nr_iterations;
+  num_err_est_nr_iterations_ +=
+      this->get_num_newton_raphson_iterations() - stored_num_nr_iterations;
 
   return success;
 }
@@ -349,7 +347,9 @@ bool ImplicitEulerIntegrator<T>::StepImplicitTrapezoid(
 // @returns `true` if the step of size `h` was successful, `false` otherwise.
 template <class T>
 bool ImplicitEulerIntegrator<T>::AttemptStepPaired(const T& t0, const T& h,
-    const VectorX<T>& xt0, VectorX<T>* xtplus_ie, VectorX<T>* xtplus_itr) {
+                                                   const VectorX<T>& xt0,
+                                                   VectorX<T>* xtplus_ie,
+                                                   VectorX<T>* xtplus_itr) {
   using std::abs;
   DRAKE_ASSERT(xtplus_ie);
   DRAKE_ASSERT(xtplus_itr);
@@ -358,13 +358,15 @@ bool ImplicitEulerIntegrator<T>::AttemptStepPaired(const T& t0, const T& h,
   // is calculated at this point (early on in the integration process) in order
   // to reuse the derivative evaluation, via the cache, from the last
   // integration step (if possible).
-  const VectorX<T> dx0 = this->EvalTimeDerivatives(
-      this->get_context()).CopyToVector();
+  const VectorX<T> dx0 =
+      this->EvalTimeDerivatives(this->get_context()).CopyToVector();
 
   // Do the Euler step.
   if (!StepImplicitEuler(t0, h, xt0, xtplus_ie)) {
-    DRAKE_LOGGER_DEBUG("Implicit Euler approach did not converge for "
-        "step size {}", h);
+    DRAKE_LOGGER_DEBUG(
+        "Implicit Euler approach did not converge for "
+        "step size {}",
+        h);
     return false;
   }
 
@@ -392,7 +394,8 @@ bool ImplicitEulerIntegrator<T>::AttemptStepPaired(const T& t0, const T& h,
     context->SetTimeAndContinuousState(t0 + h, *xtplus_ie);
     return true;
   } else {
-    DRAKE_LOGGER_DEBUG("Implicit trapezoid approach FAILED with a step"
+    DRAKE_LOGGER_DEBUG(
+        "Implicit trapezoid approach FAILED with a step"
         "size that succeeded on implicit Euler.");
     return false;
   }
@@ -417,7 +420,8 @@ bool ImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
   // If the requested h is less than the minimum step size, we'll advance time
   // using an explicit Euler step.
   if (h < this->get_working_minimum_step_size()) {
-    DRAKE_LOGGER_DEBUG("-- requested step too small, taking explicit "
+    DRAKE_LOGGER_DEBUG(
+        "-- requested step too small, taking explicit "
         "step instead");
 
     // TODO(edrumwri): Investigate replacing this with an explicit trapezoid
@@ -438,7 +442,8 @@ bool ImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
     // Compute the RK2 step.
     const int evals_before_rk2 = rk2_->get_num_derivative_evaluations();
     if (!rk2_->IntegrateWithSingleFixedStepToTime(t0 + h)) {
-      throw std::runtime_error("Embedded RK2 integrator failed to take a single"
+      throw std::runtime_error(
+          "Embedded RK2 integrator failed to take a single"
           "fixed step to the requested time.");
     }
 
@@ -465,8 +470,8 @@ bool ImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
   err_est_vec_ = xtplus_ie_ - xtplus_tr_;
 
   // Update the caller-accessible error estimate.
-  this->get_mutable_error_estimate()->get_mutable_vector().
-      SetFromVector(err_est_vec_);
+  this->get_mutable_error_estimate()->get_mutable_vector().SetFromVector(
+      err_est_vec_);
 
   return true;
 }

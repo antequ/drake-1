@@ -819,9 +819,9 @@ TYPED_TEST_P(ImplicitIntegratorTest, FullNewton) {
   // TODO(antequ): Remove this check once the Velocity-Implicit Euler Integrator
   // supports error estimation.
   if (integrator.supports_error_estimation()) {
-    integrator.request_initial_step_size_target(1e0);
+    integrator.request_initial_step_size_target(1e2);
   } else {
-    integrator.set_maximum_step_size(1e0);
+    integrator.set_maximum_step_size(1e2);
   }
   integrator.set_throw_on_minimum_step_size_violation(false);
   integrator.set_fixed_step_mode(true);
@@ -831,7 +831,7 @@ TYPED_TEST_P(ImplicitIntegratorTest, FullNewton) {
   // system fails to converge from the initial state for this large step size.
   // This tests the case where the Jacobian matrix has yet to be formed.
   integrator.Initialize();
-  ASSERT_FALSE(integrator.IntegrateWithSingleFixedStepToTime(1e0));
+  ASSERT_FALSE(integrator.IntegrateWithSingleFixedStepToTime(1e2));
   EXPECT_EQ(integrator.get_num_iteration_matrix_factorizations(),
             integrator.get_num_newton_raphson_iterations());
   EXPECT_EQ(integrator.get_num_jacobian_evaluations(),
@@ -850,7 +850,7 @@ TYPED_TEST_P(ImplicitIntegratorTest, FullNewton) {
   // Again try taking a large step, which we expect will be too large to
   // converge.
   integrator.ResetStatistics();
-  ASSERT_FALSE(integrator.IntegrateWithSingleFixedStepToTime(1e0));
+  ASSERT_FALSE(integrator.IntegrateWithSingleFixedStepToTime(1e2));
   EXPECT_EQ(integrator.get_num_iteration_matrix_factorizations(),
             integrator.get_num_newton_raphson_iterations());
   EXPECT_EQ(integrator.get_num_jacobian_evaluations(),
@@ -922,6 +922,8 @@ TYPED_TEST_P(ImplicitIntegratorTest, Robertson) {
   if (integrator.supports_error_estimation()) {
     integrator.set_target_accuracy(tol);
     integrator.request_initial_step_size_target(1e-4);
+  } else {
+    integrator.set_maximum_step_size(500000.0);
   }
 
   // Integrate the system
