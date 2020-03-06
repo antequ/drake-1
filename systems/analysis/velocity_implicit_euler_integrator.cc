@@ -435,32 +435,35 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
   // Store statistics before "error control". The difference between
   // the modified statistics and the stored statistics will be used to compute
   // the half-sized-step-specific statistics.
-  int64_t stored_num_jacobian_evaluations =
+  const int64_t stored_num_jacobian_evaluations =
       this->get_num_jacobian_evaluations();
-  int64_t stored_num_iter_factorizations =
+  const int64_t stored_num_iter_factorizations =
       this->get_num_iteration_matrix_factorizations();
-  int64_t stored_num_function_evaluations =
+  const int64_t stored_num_function_evaluations =
       this->get_num_derivative_evaluations();
-  int64_t stored_num_jacobian_function_evaluations =
+  const int64_t stored_num_jacobian_function_evaluations =
       this->get_num_derivative_evaluations_for_jacobian();
-  int64_t stored_num_nr_iterations = this->get_num_newton_raphson_iterations();
+  const int64_t stored_num_nr_iterations =
+      this->get_num_newton_raphson_iterations();
 
   // We set our guess for the state after a half-step to the average of the
   // guess for the final state, xtplus_guess, and the initial state, xt0.
-  const VectorX<T>& xthalf_guess = 0.5 * (xn + xtplus_guess);
+  VectorX<T> xtmp = 0.5 * (xn + xtplus_guess);
+  const VectorX<T>& xthalf_guess = xtmp;
   bool success = StepVelocityImplicitEuler(t0, 0.5 * h, xn, xthalf_guess,
                                            xtplus, iteration_matrix, Jy);
   if (!success) {
-    DRAKE_LOGGER_DEBUG("First Half VIE convergence failed");
+    DRAKE_LOGGER_DEBUG("First Half VIE convergence failed.");
   } else {
     // Copy the current output, xtplus, into xthalf, which functions as the new
     // xⁿ.
-    const VectorX<T> xthalf = *xtplus;
+    xtmp = *xtplus;
+    const VectorX<T>& xthalf = xtmp;
     success = StepVelocityImplicitEuler(t0 + 0.5 * h, 0.5 * h, xthalf,
                                         xtplus_guess, xtplus, iteration_matrix,
                                         Jy);
     if (!success) {
-      DRAKE_LOGGER_DEBUG("Second Half VIE convergence failed");
+      DRAKE_LOGGER_DEBUG("Second Half VIE convergence failed.");
     }
   }
 
@@ -501,9 +504,8 @@ bool VelocityImplicitEulerIntegrator<T>::AttemptStepPaired(
   if (!StepVelocityImplicitEuler(t0, h, xn, xtplus_guess, xtplus_vie,
                                  &iteration_matrix_vie_, &Jy_vie_)) {
     DRAKE_LOGGER_DEBUG(
-        "Velocity-Implicit Euler approach did not converge for "
-        "step size {}",
-        h);
+        "Velocity-Implicit Euler full-step approach did not converge for "
+        "step size {}", h);
     return false;
   }
 
@@ -514,8 +516,7 @@ bool VelocityImplicitEulerIntegrator<T>::AttemptStepPaired(
                                       &iteration_matrix_vie_, &Jy_vie_)) {
     DRAKE_LOGGER_DEBUG(
         "Velocity-Implicit Euler half-step approach failed with a step size "
-        "that succeeded for the normal approach {}",
-        h);
+        "that succeeded for the full step, {}", h);
     return false;
   }
 
