@@ -3,7 +3,6 @@
 #include <memory>
 #include <stdexcept>
 
-#include "drake/common/autodiff.h"
 #include "drake/common/default_scalars.h"
 #include "drake/common/drake_copyable.h"
 #include "drake/systems/analysis/implicit_integrator.h"
@@ -113,6 +112,7 @@ __attribute__((noreturn)) inline void EmitNoErrorEstimatorStatAndMessage() {
  * x̃ⁿ⁺¹ - xⁿ⁺¹, to within O(h³). Therefore we say that it is a second-order
  * error estimate.
  *
+ * TODO(antequ): update this note
  * Note: In statistics reported by IntegratorBase, all statistics that deal
  * with "step_size_taken" or "steps_taken" refer to the small half-sized steps
  * (as these are propagated steps). This includes the statistic tracking the
@@ -146,10 +146,7 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
 
   explicit VelocityImplicitEulerIntegrator(const System<T>& system,
                                            Context<T>* context = nullptr)
-      : ImplicitIntegrator<T>(system, context) {
-    // Indicate that this integrator propagates half-sized steps.
-    this->set_integrator_propagates_half_sized_steps(true);
-  }
+      : ImplicitIntegrator<T>(system, context) {}
 
   /// The integrator supports error estimation.
   bool supports_error_estimation() const final { return true; }

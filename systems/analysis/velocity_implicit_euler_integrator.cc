@@ -4,11 +4,9 @@
 #include <limits>
 #include <stdexcept>
 
-#include "drake/common/autodiff.h"
 #include "drake/common/drake_assert.h"
 #include "drake/common/text_logging.h"
 #include "drake/common/unused.h"
-#include "drake/math/autodiff_gradient.h"
 #include "drake/math/compute_numerical_gradient.h"
 #include "drake/systems/analysis/implicit_integrator.h"
 #include "drake/systems/framework/basic_vector.h"
@@ -455,7 +453,6 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
     // Copy the current output, xtplus, into xthalf, which functions as the new
     // xⁿ.
     const VectorX<T> xthalf = *xtplus;
-    // TODO(antequ): set the second xthalf to xtplus_guess
     success = StepVelocityImplicitEuler(t0 + 0.5 * h, 0.5 * h, xthalf,
                                         xtplus_guess, xtplus, iteration_matrix,
                                         Jy);
