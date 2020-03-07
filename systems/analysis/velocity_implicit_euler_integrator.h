@@ -11,16 +11,6 @@
 namespace drake {
 namespace systems {
 
-namespace internal {
-#ifndef DRAKE_DOXYGEN_CXX
-__attribute__((noreturn)) inline void EmitNoErrorEstimatorStatAndMessage() {
-  throw std::logic_error(
-      "No error estimator is currently implemented, so "
-      "query error estimator statistics is not yet supported.");
-}
-#endif
-}  // namespace internal
-
 /**
  * A first-order, fully implicit integrator optimized for second-order systems,
  * with a second-order error estimate.
@@ -84,46 +74,35 @@ __attribute__((noreturn)) inline void EmitNoErrorEstimatorStatAndMessage() {
  * `R(y) = y - yⁿ - h l(y)` as `h` becomes sufficiently small.
  * General implementational details were gleaned from [Hairer, 1996].
  *
+ * ### Error Estimation
+ *
  * In this integrator, we simultaneously take a large step at the requested
  * step size of h as well as two half-sized steps each with step size h/2.
- * The solution at h/2 is propagated as the solution, while the difference
- * is used as the error estimate, which is accurate to second order.
+ * The result from two half-sized steps is propagated as the solution, while
+ * the difference between the two results is used as the error estimate for the
+ * propagated solution. This error estimate is accurate to the second order.
  *
- * To see this, let x̅ⁿ⁺¹ be the computed solution from a large step, x̃ⁿ⁺¹ be
- * the computed solution from two small steps, and xⁿ⁺¹ be the true solution.
- * Upon Newton-Raphson convergence, the truncation error,
- * e(tⁿ+h, h) = x̅ⁿ⁺¹ - xⁿ⁺¹, from equations (3-4) can be expressed as
+ * To be precise, let x̅ⁿ⁺¹ be the computed solution from a large step, x̃ⁿ⁺¹
+ * be the computed solution from two small steps, and xⁿ⁺¹ be the true
+ * solution. Since the integrator propagates x̃ⁿ⁺¹ as its solution, we denote
+ * the true error vector as ε = x̃ⁿ⁺¹ - xⁿ⁺¹. VelocityImplicitEulerIntegrator
+ * uses ε' = x̅ⁿ⁺¹ - x̃ⁿ⁺¹, the difference between the two solutions, as the
+ * second-order error estimate, because for a smooth system, |ε - ε'| = O(h³).
+ * See the comments in
+ * VelocityImplicitEulerIntegrator<T>::DoImplicitIntegratorStep() for a
+ * detailed derivation of the error estimate's truncation error.
  *
- *     e(tⁿ+h, h) = c(tⁿ) h² + O(h³),         (10)
- * where c(tⁿ) depends on the higher-order time derivatives of the system. This
- * expression stems from the well-known fact that implicit Euler has second-
- * order truncation error. With the half-sized steps, we have that
- *
- *     x̃ⁿ⁺¹ - xⁿ⁺¹ = e(tⁿ+h/2, h/2) + e(tⁿ+h, h/2) + O(h³),
- *                 = c(tⁿ) h²/4 + c(tⁿ+h/2) h²/4 + O(h³),
- *     x̃ⁿ⁺¹ - xⁿ⁺¹ = c(tⁿ) h²/2 + O(h³),
- * from the fact that c(tⁿ+h/2) = c(tⁿ) + O(h). Therefore,
- *
- *     x̅ⁿ⁺¹ - x̃ⁿ⁺¹ = e(tⁿ+h, h) - (x̃ⁿ⁺¹ - xⁿ⁺¹),
- *                 = c(tⁿ) h²/2 + O(h³),
- *     x̅ⁿ⁺¹ - x̃ⁿ⁺¹ = x̃ⁿ⁺¹ - xⁿ⁺¹ + O(h³).     (11)
- *
- * Our error estimate, x̅ⁿ⁺¹ - x̃ⁿ⁺¹, therefore estimates the true error,
- * x̃ⁿ⁺¹ - xⁿ⁺¹, to within O(h³). Therefore we say that it is a second-order
- * error estimate.
- *
- * TODO(antequ): update this note
- * Note: In statistics reported by IntegratorBase, all statistics that deal
- * with "step_size_taken" or "steps_taken" refer to the small half-sized steps
- * (as these are propagated steps). This includes the statistic tracking the
- * number of steps taken: it tracks the number of small half-steps taken. On
- * the other hand, all the step-size limits are applied to the large step, and
- * all other step-size statistics refer to the large step. Furthermore, because
- * the large step is performed first, followed by the two small steps, all
- * statistics on error estimation correspond to the work incurred by taking the
- * small steps. We made this choice because most of the work in constructing
- * and factorizing matrices, which should not be counted toward error
- * estimation, is performed during the large steps.
+ * Note: In the statistics reported by IntegratorBase, all statistics that deal
+ * with the number of steps or the step sizes will track the large full-sized
+ * steps. Furthermore, because the small half-sized steps are propagated as the
+ * solution, the large full-sized step is the error estimator, and the error
+ * estimation statistics track the effort during the large full-sized step.
+ * Depending on the system, the statistics may be unintuitive and difficult to
+ * compare against other integrators, because the large error-estimation step
+ * is performed first, followed by the two small propagated steps, implying
+ * that most of the work in constructing and factorizing matrices and failed
+ * Newton-Raphson iterations are performed during the large steps and counted
+ * toward the error estimation statistics.
  *
  * - [Hairer, 1996]   E. Hairer and G. Wanner. Solving Ordinary Differential
  *                    Equations II (Stiff and Differential-Algebraic Problems).
@@ -421,8 +400,8 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   typename ImplicitIntegrator<T>::IterationMatrix iteration_matrix_vie_;
 
   // Vector used in error estimate calculations. At the end of every step, we
-  // set this to x̅ⁿ⁺¹ - x̃ⁿ⁺¹, which is our estimate for ε = x̃ⁿ⁺¹ - xⁿ⁺¹, the
-  // error of the propagated half-sized steps,
+  // set this to ε' = x̅ⁿ⁺¹ - x̃ⁿ⁺¹, which is our estimate for ε = x̃ⁿ⁺¹ - xⁿ⁺¹,
+  // the error of the propagated half-sized steps.
   VectorX<T> err_est_vec_;
 
   // The continuous state update vector used during Newton-Raphson.
