@@ -415,6 +415,14 @@ class ImplicitIntegrator : public IntegratorBase<T> {
     ++num_jacobian_evaluations_;
   }
 
+  bool get_jacobian_is_fresh() {
+    return jacobian_is_fresh_;
+  }
+
+  void set_jacobian_is_not_fresh() {
+    jacobian_is_fresh_ = false;
+  }
+
  private:
   bool DoStep(const T& h) final {
     bool result = DoImplicitIntegratorStep(h);

@@ -70,6 +70,7 @@ DEFINE_double(friction_coefficient, 0.5,
 DEFINE_bool(only_collision_spheres, false,
             "Use only point contact with spheres");
 DEFINE_bool(fixed_step, false, "Use fixed step integration. No error control.");
+DEFINE_bool(dont_reuse, false, "When set to true, set_reuse is set to false.");
 
 DEFINE_int32(objects_per_pile, 5, "Number of objects per pile.");
 DEFINE_bool(visualize, true, "Whether to visualize (true) or not (false).");
@@ -447,11 +448,12 @@ int do_main() {
       throw std::runtime_error("Invalid Jacobian computation scheme");
     }
     implicit_integrator->set_use_full_newton(FLAGS_use_full_newton);
+    implicit_integrator->set_reuse(!FLAGS_dont_reuse);
   }
   if (integrator.supports_error_estimation())
     integrator.set_fixed_step_mode(FLAGS_fixed_step);    
 
-  integrator.set_maximum_step_size(0.1);
+  //integrator.set_maximum_step_size(0.1);
   integrator.set_loose_accuracy_band(FLAGS_h_loose_band, FLAGS_a_loose_band);  
 
   //Timer timer;

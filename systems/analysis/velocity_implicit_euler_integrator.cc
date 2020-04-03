@@ -504,7 +504,7 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
 
   // We set our guess for the state after a half-step to the average of the
   // guess for the final state, xtplus_guess, and the initial state, xt0.
-  VectorX<T> xtmp = 0.5 * (xn + xtplus_guess);
+  VectorX<T> xtmp = xn;
   const VectorX<T>& xthalf_guess = xtmp;
   bool success = StepVelocityImplicitEuler(t0, 0.5 * h, xn, xthalf_guess,
                                            xtplus, iteration_matrix, Jy);
@@ -515,8 +515,9 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
     // xⁿ.
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
+    unused(xtplus_guess);
     success = StepVelocityImplicitEuler(t0 + 0.5 * h, 0.5 * h, xthalf,
-                                        xtplus_guess, xtplus, iteration_matrix,
+                                        xthalf, xtplus, iteration_matrix,
                                         Jy);
     if (!success) {
       DRAKE_LOGGER_DEBUG("Second Half VIE convergence failed.");
