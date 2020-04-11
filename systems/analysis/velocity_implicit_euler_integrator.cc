@@ -16,6 +16,8 @@
 namespace drake {
 namespace systems {
 
+constexpr bool COMPUTE_TWO_JACOBIANS = true;
+
 template <class T>
 void VelocityImplicitEulerIntegrator<T>::DoResetImplicitIntegratorStatistics() {
   num_nr_iterations_ = 0;
@@ -61,26 +63,39 @@ void VelocityImplicitEulerIntegrator<T>::DoInitialize() {
 
   // Reset the Jacobian matrix (so that recomputation is forced).
   this->Jy_vie_.resize(0, 0);
+  this->Jfyy_vie_.resize(0, 0);
+  this->Jfyq_vie_.resize(0, 0);
 }
 
 template <class T>
 void VelocityImplicitEulerIntegrator<T>::
     ComputeAndFactorImplicitEulerIterationMatrix(
-        const MatrixX<T>& J, const T& h,
+        const MatrixX<T>& J, const MatrixX<T>& Jfyy, const MatrixX<T>& Jfyq,
+        const T& h,
         typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix) {
-  const int n = J.rows();
   // TODO(edrumwri) Investigate using a move-type operation below.
   // We form the iteration matrix in this particular way to avoid an O(n^2)
   // subtraction as would be the case with:
   // MatrixX<T>::Identity(n, n) - h * J.
-  iteration_matrix->SetAndFactorIterationMatrix(-h * J  +
-                                                MatrixX<T>::Identity(n, n));
+  if (COMPUTE_TWO_JACOBIANS && (Jfyy.rows() > 0)) {
+    const int n = Jfyy.rows();
+    std::cerr << "Factorizing, step size " << h << " rows: " << n << std::endl;
+    iteration_matrix->SetAndFactorIterationMatrix(-h * (Jfyy + h * Jfyq) +
+                                                  MatrixX<T>::Identity(n, n));
+  } else {
+    const int n = J.rows();
+    iteration_matrix->SetAndFactorIterationMatrix(-h * J +
+                                                  MatrixX<T>::Identity(n, n));
+  }
+  if (!iteration_matrix->matrix_factored()) {
+    throw std::runtime_error("Iteration matrix failed to be factorized!");
+  }
 }
 
 template <class T>
-void VelocityImplicitEulerIntegrator<T>::CalcVelocityJacobian(const T& t,
-    const T& h, const VectorX<T>& y, const VectorX<T>& qk,
-    const VectorX<T>& qn, MatrixX<T>* Jy) {
+void VelocityImplicitEulerIntegrator<T>::CalcVelocityJacobian(
+    const T& t, const T& h, const VectorX<T>& y, const VectorX<T>& qk,
+    const VectorX<T>& qn, MatrixX<T>* Jy, MatrixX<T>* Jfyy, MatrixX<T>* Jfyq) {
   // Note: Unlike ImplicitIntegrator<T>::CalcJacobian(), we neither save the
   // context or change it back, because our implementation of
   // StepVelocityImplicitEuler() does not require the context to be restored.
@@ -91,39 +106,86 @@ void VelocityImplicitEulerIntegrator<T>::CalcVelocityJacobian(const T& t,
 
   // Compute the Jacobian using the selected computation scheme.
   if (this->get_jacobian_computation_scheme() ==
-      ImplicitIntegrator<T>::JacobianComputationScheme::kForwardDifference ||
+          ImplicitIntegrator<
+              T>::JacobianComputationScheme::kForwardDifference ||
       this->get_jacobian_computation_scheme() ==
-      ImplicitIntegrator<T>::JacobianComputationScheme::kCentralDifference) {
+          ImplicitIntegrator<
+              T>::JacobianComputationScheme::kCentralDifference) {
     // Compute the Jacobian using numerical differencing.
-    DRAKE_ASSERT(qdot_ != nullptr);
-    // Define the lambda l_of_y to evaluate ℓ(y).
-    std::function<void(const VectorX<T>&, VectorX<T>*)> l_of_y =
-        [&qk, &t, &qn, &h, this](const VectorX<T>& y_state,
-                                 VectorX<T>* l_result) {
-          *l_result =
-              this->ComputeLOfY(t, y_state, qk, qn, h, this->qdot_.get());
-        };
+    DRAKE_ASSERT(qdot_ != nullptr && qdot_->size() == qn.size());
 
     const math::NumericalGradientOption numerical_gradient_method(
         (this->get_jacobian_computation_scheme() ==
-        ImplicitIntegrator<T>::JacobianComputationScheme::kCentralDifference) ?
-        math::NumericalGradientMethod::kCentral :
-        math::NumericalGradientMethod::kForward);
+         ImplicitIntegrator<T>::JacobianComputationScheme::kCentralDifference)
+            ? math::NumericalGradientMethod::kCentral
+            : math::NumericalGradientMethod::kForward);
 
-    // Compute Jy by passing ℓ(y) to math::ComputeNumericalGradient().
-    // TODO(antequ): Right now we modify the context twice each time we call
-    // ℓ(y): once when we calculate qⁿ + h N(qₖ) v
-    // (SetTimeAndContinuousState()), and once when we calculate ℓ(y)
-    // (get_mutable_generalized_position()). However, this is only necessary for
-    // each y that modifies a velocity (v). For all but one of the
-    // miscellaneous states (z), we can reuse the position so that the context
-    // needs only one modification. Investigate how to refactor this logic to
-    // achieve this performance benefit while maintaining code readability.
-    *Jy = math::ComputeNumericalGradient(l_of_y, y, numerical_gradient_method);
-  } else if (
-      this->get_jacobian_computation_scheme() ==
-      ImplicitIntegrator<T>::JacobianComputationScheme::kAutomatic) {
-    // Compute the Jacobian using automatic differentiation.
+    if (COMPUTE_TWO_JACOBIANS && !(this->get_use_full_newton()) &&
+        (qn.size() > 0)) {
+      int ny = y.size();
+      int nv = this->get_context().get_continuous_state().num_v();
+      // Define the lambda fy_of_y to evaluate f(y)
+      std::function<void(const VectorX<T>&, VectorX<T>*)> fy_of_y =
+          [&t, &qn, this](const VectorX<T>& y_state, VectorX<T>* f_result) {
+            *f_result = this->ComputeFyOfQY(t, y_state, qn);
+          };
+      // Define the lambda fy_of_q to evaluate f(q)
+      std::function<void(const VectorX<T>&, VectorX<T>*)> fy_of_q =
+          [&t, &y, this](const VectorX<T>& q_state, VectorX<T>* f_result) {
+            *f_result = this->ComputeFyOfQY(t, y, q_state);
+          };
+
+      // Compute the two Jacobians
+      auto Jfyq_temp = math::ComputeNumericalGradient(
+          fy_of_q, qn, numerical_gradient_method);
+
+      DRAKE_DEMAND(Jfyq_temp.rows() == ny);
+      DRAKE_DEMAND(Jfyq_temp.cols() == qn.size());
+      *Jfyy =
+          math::ComputeNumericalGradient(fy_of_y, y, numerical_gradient_method);
+
+      DRAKE_DEMAND(Jfyy->cols() == ny);
+      DRAKE_DEMAND(Jfyy->rows() == ny);
+      *Jfyq = MatrixX<T>::Zero(ny, ny);
+      // the final time and position should be correct (set to qn), since
+      // ComputeFyOfQY sets it so.
+      VectorX<T> v_vector = VectorX<T>(nv);
+      // compute Jq * N(q)
+      for (int i = 0; i < nv; i++) {
+        v_vector.setZero();
+        v_vector(i) = T(1);
+        this->get_system().MapVelocityToQDot(this->get_context(), v_vector,
+                                             qdot_.get());
+        Jfyq->col(i) = Jfyq_temp * qdot_->get_value();
+      }
+      if(this->IsBadJacobian(*Jfyy)) {
+        std::cerr << y << std::endl;
+        DRAKE_DEMAND(false);
+      }
+
+    } else {
+      // Define the lambda l_of_y to evaluate l(y).
+      std::function<void(const VectorX<T>&, VectorX<T>*)> l_of_y =
+          [&qk, &t, &qn, &h, this](const VectorX<T>& y_state,
+                                   VectorX<T>* l_result) {
+            *l_result =
+                this->ComputeLOfY(t, y_state, qk, qn, h, this->qdot_.get());
+          };
+
+      // Compute Jy by passing l(y) to math::ComputeNumericalGradient().
+      // TODO(antequ): Right now we modify the context twice each time we call
+      // l(y): once when we calculate qⁿ + h N(qₖ) v
+      // (SetTimeAndContinuousState()), and once when we calculate l(y)
+      // (get_mutable_generalized_position()). However, this is only necessary
+      // for each y that modifies a velocity (v). For all but one of the
+      // miscellaneous states (z), we can reuse the position so that the context
+      // needs only one modification. Investigate how to refactor this logic to
+      // achieve this performance benefit while maintaining code readability.
+      *Jy =
+          math::ComputeNumericalGradient(l_of_y, y, numerical_gradient_method);
+    }
+  } else if (this->get_jacobian_computation_scheme() ==
+             ImplicitIntegrator<T>::JacobianComputationScheme::kAutomatic) {
     this->ComputeAutoDiffVelocityJacobian(t, h, y, qk, qn, Jy);
   } else {
     throw new std::logic_error("Invalid Jacobian computation scheme.");
@@ -191,21 +253,32 @@ void VelocityImplicitEulerIntegrator<T>::ComputeAutoDiffVelocityJacobian(
 
 template <class T>
 bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
-    const T& t, const VectorX<T>& y, const VectorX<T>& qk,
-    const VectorX<T>& qn, const T& h, int trial,
-    const std::function<void(const MatrixX<T>&, const T&,
+    const T& t, const VectorX<T>& y, const VectorX<T>& qk, const VectorX<T>& qn,
+    const T& h, int trial,
+    const std::function<void(const MatrixX<T>&, const MatrixX<T>&,
+                             const MatrixX<T>&, const T&,
                              typename ImplicitIntegrator<T>::IterationMatrix*)>&
         compute_and_factor_iteration_matrix,
     typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix,
-    MatrixX<T>* Jy) {
-  DRAKE_DEMAND(Jy != nullptr);
+    MatrixX<T>* Jy, MatrixX<T>* Jfyy, MatrixX<T>* Jfyq) {
+  DRAKE_DEMAND(Jy != nullptr && Jfyy != nullptr && Jfyq != nullptr);
   DRAKE_DEMAND(iteration_matrix != nullptr);
+  MatrixX<T>* Jac_In_Use =
+      COMPUTE_TWO_JACOBIANS && !(this->get_use_full_newton()) && (qn.size() > 0)
+          ? Jfyy
+          : Jy;
   // Compute the initial Jacobian and iteration matrices and factor them, if
   // necessary.
-  if (!this->get_reuse() || Jy->rows() == 0 || this->IsBadJacobian(*Jy)) {
-    CalcVelocityJacobian(t, h, y, qk, qn, Jy);
+  if (!this->get_reuse() || Jac_In_Use->rows() == 0 ||
+      this->IsBadJacobian(*Jac_In_Use)) {
+    CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
     this->increment_num_iter_factorizations();
-    compute_and_factor_iteration_matrix(*Jy, h, iteration_matrix);
+    compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h, iteration_matrix);
+    if( trial > 1) {
+      std::cerr << this->IsBadJacobian(*Jac_In_Use) << " , rows: " << Jac_In_Use->rows() << std::endl;
+      std::cerr << *Jac_In_Use << std::endl;
+    }
+    DRAKE_DEMAND(trial == 1);
     return true;  // Indicate success.
   }
 
@@ -213,7 +286,8 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
   // If the iteration matrix has not been set and factored, do only that.
   if (!iteration_matrix->matrix_factored()) {
     this->increment_num_iter_factorizations();
-    compute_and_factor_iteration_matrix(*Jy, h, iteration_matrix);
+    compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h, iteration_matrix);
+    DRAKE_DEMAND(trial == 1);
     return true;  // Indicate success.
   }
 
@@ -233,7 +307,8 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
       // computed Jacobian may be from a previous time-step or a previously-
       // attempted step size.
       this->increment_num_iter_factorizations();
-      compute_and_factor_iteration_matrix(*Jy, h, iteration_matrix);
+      compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h,
+                                          iteration_matrix);
       return true;
     }
 
@@ -243,13 +318,21 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
       // failed. We recompute the Jacobian matrix and refactor the iteration
       // matrix.
 
+      // If the Jacobians are already fresh, give up.
+      if (((COMPUTE_TWO_JACOBIANS && !(this->get_use_full_newton())) ||
+           (qn.size() == 0)) &&
+          this->get_jacobian_is_fresh()) {
+        return false;
+      }
+
       // Note: Based on a few simple experimental tests, we found that the
       // optimization to abort this trial when matrices are already fresh in
       // ImplicitIntegrator<T>::MaybeFreshenMatrices() does not significantly
       // help here, especially because our Jacobian depends on step size h.
-      CalcVelocityJacobian(t, h, y, qk, qn, Jy);
+      CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
       this->increment_num_iter_factorizations();
-      compute_and_factor_iteration_matrix(*Jy, h, iteration_matrix);
+      compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h,
+                                          iteration_matrix);
       return true;
 
       case 4: {
@@ -265,23 +348,24 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
 
 template <class T>
 void VelocityImplicitEulerIntegrator<T>::FreshenVelocityMatricesIfFullNewton(
-    const T& t, const VectorX<T>& y, const VectorX<T>& qk,
-    const VectorX<T>& qn, const T& h,
-    const std::function<void(const MatrixX<T>&, const T&,
+    const T& t, const VectorX<T>& y, const VectorX<T>& qk, const VectorX<T>& qn,
+    const T& h,
+    const std::function<void(const MatrixX<T>&, const MatrixX<T>&,
+                             const MatrixX<T>&, const T&,
                              typename ImplicitIntegrator<T>::IterationMatrix*)>&
         compute_and_factor_iteration_matrix,
     typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix,
-    MatrixX<T>* Jy) {
+    MatrixX<T>* Jy, MatrixX<T>* Jfyy, MatrixX<T>* Jfyq) {
   DRAKE_DEMAND(iteration_matrix != nullptr);
-  DRAKE_DEMAND(Jy != nullptr);
+  DRAKE_DEMAND(Jy != nullptr && Jfyy != nullptr && Jfyq != nullptr);
 
   // Return immediately if full-Newton is not in use.
   if (!this->get_use_full_newton()) return;
 
   // Compute the initial Jacobian and iteration matrices and factor them.
-  CalcVelocityJacobian(t, h, y, qk, qn, Jy);
+  CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
   this->increment_num_iter_factorizations();
-  compute_and_factor_iteration_matrix(*Jy, h, iteration_matrix);
+  compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h, iteration_matrix);
 }
 
 template <class T>
@@ -294,7 +378,6 @@ VectorX<T> VelocityImplicitEulerIntegrator<T>::ComputeResidualR(
   // Evaluate R(y).
   return y - yn - h * l_of_y;
 }
-
 
 template <class T>
 template <typename U>
@@ -312,15 +395,16 @@ VectorX<U> VelocityImplicitEulerIntegrator<T>::ComputeLOfY(
   // allocations, like in the VectorX<T> constructions of x and q and the return
   // statement, and (2) reduce unnecessary cache invalidations since
   // MapVelocityToQDot() doesn't set any caches.
-  VectorX<U> x(nq+ny);
+  VectorX<T> x(nq + ny);
   x.head(nq) = qk;
   x.tail(ny) = y;
   context->SetTimeAndContinuousState(t, x);
 
   // Compute q = qⁿ + h N(qₖ) v.
-  system.MapVelocityToQDot(*context,
-      context->get_continuous_state().get_generalized_velocity(), &*qdot);
-  const VectorX<U> q = qn + h * qdot->get_value();
+  system.MapVelocityToQDot(
+      *context, context->get_continuous_state().get_generalized_velocity(),
+      &*qdot);
+  const VectorX<T> q = qn + h * qdot->get_value();
 
   // Evaluate ℓ = f_y(t, q, v, z).
   // TODO(antequ): Right now this invalidates the entire cache that depends on
@@ -334,13 +418,34 @@ VectorX<U> VelocityImplicitEulerIntegrator<T>::ComputeLOfY(
   return xc_deriv.CopyToVector().tail(ny);
 }
 
+template <class T>
+VectorX<T> VelocityImplicitEulerIntegrator<T>::ComputeFyOfQY(
+    const T& t, const VectorX<T>& y, const VectorX<T>& q) {
+  Context<T>* context = this->get_mutable_context();
+  int nq = q.size();
+  int ny = y.size();
+
+  // Set the context to (t, q, y)
+  // TODO(antequ): Optimize this procedure to both (1) remove unnecessary heap
+  // allocations, like in the VectorX<T> constructions of x and q and the return
+  // statement, and (2) reduce unnecessary cache invalidations since
+  // MapVelocityToQDot() doesn't set any caches.
+  VectorX<T> x(nq + ny);
+  x.head(nq) = q;
+  x.tail(ny) = y;
+  context->SetTimeAndContinuousState(t, x);
+
+  // Evaluate l = f_y(t, q, v, z).
+  const ContinuousState<T>& xc_deriv = this->EvalTimeDerivatives(*context);
+  return xc_deriv.CopyToVector().tail(ny);
+}
 
 template <class T>
 bool VelocityImplicitEulerIntegrator<T>::StepVelocityImplicitEuler(
     const T& t0, const T& h, const VectorX<T>& xn,
     const VectorX<T>& xtplus_guess, VectorX<T>* xtplus,
     typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix,
-    MatrixX<T>* Jy, int trial) {
+    MatrixX<T>* Jy, MatrixX<T>* Jfyy, MatrixX<T>* Jfyq, int trial) {
   using std::abs;
 
   // Verify the trial number is valid.
@@ -390,8 +495,10 @@ bool VelocityImplicitEulerIntegrator<T>::StepVelocityImplicitEuler(
   // around (t0, xn). We do not do this calculation if full Newton is in use;
   // the calculation will be performed at the beginning of the loop instead.
   if (!this->get_use_full_newton() &&
-      !this->MaybeFreshenVelocityMatrices(t0, yn, qn, qn, h, trial,
-      ComputeAndFactorImplicitEulerIterationMatrix, iteration_matrix, Jy)) {
+      !this->MaybeFreshenVelocityMatrices(
+          t0, yn, qn, qn, h, trial,
+          ComputeAndFactorImplicitEulerIterationMatrix, iteration_matrix, Jy,
+          Jfyy, Jfyq)) {
     return false;
   }
 
@@ -399,19 +506,20 @@ bool VelocityImplicitEulerIntegrator<T>::StepVelocityImplicitEuler(
   for (int i = 0; i < this->max_newton_raphson_iterations(); ++i) {
     DRAKE_LOGGER_DEBUG(
         "VelocityImplicitEulerIntegrator::StepVelocityImplicitEuler() entered "
-        "for t={}, h={}, trial={}", t0, h, trial);
+        "for t={}, h={}, trial={}",
+        t0, h, trial);
 
     this->FreshenVelocityMatricesIfFullNewton(
-        tf, ytplus, qtplus, qn, h,
-        ComputeAndFactorImplicitEulerIterationMatrix, iteration_matrix, Jy);
+        tf, ytplus, qtplus, qn, h, ComputeAndFactorImplicitEulerIterationMatrix,
+        iteration_matrix, Jy, Jfyy, Jfyq);
 
     // Update the number of Newton-Raphson iterations.
     ++num_nr_iterations_;
 
     // Evaluate the residual error, which is defined above as R(yₖ):
-    //     R(yₖ) = yₖ - yⁿ - h ℓ(yₖ).
-    VectorX<T> residual = ComputeResidualR(tf, ytplus, qtplus, qn,
-                                           yn, h, qdot_.get());
+    //     R(yₖ) = yₖ - yⁿ - h l(yₖ).
+    VectorX<T> residual =
+        ComputeResidualR(tf, ytplus, qtplus, qn, yn, h, qdot_.get());
 
     // Compute the state update using the equation A*y = -R(), where A is the
     // iteration matrix.
@@ -452,8 +560,7 @@ bool VelocityImplicitEulerIntegrator<T>::StepVelocityImplicitEuler(
     if (status == ImplicitIntegrator<T>::ConvergenceStatus::kConverged)
       return true;
     // If it diverged, we have to abort and try again.
-    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kDiverged)
-      break;
+    if (status == ImplicitIntegrator<T>::ConvergenceStatus::kDiverged) break;
     // Otherwise, continue to the next Newton-Raphson iteration.
     DRAKE_DEMAND(status ==
                  ImplicitIntegrator<T>::ConvergenceStatus::kNotConverged);
@@ -462,8 +569,10 @@ bool VelocityImplicitEulerIntegrator<T>::StepVelocityImplicitEuler(
     last_qtplus = qtplus;
   }
 
-  DRAKE_LOGGER_DEBUG("Velocity-Implicit Euler integrator convergence failed"
-                     "for t={}, h={}, trial={}", t0, h, trial);
+  DRAKE_LOGGER_DEBUG(
+      "Velocity-Implicit Euler integrator convergence failed"
+      "for t={}, h={}, trial={}",
+      t0, h, trial);
 
   // If Jacobian and iteration matrix factorizations are not reused, there
   // is nothing else we can try; otherwise, the following code will recurse
@@ -475,7 +584,7 @@ bool VelocityImplicitEulerIntegrator<T>::StepVelocityImplicitEuler(
   // Try StepVelocityImplicitEuler() again. This method will
   // freshen Jacobians and iteration matrix factorizations as necessary.
   return StepVelocityImplicitEuler(t0, h, xn, xtplus_guess, xtplus,
-                                   iteration_matrix, Jy, trial + 1);
+                                   iteration_matrix, Jy, Jfyy, Jfyq, trial + 1);
 }
 
 template <class T>
@@ -483,10 +592,11 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
     const T& t0, const T& h, const VectorX<T>& xn,
     const VectorX<T>& xtplus_guess, VectorX<T>* xtplus,
     typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix,
-    MatrixX<T>* Jy) {
+    MatrixX<T>* Jy, MatrixX<T>* Jfyy, MatrixX<T>* Jfyq) {
   DRAKE_LOGGER_DEBUG(
       "VelocityImplicitEulerIntegrator::StepHalfVelocityImplicitEulers(h={}, "
-      "t={})", h, t0);
+      "t={})",
+      h, t0);
 
   // Store statistics before "error control". The difference between
   // the modified statistics and the stored statistics will be used to compute
@@ -506,8 +616,8 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
   // guess for the final state, xtplus_guess, and the initial state, xt0.
   VectorX<T> xtmp = xn;
   const VectorX<T>& xthalf_guess = xtmp;
-  bool success = StepVelocityImplicitEuler(t0, 0.5 * h, xn, xthalf_guess,
-                                           xtplus, iteration_matrix, Jy);
+  bool success = StepVelocityImplicitEuler(
+      t0, 0.5 * h, xn, xthalf_guess, xtplus, iteration_matrix, Jy, Jfyy, Jfyq);
   if (!success) {
     DRAKE_LOGGER_DEBUG("First Half VIE convergence failed.");
   } else {
@@ -516,9 +626,9 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
     unused(xtplus_guess);
-    success = StepVelocityImplicitEuler(t0 + 0.5 * h, 0.5 * h, xthalf,
-                                        xthalf, xtplus, iteration_matrix,
-                                        Jy);
+    success =
+        StepVelocityImplicitEuler(t0 + 0.5 * h, 0.5 * h, xthalf, xthalf, xtplus,
+                                  iteration_matrix, Jy, Jfyy, Jfyq);
     if (!success) {
       DRAKE_LOGGER_DEBUG("Second Half VIE convergence failed.");
     }
@@ -541,14 +651,14 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
   return success;
 }
 
-
 template <class T>
 bool VelocityImplicitEulerIntegrator<T>::AttemptStepPaired(
     const T& t0, const T& h, const VectorX<T>& xn, VectorX<T>* xtplus_vie,
     VectorX<T>* xtplus_hvie) {
   DRAKE_LOGGER_DEBUG(
-    "VelocityImplicitEulerIntegrator::AttemptStepPaired(h={}, "
-    "t={})", h, t0);
+      "VelocityImplicitEulerIntegrator::AttemptStepPaired(h={}, "
+      "t={})",
+      h, t0);
   using std::abs;
   DRAKE_ASSERT(xtplus_vie != nullptr);
   DRAKE_ASSERT(xtplus_hvie != nullptr);
@@ -559,10 +669,12 @@ bool VelocityImplicitEulerIntegrator<T>::AttemptStepPaired(
 
   // Do the large Velocity-Implicit Euler step.
   if (!StepVelocityImplicitEuler(t0, h, xn, xtplus_guess, xtplus_vie,
-                                 &iteration_matrix_vie_, &Jy_vie_)) {
+                                 &iteration_matrix_vie_, &Jy_vie_, &Jfyy_vie_,
+                                 &Jfyq_vie_)) {
     DRAKE_LOGGER_DEBUG(
         "Velocity-Implicit Euler full-step approach did not converge for "
-        "step size {}", h);
+        "step size {}",
+        h);
     return false;
   }
 
@@ -570,10 +682,12 @@ bool VelocityImplicitEulerIntegrator<T>::AttemptStepPaired(
   // iteration Matrices from the big step because they work quite well,
   // based on a few empirical tests.
   if (!StepHalfVelocityImplicitEulers(t0, h, xn, *xtplus_vie, xtplus_hvie,
-                                      &iteration_matrix_vie_, &Jy_vie_)) {
+                                      &iteration_matrix_vie_, &Jy_vie_,
+                                      &Jfyy_vie_, &Jfyq_vie_)) {
     DRAKE_LOGGER_DEBUG(
         "Velocity-Implicit Euler half-step approach failed with a step size "
-        "that succeeded for the full step, {}", h);
+        "that succeeded for the full step, {}",
+        h);
     return false;
   }
 
@@ -585,8 +699,10 @@ bool VelocityImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
   // Save the current time and state.
   Context<T>* context = this->get_mutable_context();
   const T t0 = context->get_time();
-  DRAKE_LOGGER_DEBUG("VelocityImplicitEulerIntegrator::"
-      "DoImplicitIntegratorStep(h={}) t={}", h, t0);
+  DRAKE_LOGGER_DEBUG(
+      "VelocityImplicitEulerIntegrator::"
+      "DoImplicitIntegratorStep(h={}) t={}",
+      h, t0);
 
   xn_ = context->get_continuous_state().CopyToVector();
   xtplus_vie_.resize(xn_.size());
@@ -601,7 +717,8 @@ bool VelocityImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
   if (h < this->get_working_minimum_step_size()) {
     DRAKE_LOGGER_DEBUG(
         "-- requested step too small, taking explicit step instead, at t={}, "
-        "h={}, minimum_h={}", t0, h, this->get_working_minimum_step_size());
+        "h={}, minimum_h={}",
+        t0, h, this->get_working_minimum_step_size());
 
     // The error estimation process for explicit Euler uses two half-sized
     // steps so that the order of the asymptotic term matches that used
@@ -618,14 +735,15 @@ bool VelocityImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
     xtplus_hvie_ += 0.5 * h * xdot_;
   } else {
     // Try taking the requested step.
-    const bool success = AttemptStepPaired(t0, h, xn_, &xtplus_vie_,
-        &xtplus_hvie_);
+    const bool success =
+        AttemptStepPaired(t0, h, xn_, &xtplus_vie_, &xtplus_hvie_);
 
     // If the step was not successful, reset the time and state.
     if (!success) {
       DRAKE_LOGGER_DEBUG(
           "Velocity-Implicit Euler paired approach did not converge for "
-          "time t={}, step size h={}", t0, h);
+          "time t={}, step size h={}",
+          t0, h);
       context->SetTimeAndContinuousState(t0, xn_);
       return false;
     }

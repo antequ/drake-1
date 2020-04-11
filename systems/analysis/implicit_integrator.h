@@ -296,7 +296,7 @@ class ImplicitIntegrator : public IntegratorBase<T> {
       const std::function<void(const MatrixX<T>& J, const T& h,
           typename ImplicitIntegrator<T>::IterationMatrix*)>&
       compute_and_factor_iteration_matrix,
-      typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix);      
+      typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix);
 
 
   /// Checks whether a proposed update is effectively zero, indicating that the
