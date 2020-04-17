@@ -149,20 +149,46 @@ void VelocityImplicitEulerIntegrator<T>::CalcVelocityJacobian(
       *Jfyq = MatrixX<T>::Zero(ny, ny);
       // the final time and position should be correct (set to qn), since
       // ComputeFyOfQY sets it so.
+      this->get_mutable_context()->get_mutable_continuous_state()
+        .get_mutable_generalized_position()
+        .SetFromVector(qn);
       VectorX<T> v_vector = VectorX<T>(nv);
       // compute Jq * N(q)
       for (int i = 0; i < nv; i++) {
-        v_vector.setZero();
-        v_vector(i) = T(1);
+        v_vector = VectorX<T>::Unit(nv, i);
         this->get_system().MapVelocityToQDot(this->get_context(), v_vector,
                                              qdot_.get());
         Jfyq->col(i) = Jfyq_temp * qdot_->get_value();
       }
+      std::cout << "Jfyy:\n" << *Jfyy << std::endl;
+      std::cout << "Jfyq:\n" << *Jfyq << std::endl;
+      std::cout << "Jfyy + h Jfyq:\n" << *Jfyy + h * (*Jfyq) << std::endl;
+      // check
+            // Define the lambda l_of_y to evaluate l(y).
+      std::function<void(const VectorX<T>&, VectorX<T>*)> l_of_y =
+          [&qk, &t, &qn, &h, this](const VectorX<T>& y_state,
+                                   VectorX<T>* l_result) {
+            *l_result =
+                this->ComputeLOfY(t, y_state, qk, qn, h, this->qdot_.get());
+          };
+
+      // Compute Jy by passing l(y) to math::ComputeNumericalGradient().
+      // TODO(antequ): Right now we modify the context twice each time we call
+      // l(y): once when we calculate qⁿ + h N(qₖ) v
+      // (SetTimeAndContinuousState()), and once when we calculate l(y)
+      // (get_mutable_generalized_position()). However, this is only necessary
+      // for each y that modifies a velocity (v). For all but one of the
+      // miscellaneous states (z), we can reuse the position so that the context
+      // needs only one modification. Investigate how to refactor this logic to
+      // achieve this performance benefit while maintaining code readability.
+      *Jy =
+          math::ComputeNumericalGradient(l_of_y, y, numerical_gradient_method);
+      std::cout << "Jy:\n" << *Jy << std::endl;
+
       if(this->IsBadJacobian(*Jfyy)) {
         std::cerr << y << std::endl;
-        DRAKE_DEMAND(false);
+        std::cerr << "retrying!" << std::endl;
       }
-
     } else {
       // Define the lambda l_of_y to evaluate l(y).
       std::function<void(const VectorX<T>&, VectorX<T>*)> l_of_y =
@@ -278,7 +304,7 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
       std::cerr << this->IsBadJacobian(*Jac_In_Use) << " , rows: " << Jac_In_Use->rows() << std::endl;
       std::cerr << *Jac_In_Use << std::endl;
     }
-    DRAKE_DEMAND(trial == 1);
+    DRAKE_DEMAND(trial <= 2);
     return true;  // Indicate success.
   }
 
