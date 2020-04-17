@@ -468,7 +468,7 @@ int do_main() {
   for (auto body_index : pile1) {
     const auto& body = plant.get_body(body_index);
     const Eigen::Vector3d pos = plant.GetFreeBodyPose(plant_context, body).translation();
-    if (pos[2] < 0.03 || (2 * std::abs(pos[0]) > width) || (2 * std::abs(pos[1]) > width)) {
+    if (pos[2] < 0.02 || (2 * std::abs(pos[0]) > width) || (2 * std::abs(pos[1]) > width)) {
       outofbox = true;
       std::cout << "Body " << body.name() << " is out of the sink, at " << pos.transpose() << std::endl;
     }

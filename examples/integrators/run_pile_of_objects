@@ -7,11 +7,11 @@ time bazel run pile_of_objects -- \
 --simulation_time=0.8 \
 --simulator_publish_every_time_step=0 \
 --mbp_time_step=0 \
---objects_per_pile=3 \
+--objects_per_pile=6 \
 `# Visualization` \
 --simulator_target_realtime_rate=0.0 \
---visualize=0 \
---viz_period=0.2 \
+--visualize=1 \
+--viz_period=0.05 \
 `#Integration: ` \
 `#  bogacki_shampine3` \
 `#  explicit_euler,semi_explicit_euler` \
@@ -19,7 +19,7 @@ time bazel run pile_of_objects -- \
 `#  radau1,radau3` \
 `#  runge_kutta2,runge_kutta3,runge_kutta5` \
 --simulator_integration_scheme=velocity_implicit_euler \
---simulator_max_time_step=2.e-1 \
+--simulator_max_time_step=1.e-1 \
 --dont_reuse=false \
 --simulator_accuracy=3e-2 \
 --jacobian_scheme=forward \
