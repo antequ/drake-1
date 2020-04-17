@@ -16,7 +16,9 @@
 namespace drake {
 namespace systems {
 
+// Set both to false to replicate the behavior in master.
 constexpr bool COMPUTE_TWO_JACOBIANS = true;
+constexpr bool use_conservative_initial_guesses = false;
 
 template <class T>
 void VelocityImplicitEulerIntegrator<T>::DoResetImplicitIntegratorStatistics() {
@@ -79,7 +81,7 @@ void VelocityImplicitEulerIntegrator<T>::
   // MatrixX<T>::Identity(n, n) - h * J.
   if (COMPUTE_TWO_JACOBIANS && (Jfyy.rows() > 0)) {
     const int n = Jfyy.rows();
-    std::cerr << "Factorizing, step size " << h << " rows: " << n << std::endl;
+    //std::cerr << "Factorizing, step size " << h << " rows: " << n << std::endl;
     iteration_matrix->SetAndFactorIterationMatrix(-h * (Jfyy + h * Jfyq) +
                                                   MatrixX<T>::Identity(n, n));
   } else {
@@ -149,9 +151,10 @@ void VelocityImplicitEulerIntegrator<T>::CalcVelocityJacobian(
       *Jfyq = MatrixX<T>::Zero(ny, ny);
       // the final time and position should be correct (set to qn), since
       // ComputeFyOfQY sets it so.
-      this->get_mutable_context()->get_mutable_continuous_state()
-        .get_mutable_generalized_position()
-        .SetFromVector(qn);
+      this->get_mutable_context()
+          ->get_mutable_continuous_state()
+          .get_mutable_generalized_position()
+          .SetFromVector(qn);
       VectorX<T> v_vector = VectorX<T>(nv);
       // compute Jq * N(q)
       for (int i = 0; i < nv; i++) {
@@ -160,34 +163,37 @@ void VelocityImplicitEulerIntegrator<T>::CalcVelocityJacobian(
                                              qdot_.get());
         Jfyq->col(i) = Jfyq_temp * qdot_->get_value();
       }
-      std::cout << "Jfyy:\n" << *Jfyy << std::endl;
-      std::cout << "Jfyq:\n" << *Jfyq << std::endl;
-      std::cout << "Jfyy + h Jfyq:\n" << *Jfyy + h * (*Jfyq) << std::endl;
-      // check
-            // Define the lambda l_of_y to evaluate l(y).
-      std::function<void(const VectorX<T>&, VectorX<T>*)> l_of_y =
-          [&qk, &t, &qn, &h, this](const VectorX<T>& y_state,
-                                   VectorX<T>* l_result) {
-            *l_result =
-                this->ComputeLOfY(t, y_state, qk, qn, h, this->qdot_.get());
-          };
+      if (false) {
+        std::cout << "Jfyy:\n" << *Jfyy << std::endl;
+        std::cout << "Jfyq:\n" << *Jfyq << std::endl;
+        std::cout << "Jfyy + h Jfyq:\n" << *Jfyy + h * (*Jfyq) << std::endl;
+        // check
+        // Define the lambda l_of_y to evaluate l(y).
+        std::function<void(const VectorX<T>&, VectorX<T>*)> l_of_y =
+            [&qk, &t, &qn, &h, this](const VectorX<T>& y_state,
+                                     VectorX<T>* l_result) {
+              *l_result =
+                  this->ComputeLOfY(t, y_state, qk, qn, h, this->qdot_.get());
+            };
 
-      // Compute Jy by passing l(y) to math::ComputeNumericalGradient().
-      // TODO(antequ): Right now we modify the context twice each time we call
-      // l(y): once when we calculate qⁿ + h N(qₖ) v
-      // (SetTimeAndContinuousState()), and once when we calculate l(y)
-      // (get_mutable_generalized_position()). However, this is only necessary
-      // for each y that modifies a velocity (v). For all but one of the
-      // miscellaneous states (z), we can reuse the position so that the context
-      // needs only one modification. Investigate how to refactor this logic to
-      // achieve this performance benefit while maintaining code readability.
-      *Jy =
-          math::ComputeNumericalGradient(l_of_y, y, numerical_gradient_method);
-      std::cout << "Jy:\n" << *Jy << std::endl;
+        // Compute Jy by passing l(y) to math::ComputeNumericalGradient().
+        // TODO(antequ): Right now we modify the context twice each time we call
+        // l(y): once when we calculate qⁿ + h N(qₖ) v
+        // (SetTimeAndContinuousState()), and once when we calculate l(y)
+        // (get_mutable_generalized_position()). However, this is only necessary
+        // for each y that modifies a velocity (v). For all but one of the
+        // miscellaneous states (z), we can reuse the position so that the
+        // context needs only one modification. Investigate how to refactor this
+        // logic to achieve this performance benefit while maintaining code
+        // readability.
+        *Jy = math::ComputeNumericalGradient(l_of_y, y,
+                                             numerical_gradient_method);
+        std::cout << "Jy:\n" << *Jy << std::endl;
 
-      if(this->IsBadJacobian(*Jfyy)) {
-        std::cerr << y << std::endl;
-        std::cerr << "retrying!" << std::endl;
+        if (this->IsBadJacobian(*Jfyy)) {
+          std::cerr << y << std::endl;
+          std::cerr << "retrying!" << std::endl;
+        }
       }
     } else {
       // Define the lambda l_of_y to evaluate l(y).
@@ -300,8 +306,9 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
     CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
     this->increment_num_iter_factorizations();
     compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h, iteration_matrix);
-    if( trial > 1) {
-      std::cerr << this->IsBadJacobian(*Jac_In_Use) << " , rows: " << Jac_In_Use->rows() << std::endl;
+    if (trial > 1) {
+      std::cerr << this->IsBadJacobian(*Jac_In_Use)
+                << " , rows: " << Jac_In_Use->rows() << std::endl;
       std::cerr << *Jac_In_Use << std::endl;
     }
     DRAKE_DEMAND(trial <= 2);
@@ -640,7 +647,8 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
 
   // We set our guess for the state after a half-step to the average of the
   // guess for the final state, xtplus_guess, and the initial state, xt0.
-  VectorX<T> xtmp = xn;
+  VectorX<T> xtmp =
+      use_conservative_initial_guesses ? xn : 0.5 * (xn + xtplus_guess);
   const VectorX<T>& xthalf_guess = xtmp;
   bool success = StepVelocityImplicitEuler(
       t0, 0.5 * h, xn, xthalf_guess, xtplus, iteration_matrix, Jy, Jfyy, Jfyq);
@@ -651,10 +659,13 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
     // xⁿ.
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
+    // set jacobian isn't fresh, since the previous half-step succeeded.
+    this->set_jacobian_is_not_fresh();
     unused(xtplus_guess);
-    success =
-        StepVelocityImplicitEuler(t0 + 0.5 * h, 0.5 * h, xthalf, xthalf, xtplus,
-                                  iteration_matrix, Jy, Jfyy, Jfyq);
+    success = StepVelocityImplicitEuler(
+        t0 + 0.5 * h, 0.5 * h, xthalf,
+        use_conservative_initial_guesses ? xthalf : xtplus_guess, xtplus,
+        iteration_matrix, Jy, Jfyy, Jfyq);
     if (!success) {
       DRAKE_LOGGER_DEBUG("Second Half VIE convergence failed.");
     }
