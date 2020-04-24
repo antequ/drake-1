@@ -67,6 +67,8 @@ void VelocityImplicitEulerIntegrator<T>::DoInitialize() {
   this->Jy_vie_.resize(0, 0);
   this->Jfyy_vie_.resize(0, 0);
   this->Jfyq_vie_.resize(0, 0);
+  this->Jfyy_vie_cached_.resize(0, 0);
+  this->Jfyq_vie_cached_.resize(0, 0);
 }
 
 template <class T>
@@ -81,7 +83,8 @@ void VelocityImplicitEulerIntegrator<T>::
   // MatrixX<T>::Identity(n, n) - h * J.
   if (COMPUTE_TWO_JACOBIANS && (Jfyy.rows() > 0)) {
     const int n = Jfyy.rows();
-    //std::cerr << "Factorizing, step size " << h << " rows: " << n << std::endl;
+    // std::cerr << "Factorizing, step size " << h << " rows: " << n <<
+    // std::endl;
     iteration_matrix->SetAndFactorIterationMatrix(-h * (Jfyy + h * Jfyq) +
                                                   MatrixX<T>::Identity(n, n));
   } else {
@@ -303,7 +306,15 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
   // necessary.
   if (!this->get_reuse() || Jac_In_Use->rows() == 0 ||
       this->IsBadJacobian(*Jac_In_Use)) {
+    // Store the cached Jacobians if the flag is set.
+    if (COMPUTE_TWO_JACOBIANS && can_restore_from_cached_Jacobians_) {
+      Jfyy_vie_cached_ = Jfyy_vie_;
+      Jfyq_vie_cached_ = Jfyq_vie_;
+    }
+
     CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
+    // mark Jacobian as fresh so that the second small step knows to cache
+    this->set_jacobian_is_fresh();
     this->increment_num_iter_factorizations();
     compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h, iteration_matrix);
     if (trial > 1) {
@@ -358,11 +369,18 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
         return false;
       }
 
+      // Store the cached Jacobians if the flag is set.
+      if (COMPUTE_TWO_JACOBIANS && can_restore_from_cached_Jacobians_) {
+        Jfyy_vie_cached_ = Jfyy_vie_;
+        Jfyq_vie_cached_ = Jfyq_vie_;
+      }
       // Note: Based on a few simple experimental tests, we found that the
       // optimization to abort this trial when matrices are already fresh in
       // ImplicitIntegrator<T>::MaybeFreshenMatrices() does not significantly
       // help here, especially because our Jacobian depends on step size h.
       CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
+      // mark Jacobian as fresh so that the second small step knows to cache
+      this->set_jacobian_is_fresh();
       this->increment_num_iter_factorizations();
       compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h,
                                           iteration_matrix);
@@ -659,6 +677,9 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
     // xⁿ.
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
+    if (this->get_jacobian_is_fresh()) {
+      can_restore_from_cached_Jacobians_ = true;
+    }
     // set jacobian isn't fresh, since the previous half-step succeeded.
     this->set_jacobian_is_not_fresh();
     unused(xtplus_guess);
@@ -668,7 +689,35 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
         iteration_matrix, Jy, Jfyy, Jfyq);
     if (!success) {
       DRAKE_LOGGER_DEBUG("Second Half VIE convergence failed.");
+      // Jacobians were updated, so compute from the right location now.
+      if (!this->get_use_full_newton() && COMPUTE_TWO_JACOBIANS &&
+          this->get_reuse()) {
+        if (can_restore_from_cached_Jacobians_) {
+          std::cout << "Restoring from cached Jacobian, t0 = " << t0
+                    << std::endl;
+          Jfyy_vie_ = Jfyy_vie_cached_;
+          Jfyq_vie_ = Jfyq_vie_cached_;
+          this->increment_num_iter_factorizations();
+          this->ComputeAndFactorImplicitEulerIterationMatrix(
+              *Jy, *Jfyy, *Jfyq, 0.5 * h, iteration_matrix);
+        } else {
+          std::cout << "Recalculating Jacobian due to failure, t0 = " << t0
+                    << std::endl;
+          const systems::ContinuousState<T>& cstate =
+              this->get_mutable_context()->get_continuous_state();
+          int nq = cstate.num_q();
+          int nv = cstate.num_v();
+          int nz = cstate.num_z();
+          const Eigen::VectorBlock<const VectorX<T>> qn = xn.head(nq);
+          const Eigen::VectorBlock<const VectorX<T>> yn = xn.tail(nv + nz);
+          CalcVelocityJacobian(t0, 0.5 * h, yn, qn, qn, Jy, Jfyy, Jfyq);
+          this->increment_num_iter_factorizations();
+          this->ComputeAndFactorImplicitEulerIterationMatrix(
+              *Jy, *Jfyy, *Jfyq, 0.5 * h, iteration_matrix);
+        }
+      }
     }
+    can_restore_from_cached_Jacobians_ = false;
   }
 
   // Move statistics into half-sized-steps-specific statistics.

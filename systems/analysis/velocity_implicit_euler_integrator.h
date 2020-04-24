@@ -652,6 +652,11 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   // The last computed velocity and position jacobians
   MatrixX<T> Jfyy_vie_;
   MatrixX<T> Jfyq_vie_;
+  // Jacobian caches while computing second small step
+  MatrixX<T> Jfyy_vie_cached_;
+  MatrixX<T> Jfyq_vie_cached_;
+  // flag to determine whether the cache is active
+  bool can_restore_from_cached_Jacobians_{false};
 
   // Various statistics.
   int64_t num_nr_iterations_{0};

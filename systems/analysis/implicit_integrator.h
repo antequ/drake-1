@@ -423,6 +423,10 @@ class ImplicitIntegrator : public IntegratorBase<T> {
     jacobian_is_fresh_ = false;
   }
 
+  void set_jacobian_is_fresh() {
+    jacobian_is_fresh_ = true;
+  }
+
  private:
   bool DoStep(const T& h) final {
     bool result = DoImplicitIntegratorStep(h);
