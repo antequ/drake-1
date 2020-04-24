@@ -19,6 +19,7 @@ namespace systems {
 // Set both to false to replicate the behavior in master.
 constexpr bool COMPUTE_TWO_JACOBIANS = true;
 constexpr bool use_conservative_initial_guesses = false;
+constexpr bool CORRECT_JACOBIAN_CACHING = true;
 
 template <class T>
 void VelocityImplicitEulerIntegrator<T>::DoResetImplicitIntegratorStatistics() {
@@ -365,7 +366,7 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
       // If the Jacobians are already fresh, give up.
       if (((COMPUTE_TWO_JACOBIANS && !(this->get_use_full_newton())) ||
            (qn.size() == 0)) &&
-          this->get_jacobian_is_fresh()) {
+          this->get_jacobian_is_fresh() && !this->jacobian_is_still_not_fresh_) {
         return false;
       }
 
@@ -373,14 +374,16 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
       if (COMPUTE_TWO_JACOBIANS && can_restore_from_cached_Jacobians_) {
         Jfyy_vie_cached_ = Jfyy_vie_;
         Jfyq_vie_cached_ = Jfyq_vie_;
+        iteration_matrix_vie_cached_ = iteration_matrix_vie_;
       }
       // Note: Based on a few simple experimental tests, we found that the
       // optimization to abort this trial when matrices are already fresh in
       // ImplicitIntegrator<T>::MaybeFreshenMatrices() does not significantly
       // help here, especially because our Jacobian depends on step size h.
       CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
-      // mark Jacobian as fresh so that the second small step knows to cache
+      // Mark Jacobian as fresh so that the second small step knows to cache.
       this->set_jacobian_is_fresh();
+      this->jacobian_is_still_not_fresh_ = false;
       this->increment_num_iter_factorizations();
       compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h,
                                           iteration_matrix);
@@ -677,7 +680,8 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
     // xⁿ.
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
-    if (this->get_jacobian_is_fresh()) {
+    if (CORRECT_JACOBIAN_CACHING && this->get_jacobian_is_fresh() &&
+        !jacobian_is_still_not_fresh_) {
       can_restore_from_cached_Jacobians_ = true;
     }
     // set jacobian isn't fresh, since the previous half-step succeeded.
@@ -697,23 +701,15 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
                     << std::endl;
           Jfyy_vie_ = Jfyy_vie_cached_;
           Jfyq_vie_ = Jfyq_vie_cached_;
-          this->increment_num_iter_factorizations();
-          this->ComputeAndFactorImplicitEulerIterationMatrix(
-              *Jy, *Jfyy, *Jfyq, 0.5 * h, iteration_matrix);
-        } else {
-          std::cout << "Recalculating Jacobian due to failure, t0 = " << t0
+          iteration_matrix_vie_ = iteration_matrix_vie_cached_;
+          // this->increment_num_iter_factorizations();
+          // this->ComputeAndFactorImplicitEulerIterationMatrix(
+          //     *Jy, *Jfyy, *Jfyq, 0.5 * h, iteration_matrix);
+        } else if (CORRECT_JACOBIAN_CACHING) {
+          std::cout << "Marking Jacobian stale because it was computed "
+                       "during the second half-step, t0 = " << t0
                     << std::endl;
-          const systems::ContinuousState<T>& cstate =
-              this->get_mutable_context()->get_continuous_state();
-          int nq = cstate.num_q();
-          int nv = cstate.num_v();
-          int nz = cstate.num_z();
-          const Eigen::VectorBlock<const VectorX<T>> qn = xn.head(nq);
-          const Eigen::VectorBlock<const VectorX<T>> yn = xn.tail(nv + nz);
-          CalcVelocityJacobian(t0, 0.5 * h, yn, qn, qn, Jy, Jfyy, Jfyq);
-          this->increment_num_iter_factorizations();
-          this->ComputeAndFactorImplicitEulerIterationMatrix(
-              *Jy, *Jfyy, *Jfyq, 0.5 * h, iteration_matrix);
+          jacobian_is_still_not_fresh_ = true;
         }
       }
     }

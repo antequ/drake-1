@@ -630,6 +630,9 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   // The last computed iteration matrix and factorization.
   typename ImplicitIntegrator<T>::IterationMatrix iteration_matrix_vie_;
 
+  // Iteration matrix cache while computing the second small step.
+  typename ImplicitIntegrator<T>::IterationMatrix iteration_matrix_vie_cached_;
+
   // Vector used in error estimate calculations. At the end of every step, we
   // set this to ε* = x̅ⁿ⁺¹ - x̃ⁿ⁺¹, which is our estimate for ε = x̃ⁿ⁺¹ - xⁿ⁺¹,
   // the error of the propagated half-sized steps.
@@ -649,14 +652,18 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
 
   // The last computed velocity+misc Jacobian matrix.
   MatrixX<T> Jy_vie_;
-  // The last computed velocity and position jacobians
+  // The last computed velocity and position jacobians.
   MatrixX<T> Jfyy_vie_;
   MatrixX<T> Jfyq_vie_;
-  // Jacobian caches while computing second small step
+  // Jacobian caches while computing second small step.
   MatrixX<T> Jfyy_vie_cached_;
   MatrixX<T> Jfyq_vie_cached_;
-  // flag to determine whether the cache is active
+  // Flag to determine whether the cache is active.
   bool can_restore_from_cached_Jacobians_{false};
+  // Flag to indicate Jacobian is still not fresh even
+  // after a failed step, because it was computed during
+  // the second half-step.
+  bool jacobian_is_still_not_fresh_{false};
 
   // Various statistics.
   int64_t num_nr_iterations_{0};
