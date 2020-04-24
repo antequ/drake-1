@@ -828,8 +828,8 @@ TYPED_TEST_P(ImplicitIntegratorTest, Reuse) {
   // The trial 3 evaluation should be unnecessary.
   integrator.Initialize();
   ASSERT_FALSE(integrator.IntegrateWithSingleFixedStepToTime(1e-2));
-  // EXPECT_EQ(integrator.get_num_iteration_matrix_factorizations(), 3);
-  // EXPECT_EQ(integrator.get_num_jacobian_evaluations(), 2);
+  EXPECT_EQ(integrator.get_num_iteration_matrix_factorizations(), 2);
+  EXPECT_EQ(integrator.get_num_jacobian_evaluations(), 1);
 
   // Now integrate again but with a smaller size. Again, past experience
   // that this step size should be sufficiently small for the integrator to

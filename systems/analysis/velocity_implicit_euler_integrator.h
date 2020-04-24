@@ -658,12 +658,6 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   // Jacobian caches while computing second small step.
   MatrixX<T> Jfyy_vie_cached_;
   MatrixX<T> Jfyq_vie_cached_;
-  // Flag to determine whether the cache is active.
-  bool can_restore_from_cached_Jacobians_{false};
-  // Flag to indicate Jacobian is still not fresh even
-  // after a failed step, because it was computed during
-  // the second half-step.
-  bool jacobian_is_still_not_fresh_{false};
 
   // Various statistics.
   int64_t num_nr_iterations_{0};

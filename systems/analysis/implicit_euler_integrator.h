@@ -132,6 +132,11 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   bool DoImplicitIntegratorStep(const T& h) final;
   bool StepImplicitEuler(const T& t0, const T& h, const VectorX<T>& xt0,
       VectorX<T>* xtplus);
+  bool StepImplicitEulerWithGuess(const T& t0, const T& h,
+      const VectorX<T>& xt0, const VectorX<T>& xtplus_guess,
+      VectorX<T>* xtplus);
+  bool StepHalfImplicitEulers(const T& t0, const T& h, const VectorX<T>& xt0,
+      const VectorX<T>& xtplus_ie, VectorX<T>* xtplus);
   bool StepImplicitTrapezoid(const T& t0, const T& h, const VectorX<T>& xt0,
       const VectorX<T>& dx0, const VectorX<T>& xtplus_ie, VectorX<T>* xtplus);
 

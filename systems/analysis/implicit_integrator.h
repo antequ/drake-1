@@ -427,6 +427,30 @@ class ImplicitIntegrator : public IntegratorBase<T> {
     jacobian_is_fresh_ = true;
   }
 
+  bool get_can_restore_from_cached_jacobians() {
+    return can_restore_from_cached_jacobians_;
+  }
+
+  void set_can_restore_from_cached_jacobians(bool flag) {
+    can_restore_from_cached_jacobians_ = flag;
+  }
+
+  bool get_jacobian_is_still_not_fresh() {
+    return jacobian_is_still_not_fresh_;
+  }
+
+  void set_jacobian_is_still_not_fresh(bool flag) {
+    jacobian_is_still_not_fresh_ = flag;
+  }
+
+  const IterationMatrix& get_cached_iteration_matrix() {
+    return iteration_matrix_cached_;
+  }
+
+  const MatrixX<T>& get_cached_jacobian() {
+    return J_cached_;
+  }
+
  private:
   bool DoStep(const T& h) final {
     bool result = DoImplicitIntegratorStep(h);
@@ -446,9 +470,22 @@ class ImplicitIntegrator : public IntegratorBase<T> {
 
   // The last computed Jacobian matrix.
   MatrixX<T> J_;
+  // Jacobian cache while computing second small step.
+  MatrixX<T> J_cached_;
+
+
+  // Iteration matrix cache while computing the second small step.
+  IterationMatrix iteration_matrix_cached_;
 
   // Whether the Jacobian matrix is fresh.
   bool jacobian_is_fresh_{false};
+
+  // Flag to determine whether the cache is active.
+  bool can_restore_from_cached_jacobians_{false};
+  // Flag to indicate Jacobian is still not fresh even
+  // after a failed step, because it was computed during
+  // the second half-step.
+  bool jacobian_is_still_not_fresh_{false};
 
   // If set to `false`, Jacobian matrices and iteration matrix factorizations
   // will not be reused.

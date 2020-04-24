@@ -16,7 +16,7 @@
 namespace drake {
 namespace systems {
 
-// Set both to false to replicate the behavior in master.
+// Set all to false to replicate the behavior in master.
 constexpr bool COMPUTE_TWO_JACOBIANS = true;
 constexpr bool use_conservative_initial_guesses = false;
 constexpr bool CORRECT_JACOBIAN_CACHING = true;
@@ -308,14 +308,17 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
   if (!this->get_reuse() || Jac_In_Use->rows() == 0 ||
       this->IsBadJacobian(*Jac_In_Use)) {
     // Store the cached Jacobians if the flag is set.
-    if (COMPUTE_TWO_JACOBIANS && can_restore_from_cached_Jacobians_) {
+    if (COMPUTE_TWO_JACOBIANS &&
+        this->get_can_restore_from_cached_jacobians()) {
       Jfyy_vie_cached_ = Jfyy_vie_;
       Jfyq_vie_cached_ = Jfyq_vie_;
+      iteration_matrix_vie_cached_ = iteration_matrix_vie_;
     }
 
     CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
     // mark Jacobian as fresh so that the second small step knows to cache
     this->set_jacobian_is_fresh();
+    this->set_jacobian_is_still_not_fresh(false);
     this->increment_num_iter_factorizations();
     compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h, iteration_matrix);
     if (trial > 1) {
@@ -365,13 +368,14 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
 
       // If the Jacobians are already fresh, give up.
       if (((COMPUTE_TWO_JACOBIANS && !(this->get_use_full_newton())) ||
-           (qn.size() == 0)) &&
-          this->get_jacobian_is_fresh() && !this->jacobian_is_still_not_fresh_) {
+           (qn.size() == 0)) && this->get_jacobian_is_fresh() &&
+           !this->get_jacobian_is_still_not_fresh()) {
         return false;
       }
 
       // Store the cached Jacobians if the flag is set.
-      if (COMPUTE_TWO_JACOBIANS && can_restore_from_cached_Jacobians_) {
+      if (COMPUTE_TWO_JACOBIANS &&
+          this->get_can_restore_from_cached_jacobians()) {
         Jfyy_vie_cached_ = Jfyy_vie_;
         Jfyq_vie_cached_ = Jfyq_vie_;
         iteration_matrix_vie_cached_ = iteration_matrix_vie_;
@@ -383,7 +387,7 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
       CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
       // Mark Jacobian as fresh so that the second small step knows to cache.
       this->set_jacobian_is_fresh();
-      this->jacobian_is_still_not_fresh_ = false;
+      this->set_jacobian_is_still_not_fresh(false);
       this->increment_num_iter_factorizations();
       compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h,
                                           iteration_matrix);
@@ -681,12 +685,11 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
     if (CORRECT_JACOBIAN_CACHING && this->get_jacobian_is_fresh() &&
-        !jacobian_is_still_not_fresh_) {
-      can_restore_from_cached_Jacobians_ = true;
+        !this->get_jacobian_is_still_not_fresh()) {
+      this->set_can_restore_from_cached_jacobians(true);
     }
     // set jacobian isn't fresh, since the previous half-step succeeded.
     this->set_jacobian_is_not_fresh();
-    unused(xtplus_guess);
     success = StepVelocityImplicitEuler(
         t0 + 0.5 * h, 0.5 * h, xthalf,
         use_conservative_initial_guesses ? xthalf : xtplus_guess, xtplus,
@@ -696,7 +699,7 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
       // Jacobians were updated, so compute from the right location now.
       if (!this->get_use_full_newton() && COMPUTE_TWO_JACOBIANS &&
           this->get_reuse()) {
-        if (can_restore_from_cached_Jacobians_) {
+        if (this->get_can_restore_from_cached_jacobians()) {
           std::cout << "Restoring from cached Jacobian, t0 = " << t0
                     << std::endl;
           Jfyy_vie_ = Jfyy_vie_cached_;
@@ -709,11 +712,11 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
           std::cout << "Marking Jacobian stale because it was computed "
                        "during the second half-step, t0 = " << t0
                     << std::endl;
-          jacobian_is_still_not_fresh_ = true;
+          this->set_jacobian_is_still_not_fresh(true);
         }
       }
     }
-    can_restore_from_cached_Jacobians_ = false;
+    this->set_can_restore_from_cached_jacobians(false);
   }
 
   // Move statistics into half-sized-steps-specific statistics.
