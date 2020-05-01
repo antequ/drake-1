@@ -412,9 +412,9 @@ bool ImplicitIntegrator<T>::MaybeFreshenMatrices(
     }
 
     J = CalcJacobian(t, xt);
-    // mark Jacobian as fresh so that the second small step knows to cache
+    // Mark Jacobian as fresh so that the second small step knows to cache
     set_jacobian_is_fresh();
-    this->set_jacobian_is_still_not_fresh(false);
+    set_failed_jacobian_is_from_second_small_step(false);
     ++num_iter_factorizations_;
     compute_and_factor_iteration_matrix(J, h, iteration_matrix);
     return true;  // Indicate success.
@@ -447,7 +447,7 @@ bool ImplicitIntegrator<T>::MaybeFreshenMatrices(
       // For the third trial, the Jacobian matrix may already be "fresh",
       // meaning that there is nothing more that can be tried (Jacobian and
       // iteration matrix are both fresh) and we need to indicate failure.
-      if (jacobian_is_fresh_ && !jacobian_is_still_not_fresh_)
+      if (jacobian_is_fresh_)
         return false;
 
       // Store the cached Jacobians if the flag is set.
@@ -458,8 +458,9 @@ bool ImplicitIntegrator<T>::MaybeFreshenMatrices(
 
       // Reform the Jacobian matrix and refactor the iteration matrix.
       J = CalcJacobian(t, xt);
+      // Mark Jacobian as fresh so that the second small step knows to cache.
       set_jacobian_is_fresh();
-      set_jacobian_is_still_not_fresh(false);
+      set_failed_jacobian_is_from_second_small_step(false);
       ++num_iter_factorizations_;
       compute_and_factor_iteration_matrix(J, h, iteration_matrix);
       return true;

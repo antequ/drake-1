@@ -318,7 +318,7 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
     CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
     // mark Jacobian as fresh so that the second small step knows to cache
     this->set_jacobian_is_fresh();
-    this->set_jacobian_is_still_not_fresh(false);
+    this->set_failed_jacobian_is_from_second_small_step(false);
     this->increment_num_iter_factorizations();
     compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h, iteration_matrix);
     if (trial > 1) {
@@ -368,8 +368,7 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
 
       // If the Jacobians are already fresh, give up.
       if (((COMPUTE_TWO_JACOBIANS && !(this->get_use_full_newton())) ||
-           (qn.size() == 0)) && this->get_jacobian_is_fresh() &&
-           !this->get_jacobian_is_still_not_fresh()) {
+           (qn.size() == 0)) && this->get_jacobian_is_fresh()) {
         return false;
       }
 
@@ -387,7 +386,7 @@ bool VelocityImplicitEulerIntegrator<T>::MaybeFreshenVelocityMatrices(
       CalcVelocityJacobian(t, h, y, qk, qn, Jy, Jfyy, Jfyq);
       // Mark Jacobian as fresh so that the second small step knows to cache.
       this->set_jacobian_is_fresh();
-      this->set_jacobian_is_still_not_fresh(false);
+      this->set_failed_jacobian_is_from_second_small_step(false);
       this->increment_num_iter_factorizations();
       compute_and_factor_iteration_matrix(*Jy, *Jfyy, *Jfyq, h,
                                           iteration_matrix);
@@ -453,7 +452,7 @@ VectorX<U> VelocityImplicitEulerIntegrator<T>::ComputeLOfY(
   // allocations, like in the VectorX<T> constructions of x and q and the return
   // statement, and (2) reduce unnecessary cache invalidations since
   // MapVelocityToQDot() doesn't set any caches.
-  VectorX<T> x(nq + ny);
+  VectorX<U> x(nq + ny);
   x.head(nq) = qk;
   x.tail(ny) = y;
   context->SetTimeAndContinuousState(t, x);
@@ -462,7 +461,7 @@ VectorX<U> VelocityImplicitEulerIntegrator<T>::ComputeLOfY(
   system.MapVelocityToQDot(
       *context, context->get_continuous_state().get_generalized_velocity(),
       &*qdot);
-  const VectorX<T> q = qn + h * qdot->get_value();
+  const VectorX<U> q = qn + h * qdot->get_value();
 
   // Evaluate ℓ = f_y(t, q, v, z).
   // TODO(antequ): Right now this invalidates the entire cache that depends on
@@ -684,8 +683,7 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
     // xⁿ.
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
-    if (CORRECT_JACOBIAN_CACHING && this->get_jacobian_is_fresh() &&
-        !this->get_jacobian_is_still_not_fresh()) {
+    if (CORRECT_JACOBIAN_CACHING && this->get_jacobian_is_fresh()) {
       this->set_can_restore_from_cached_jacobians(true);
     }
     // set jacobian isn't fresh, since the previous half-step succeeded.
@@ -712,7 +710,7 @@ bool VelocityImplicitEulerIntegrator<T>::StepHalfVelocityImplicitEulers(
           std::cout << "Marking Jacobian stale because it was computed "
                        "during the second half-step, t0 = " << t0
                     << std::endl;
-          this->set_jacobian_is_still_not_fresh(true);
+          this->set_failed_jacobian_is_from_second_small_step(true);
         }
       }
     }

@@ -320,8 +320,7 @@ bool ImplicitEulerIntegrator<T>::StepHalfImplicitEulers(
     // xⁿ.
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
-    if (CORRECT_JACOBIAN_CACHING && this->get_jacobian_is_fresh() &&
-        !this->get_jacobian_is_still_not_fresh()) {
+    if (CORRECT_JACOBIAN_CACHING && this->get_jacobian_is_fresh()) {
       this->set_can_restore_from_cached_jacobians(true);
     }
 
@@ -346,7 +345,7 @@ bool ImplicitEulerIntegrator<T>::StepHalfImplicitEulers(
           std::cout << "Marking Jacobian stale because it was computed "
                        "during the second half-step, t0 = " << t0
                     << std::endl;
-          this->set_jacobian_is_still_not_fresh(true);
+          this->set_failed_jacobian_is_from_second_small_step(true);
         }
       }
     }

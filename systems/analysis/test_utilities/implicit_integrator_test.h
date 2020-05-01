@@ -822,10 +822,10 @@ TYPED_TEST_P(ImplicitIntegratorTest, Reuse) {
   // Attempt to integrate the system. Our past experience indicates that this
   // system fails to converge from the initial state for this large step size.
   // This tests the case where the Jacobian matrix has yet to be formed. There
-  // should be two Jacobian matrix evaluations- once at trial 1 and another
-  // at trial 3. There should be three iteration matrix factorizations: once
-  // at trial 1, another at trial 2, and the third at trial 3.
-  // The trial 3 evaluation should be unnecessary.
+  // should be one Jacobian matrix evaluation - once at trial 1. There should
+  // also be two iteration matrix factorizations: once at trial 1, and another
+  // at trial 2. Trial 3 should be skipped because the first Jacobian matrix
+  // computation makes the Jacobian "fresh".
   integrator.Initialize();
   ASSERT_FALSE(integrator.IntegrateWithSingleFixedStepToTime(1e-2));
   EXPECT_EQ(integrator.get_num_iteration_matrix_factorizations(), 2);

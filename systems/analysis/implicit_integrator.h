@@ -435,12 +435,12 @@ class ImplicitIntegrator : public IntegratorBase<T> {
     can_restore_from_cached_jacobians_ = flag;
   }
 
-  bool get_jacobian_is_still_not_fresh() {
-    return jacobian_is_still_not_fresh_;
+  bool get_failed_jacobian_is_from_second_small_step() {
+    return failed_jacobian_is_from_second_small_step_;
   }
 
-  void set_jacobian_is_still_not_fresh(bool flag) {
-    jacobian_is_still_not_fresh_ = flag;
+  void set_failed_jacobian_is_from_second_small_step(bool flag) {
+    failed_jacobian_is_from_second_small_step_ = flag;
   }
 
   const IterationMatrix& get_cached_iteration_matrix() {
@@ -458,7 +458,11 @@ class ImplicitIntegrator : public IntegratorBase<T> {
     // Jacobian (fresh is false). Otherwise, a failed step (result is false)
     // means we can keep the Jacobian (fresh is true). Therefore fresh =
     // !result, always.
-    jacobian_is_fresh_ = !result;
+
+    // The exception is when the implicit step fails during a second half-
+    // step, in which case the Jacobian is not from the beginning of the step.
+    jacobian_is_fresh_ =
+        !failed_jacobian_is_from_second_small_step_ && !result;
 
     return result;
   }
@@ -470,7 +474,7 @@ class ImplicitIntegrator : public IntegratorBase<T> {
 
   // The last computed Jacobian matrix.
   MatrixX<T> J_;
-  // Jacobian cache while computing second small step.
+  // Jacobian cache while computing second small step during step doubling.
   MatrixX<T> J_cached_;
 
 
@@ -482,10 +486,11 @@ class ImplicitIntegrator : public IntegratorBase<T> {
 
   // Flag to determine whether the cache is active.
   bool can_restore_from_cached_jacobians_{false};
-  // Flag to indicate Jacobian is still not fresh even
-  // after a failed step, because it was computed during
-  // the second half-step.
-  bool jacobian_is_still_not_fresh_{false};
+
+  // Flag to indicate that the failed Jacobian is not from the beginning of the
+  // time step, but rather from the second small step. This indicates that the
+  // Jacobian is still not fresh.
+  bool failed_jacobian_is_from_second_small_step_{false};
 
   // If set to `false`, Jacobian matrices and iteration matrix factorizations
   // will not be reused.
