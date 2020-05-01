@@ -11,7 +11,7 @@ time bazel run pile_of_objects -- \
 `# Visualization` \
 --simulator_target_realtime_rate=0.0 \
 --visualize=0 \
---viz_period=0.05 \
+--viz_period=0.2 \
 `#Integration: ` \
 `#  bogacki_shampine3` \
 `#  explicit_euler,semi_explicit_euler` \
@@ -21,7 +21,7 @@ time bazel run pile_of_objects -- \
 --simulator_integration_scheme=implicit_euler \
 --simulator_max_time_step=2.e-1 \
 --dont_reuse=false \
---simulator_accuracy=0.1 \
+--simulator_accuracy=0.03 \
 --jacobian_scheme=forward \
 --fixed_step=0 \
 --use_full_newton=0 \
