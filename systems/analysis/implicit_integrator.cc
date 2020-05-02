@@ -280,7 +280,7 @@ ImplicitIntegrator<T>::CheckNewtonConvergence(
                 iteration, theta, eta);
 
     // Look for divergence.
-    if (theta > 1) {
+    if (iteration > 0 && theta >= 1) {
       DRAKE_LOGGER_DEBUG("Newton-Raphson divergence detected");
       return ConvergenceStatus::kDiverged;
     }
@@ -291,7 +291,7 @@ ImplicitIntegrator<T>::CheckNewtonConvergence(
     // implicit integrator), p. 121. We select a value halfway in-between.
     const double kappa = 0.05;
     const double k_dot_tol = kappa * this->get_accuracy_in_use();
-    if (eta * dx_norm < k_dot_tol) {
+    if (theta < 1 && eta * dx_norm < k_dot_tol) {
       DRAKE_LOGGER_DEBUG("Newton-Raphson converged; η = {}", eta);
       return ConvergenceStatus::kConverged;
     }
@@ -360,6 +360,22 @@ const MatrixX<T>& ImplicitIntegrator<T>::CalcJacobian(const T& t,
 }
 
 template <class T>
+void ImplicitIntegrator<T>::FreshenMatrices(
+    const T& t, const VectorX<T>& xt, const T& h,
+    const std::function<void(const MatrixX<T>&, const T&,
+        typename ImplicitIntegrator<T>::IterationMatrix*)>&
+        compute_and_factor_iteration_matrix,
+    typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix) {
+  DRAKE_DEMAND(iteration_matrix);
+
+  // Compute the initial Jacobian and iteration matrices and factor them.
+  MatrixX<T>& J = get_mutable_jacobian();
+  J = CalcJacobian(t, xt);
+  ++num_iter_factorizations_;
+  compute_and_factor_iteration_matrix(J, h, iteration_matrix);
+}
+
+template <class T>
 void ImplicitIntegrator<T>::FreshenMatricesIfFullNewton(
     const T& t, const VectorX<T>& xt, const T& h,
     const std::function<void(const MatrixX<T>&, const T&,
@@ -389,7 +405,16 @@ bool ImplicitIntegrator<T>::MaybeFreshenMatrices(
   // necessary.
   MatrixX<T>& J = get_mutable_jacobian();
   if (!get_reuse() || J.rows() == 0 || IsBadJacobian(J)) {
+    // Store the cached Jacobians if the flag is set.
+    if (this->get_can_restore_from_cached_jacobians()) {
+      J_cached_ = J;
+      iteration_matrix_cached_ = *iteration_matrix;
+    }
+
     J = CalcJacobian(t, xt);
+    // Mark Jacobian as fresh so that the second small step knows to cache
+    set_jacobian_is_fresh();
+    set_failed_jacobian_is_from_second_small_step(false);
     ++num_iter_factorizations_;
     compute_and_factor_iteration_matrix(J, h, iteration_matrix);
     return true;  // Indicate success.
@@ -425,8 +450,17 @@ bool ImplicitIntegrator<T>::MaybeFreshenMatrices(
       if (jacobian_is_fresh_)
         return false;
 
+      // Store the cached Jacobians if the flag is set.
+      if (can_restore_from_cached_jacobians_) {
+        J_cached_ = J;
+        iteration_matrix_cached_ = *iteration_matrix;
+      }
+
       // Reform the Jacobian matrix and refactor the iteration matrix.
       J = CalcJacobian(t, xt);
+      // Mark Jacobian as fresh so that the second small step knows to cache.
+      set_jacobian_is_fresh();
+      set_failed_jacobian_is_from_second_small_step(false);
       ++num_iter_factorizations_;
       compute_and_factor_iteration_matrix(J, h, iteration_matrix);
       return true;

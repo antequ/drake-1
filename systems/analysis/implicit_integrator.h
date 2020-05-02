@@ -292,6 +292,13 @@ class ImplicitIntegrator : public IntegratorBase<T> {
       compute_and_factor_iteration_matrix,
       typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix);
 
+  void FreshenMatrices(const T& t, const VectorX<T>& xt, const T& h,
+      const std::function<void(const MatrixX<T>& J, const T& h,
+          typename ImplicitIntegrator<T>::IterationMatrix*)>&
+      compute_and_factor_iteration_matrix,
+      typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix);
+
+
   /// Checks whether a proposed update is effectively zero, indicating that the
   /// Newton-Raphson process converged.
   /// @param xc the continuous state.
@@ -408,6 +415,42 @@ class ImplicitIntegrator : public IntegratorBase<T> {
     ++num_jacobian_evaluations_;
   }
 
+  bool get_jacobian_is_fresh() {
+    return jacobian_is_fresh_;
+  }
+
+  void set_jacobian_is_not_fresh() {
+    jacobian_is_fresh_ = false;
+  }
+
+  void set_jacobian_is_fresh() {
+    jacobian_is_fresh_ = true;
+  }
+
+  bool get_can_restore_from_cached_jacobians() {
+    return can_restore_from_cached_jacobians_;
+  }
+
+  void set_can_restore_from_cached_jacobians(bool flag) {
+    can_restore_from_cached_jacobians_ = flag;
+  }
+
+  bool get_failed_jacobian_is_from_second_small_step() {
+    return failed_jacobian_is_from_second_small_step_;
+  }
+
+  void set_failed_jacobian_is_from_second_small_step(bool flag) {
+    failed_jacobian_is_from_second_small_step_ = flag;
+  }
+
+  const IterationMatrix& get_cached_iteration_matrix() {
+    return iteration_matrix_cached_;
+  }
+
+  const MatrixX<T>& get_cached_jacobian() {
+    return J_cached_;
+  }
+
  private:
   bool DoStep(const T& h) final {
     bool result = DoImplicitIntegratorStep(h);
@@ -415,7 +458,11 @@ class ImplicitIntegrator : public IntegratorBase<T> {
     // Jacobian (fresh is false). Otherwise, a failed step (result is false)
     // means we can keep the Jacobian (fresh is true). Therefore fresh =
     // !result, always.
-    jacobian_is_fresh_ = !result;
+
+    // The exception is when the implicit step fails during a second half-
+    // step, in which case the Jacobian is not from the beginning of the step.
+    jacobian_is_fresh_ =
+        !failed_jacobian_is_from_second_small_step_ && !result;
 
     return result;
   }
@@ -427,9 +474,23 @@ class ImplicitIntegrator : public IntegratorBase<T> {
 
   // The last computed Jacobian matrix.
   MatrixX<T> J_;
+  // Jacobian cache while computing second small step during step doubling.
+  MatrixX<T> J_cached_;
+
+
+  // Iteration matrix cache while computing the second small step.
+  IterationMatrix iteration_matrix_cached_;
 
   // Whether the Jacobian matrix is fresh.
   bool jacobian_is_fresh_{false};
+
+  // Flag to determine whether the cache is active.
+  bool can_restore_from_cached_jacobians_{false};
+
+  // Flag to indicate that the failed Jacobian is not from the beginning of the
+  // time step, but rather from the second small step. This indicates that the
+  // Jacobian is still not fresh.
+  bool failed_jacobian_is_from_second_small_step_{false};
 
   // If set to `false`, Jacobian matrices and iteration matrix factorizations
   // will not be reused.

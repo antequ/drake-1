@@ -82,6 +82,19 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   /// computed) is O(h²).
   int get_error_estimate_order() const final { return 2; }
 
+  /// Set this to true to use implicit trapezoid, for error estimation;
+  /// otherwise this integrator will use step doubling, for error estimation.
+  void set_use_implicit_trapezoid_error_estimation(bool flag) {
+    use_implicit_trapezoid_error_estimation_ = flag;
+  }
+
+  /// Returns true if the integrator will use implicit trapezoid for error
+  /// estimation; otherwise it indicates the integrator will use step doubling
+  /// for error estimation.
+  bool get_use_implicit_trapezoid_error_estimation() {
+    return use_implicit_trapezoid_error_estimation_;
+  }
+
  private:
   int64_t do_get_num_newton_raphson_iterations() const final {
     return num_nr_iterations_;
@@ -119,7 +132,7 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
       typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix);
   void DoInitialize() final;
   bool AttemptStepPaired(const T& t0, const T& h, const VectorX<T>& xt0,
-      VectorX<T>* xtplus_euler, VectorX<T>* xtplus_trap);
+      VectorX<T>* xtplus_ie, VectorX<T>* xtplus_hie);
   bool StepAbstract(const T& t0, const T& h, const VectorX<T>& xt0,
                     const std::function<VectorX<T>()>& g,
                     const std::function<
@@ -132,6 +145,11 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   bool DoImplicitIntegratorStep(const T& h) final;
   bool StepImplicitEuler(const T& t0, const T& h, const VectorX<T>& xt0,
       VectorX<T>* xtplus);
+  bool StepImplicitEulerWithGuess(const T& t0, const T& h,
+      const VectorX<T>& xt0, const VectorX<T>& xtplus_guess,
+      VectorX<T>* xtplus);
+  bool StepHalfImplicitEulers(const T& t0, const T& h, const VectorX<T>& xt0,
+      const VectorX<T>& xtplus_ie, VectorX<T>* xtplus);
   bool StepImplicitTrapezoid(const T& t0, const T& h, const VectorX<T>& xt0,
       const VectorX<T>& dx0, const VectorX<T>& xtplus_ie, VectorX<T>* xtplus);
 
@@ -149,7 +167,7 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   std::unique_ptr<ContinuousState<T>> dx_state_;
 
   // Variables to avoid heap allocations.
-  VectorX<T> xt0_, xdot_, xtplus_ie_, xtplus_tr_;
+  VectorX<T> xt0_, xdot_, xtplus_ie_, xtplus_hie_;
 
   // Various statistics.
   int64_t num_nr_iterations_{0};
@@ -164,6 +182,9 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   int64_t num_err_est_function_evaluations_{0};
   int64_t num_err_est_jacobian_function_evaluations_{0};
   int64_t num_err_est_nr_iterations_{0};
+
+  // Use Implicit Trapezoid instead of step doubling
+  bool use_implicit_trapezoid_error_estimation_{false};
 };
 
 }  // namespace systems
