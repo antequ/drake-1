@@ -16,11 +16,11 @@ namespace systems {
 template <class T>
 void ImplicitEulerIntegrator<T>::DoResetImplicitIntegratorStatistics() {
   num_nr_iterations_ = 0;
-  num_err_est_nr_iterations_ = 0;
-  num_err_est_function_evaluations_ = 0;
-  num_err_est_jacobian_function_evaluations_ = 0;
-  num_err_est_jacobian_reforms_ = 0;
-  num_err_est_iter_factorizations_ = 0;
+  num_itr_or_half_ie_nr_iterations_ = 0;
+  num_itr_or_half_ie_function_evaluations_ = 0;
+  num_itr_or_half_ie_jacobian_function_evaluations_ = 0;
+  num_itr_or_half_ie_jacobian_reforms_ = 0;
+  num_itr_or_half_ie_iter_factorizations_ = 0;
 }
 
 template <class T>
@@ -282,17 +282,17 @@ bool ImplicitEulerIntegrator<T>::StepImplicitEulerWithGuess(
 // @note The time and continuous state in the context are indeterminate upon
 //       exit.
 template <class T>
-bool ImplicitEulerIntegrator<T>::StepHalfImplicitEulers(
+bool ImplicitEulerIntegrator<T>::StepHalfSizedImplicitEulers(
     const T& t0, const T& h, const VectorX<T>& xt0,
     const VectorX<T>& xtplus_ie, VectorX<T>* xtplus) {
   using std::abs;
 
-  DRAKE_LOGGER_DEBUG("StepHalfImplicitEulers(h={}) t={}", h, t0);
+  DRAKE_LOGGER_DEBUG("StepHalfSizedImplicitEulers(h={}) t={}", h, t0);
 
 
   // Store statistics before calling StepAbstract(). The difference between
   // the modified statistics and the stored statistics will be used to compute
-  // the trapezoid method-specific statistics.
+  // the half-sized-implicit-Euler-specific statistics.
   int stored_num_jacobian_evaluations = this->get_num_jacobian_evaluations();
   int stored_num_iter_factorizations =
       this->get_num_iteration_matrix_factorizations();
@@ -325,16 +325,16 @@ bool ImplicitEulerIntegrator<T>::StepHalfImplicitEulers(
         xtplus_ie, xtplus);
     if (!success) {
       DRAKE_LOGGER_DEBUG("Second Half IE convergence failed.");
-      // Jacobians were updated, so compute from the right location now.
+      // After a failure, the Jacobians were updated, so we either have to
+      // restore the Jacobian from the cache if the cached Jacobian is fresh,
+      // or mark that the current Jacobian is not fresh by setting
+      // set_failed_jacobian_is_from_second_small_step().
       if (!this->get_use_full_newton() && this->get_reuse()) {
         if (this->get_can_restore_from_cached_jacobians()) {
           std::cout << "Restoring from cached Jacobian, t0 = " << t0
                     << std::endl;
           this->get_mutable_jacobian() = this->get_cached_jacobian();
           ie_iteration_matrix_ = this->get_cached_iteration_matrix();
-          // this->increment_num_iter_factorizations();
-          // this->ComputeAndFactorImplicitEulerIterationMatrix(
-          //     *Jy, *Jfyy, *Jfyq, 0.5 * h, iteration_matrix);
         } else {
           std::cout << "Marking Jacobian stale because it was computed "
                        "during the second half-step, t0 = " << t0
@@ -345,19 +345,19 @@ bool ImplicitEulerIntegrator<T>::StepHalfImplicitEulers(
     }
     this->set_can_restore_from_cached_jacobians(false);
   }
-  // Move statistics to implicit trapezoid-specific.
-  num_err_est_jacobian_reforms_ +=
+  // Move statistics to half-sized-implicit-Euler-specific statistics.
+  num_itr_or_half_ie_jacobian_reforms_ +=
       this->get_num_jacobian_evaluations() - stored_num_jacobian_evaluations;
-  num_err_est_iter_factorizations_ +=
+  num_itr_or_half_ie_iter_factorizations_ +=
       this->get_num_iteration_matrix_factorizations() -
       stored_num_iter_factorizations;
-  num_err_est_function_evaluations_ +=
+  num_itr_or_half_ie_function_evaluations_ +=
       this->get_num_derivative_evaluations() - stored_num_function_evaluations;
-  num_err_est_jacobian_function_evaluations_ +=
+  num_itr_or_half_ie_jacobian_function_evaluations_ +=
       this->get_num_derivative_evaluations_for_jacobian() -
       stored_num_jacobian_function_evaluations;
-  num_err_est_nr_iterations_ += this->get_num_newton_raphson_iterations() -
-      stored_num_nr_iterations;
+  num_itr_or_half_ie_nr_iterations_ +=
+      this->get_num_newton_raphson_iterations() - stored_num_nr_iterations;
 
   return success;
 }
@@ -410,18 +410,18 @@ bool ImplicitEulerIntegrator<T>::StepImplicitTrapezoid(
                               xtplus_ie, &itr_iteration_matrix_, xtplus);
 
   // Move statistics to implicit trapezoid-specific.
-  num_err_est_jacobian_reforms_ +=
+  num_itr_or_half_ie_jacobian_reforms_ +=
       this->get_num_jacobian_evaluations() - stored_num_jacobian_evaluations;
-  num_err_est_iter_factorizations_ +=
+  num_itr_or_half_ie_iter_factorizations_ +=
       this->get_num_iteration_matrix_factorizations() -
       stored_num_iter_factorizations;
-  num_err_est_function_evaluations_ +=
+  num_itr_or_half_ie_function_evaluations_ +=
       this->get_num_derivative_evaluations() - stored_num_function_evaluations;
-  num_err_est_jacobian_function_evaluations_ +=
+  num_itr_or_half_ie_jacobian_function_evaluations_ +=
       this->get_num_derivative_evaluations_for_jacobian() -
       stored_num_jacobian_function_evaluations;
-  num_err_est_nr_iterations_ += this->get_num_newton_raphson_iterations() -
-      stored_num_nr_iterations;
+  num_itr_or_half_ie_nr_iterations_ +=
+      this->get_num_newton_raphson_iterations() - stored_num_nr_iterations;
 
   return success;
 }
@@ -455,6 +455,24 @@ bool ImplicitEulerIntegrator<T>::AttemptStepPaired(const T& t0, const T& h,
     return false;
   }
 
+  if (!use_implicit_trapezoid_error_estimation_) {
+    // In this case, step two half-sized implicit Euler steps along
+    // with the full step for error estimation. (To the reviewer: ) For now,
+    // see the documentation of Velocity-Implicit Euler Integrator; the error
+    // estimation described there is the exact same scheme as the error
+    // estimation here. We propagate the small half-sized steps in the end.
+    if (StepHalfSizedImplicitEulers(t0, h, xt0, *xtplus_ie, xtplus_hie)) {
+      Context<T>* context = this->get_mutable_context();
+      context->SetTimeAndContinuousState(t0 + h, *xtplus_hie);
+      return true;
+    } else {
+      DRAKE_LOGGER_DEBUG("Implicit Euler half-step approach FAILED with a step"
+          "size that succeeded on full-sized implicit Euler.");
+      return false;
+    }
+  }
+
+  // If use_implicit_trapezoid_error_estimation_:
   // The error estimation process uses the implicit trapezoid method, which
   // is defined as:
   // x(t0+h) = x(t0) + h/2 (f(t0, x(t0) + f(t0+h, x(t0+h))
@@ -468,18 +486,6 @@ bool ImplicitEulerIntegrator<T>::AttemptStepPaired(const T& t0, const T& h,
   // xᵢₑ(t0+h) + O(h²) = xₜᵣ(t0+h) + O(h³).
   // Given that the second order term subsumes the third order one, we have:
   // xᵢₑ(t0+h) - xₜᵣ(t0+h) = O(h²).
-  if (!use_implicit_trapezoid_error_estimation_) {
-    if (StepHalfImplicitEulers(t0, h, xt0, *xtplus_ie, xtplus_hie)) {
-      Context<T>* context = this->get_mutable_context();
-      context->SetTimeAndContinuousState(t0 + h, *xtplus_hie);
-      return true;
-    } else {
-      DRAKE_LOGGER_DEBUG("Implicit Euler half-step approach FAILED with a step"
-          "size that succeeded on full-sized implicit Euler.");
-      return false;
-    }
-  }
-  // If use_implicit_trapezoid_error_estimation_:
   // Attempt to compute the implicit trapezoid solution.
   if (StepImplicitTrapezoid(t0, h, xt0, dx0, *xtplus_ie, xtplus_hie)) {
     // Reset the state to that computed by implicit Euler.
@@ -533,21 +539,37 @@ bool ImplicitEulerIntegrator<T>::DoImplicitIntegratorStep(const T& h) {
     xdot_ = this->EvalTimeDerivatives(*context).CopyToVector();
     xtplus_ie_ = xt0_ + h * xdot_;
 
-    // Compute the RK2 step.
-    const int evals_before_rk2 = rk2_->get_num_derivative_evaluations();
-    if (!rk2_->IntegrateWithSingleFixedStepToTime(t0 + h)) {
-      throw std::runtime_error("Embedded RK2 integrator failed to take a single"
-          "fixed step to the requested time.");
+    // Compute the RK2 or two half-sized Euler steps.
+    if (use_implicit_trapezoid_error_estimation_) {
+      // Compute the RK2 step
+      const int evals_before_rk2 = rk2_->get_num_derivative_evaluations();
+      if (!rk2_->IntegrateWithSingleFixedStepToTime(t0 + h)) {
+        throw std::runtime_error("Embedded RK2 integrator failed to take a"
+            "single fixed step to the requested time.");
+      }
+
+      const int evals_after_rk2 = rk2_->get_num_derivative_evaluations();
+      xtplus_hie_ = context->get_continuous_state().CopyToVector();
+
+      // Update the error estimation ODE counts.
+      num_itr_or_half_ie_function_evaluations_ +=
+          (evals_after_rk2 - evals_before_rk2);
+
+      // Revert the state to that computed by explicit Euler.
+      context->SetTimeAndContinuousState(t0 + h, xtplus_ie_);
+    } else {
+      // complete two half-sized explicit Euler steps.
+      xtplus_hie_ = xt0_ + 0.5 * h * xdot_;
+      context->SetTimeAndContinuousState(t0 + 0.5 * h, xtplus_hie_);
+      xtplus_hie_ +=
+          0.5 * h * this->EvalTimeDerivatives(*context).CopyToVector();
+
+      // Update the error estimation ODE counts.
+      ++num_itr_or_half_ie_function_evaluations_;
+
+      context->SetTimeAndContinuousState(t0 + h, xtplus_hie_);
     }
 
-    const int evals_after_rk2 = rk2_->get_num_derivative_evaluations();
-    xtplus_hie_ = context->get_continuous_state().CopyToVector();
-
-    // Update the error estimation ODE counts.
-    num_err_est_function_evaluations_ += (evals_after_rk2 - evals_before_rk2);
-
-    // Revert the state to that computed by explicit Euler.
-    context->SetTimeAndContinuousState(t0 + h, xtplus_ie_);
   } else {
     // Try taking the requested step.
     bool success = AttemptStepPaired(t0, h, xt0_, &xtplus_ie_, &xtplus_hie_);

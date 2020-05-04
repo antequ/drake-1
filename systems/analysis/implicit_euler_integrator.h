@@ -43,8 +43,16 @@ namespace systems {
  * This implementation uses Newton-Raphson (NR) and relies upon the obvious
  * convergence to a solution for `g = 0` where
  * `g(x(t+h)) ≡ x(t+h) - x(t) - h f(t+h,x(t+h))` as `h` becomes sufficiently
- * small. It also uses the implicit trapezoid method- fed the result from
- * implicit Euler for (hopefully) faster convergence- to compute the error
+ * small.
+ *
+ * For error estimation, it takes a full-sized implicit Euler step alongside two
+ * half-sized implicit Euler steps, and takes the difference between them for a
+ * second-order error estimate. The solution from the two half-sized steps is
+ * propagated. (For the PR reviewer:) For now, see the documentation of
+ * VelocityImplicitEulerIntegrator<T> for more details.
+ *
+ * If the user desires, it can use the implicit trapezoid method- fed the result
+ * from implicit Euler for (hopefully) faster convergence- to compute the error
  * estimate. General implementational details were gleaned from [Hairer, 1996].
  *
  * - [Hairer, 1996]   E. Hairer and G. Wanner. Solving Ordinary Differential
@@ -101,26 +109,66 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   }
 
   int64_t do_get_num_error_estimator_derivative_evaluations() const final {
-    return num_err_est_function_evaluations_;
+    // When implicit trapezoid is chosen, implicit trapezoid is the error
+    // estimator, and statistics for it are directly reported; otherwise, the
+    // small half-sized steps are propagated and the large step is the error
+    // estimator, so we report error estimator stats by subtracting those of
+    // the small half-sized steps from the total statistics.
+    return use_implicit_trapezoid_error_estimation_
+               ? num_itr_or_half_ie_function_evaluations_
+               : (this->get_num_derivative_evaluations() -
+                  num_itr_or_half_ie_function_evaluations_);
   }
 
   int64_t do_get_num_error_estimator_derivative_evaluations_for_jacobian()
       const final {
-    return num_err_est_jacobian_function_evaluations_;
+    // When implicit trapezoid is chosen, implicit trapezoid is the error
+    // estimator, and statistics for it are directly reported; otherwise, the
+    // small half-sized steps are propagated and the large step is the error
+    // estimator, so we report error estimator stats by subtracting those of
+    // the small half-sized steps from the total statistics.
+    return use_implicit_trapezoid_error_estimation_
+               ? num_itr_or_half_ie_jacobian_function_evaluations_
+               : (this->get_num_derivative_evaluations_for_jacobian() -
+                  num_itr_or_half_ie_jacobian_function_evaluations_);
   }
 
   int64_t do_get_num_error_estimator_newton_raphson_iterations()
       const final {
-    return num_err_est_nr_iterations_;
+    // When implicit trapezoid is chosen, implicit trapezoid is the error
+    // estimator, and statistics for it are directly reported; otherwise, the
+    // small half-sized steps are propagated and the large step is the error
+    // estimator, so we report error estimator stats by subtracting those of
+    // the small half-sized steps from the total statistics.
+    return use_implicit_trapezoid_error_estimation_
+               ? num_itr_or_half_ie_nr_iterations_
+               : (this->get_num_newton_raphson_iterations() -
+                  num_itr_or_half_ie_nr_iterations_);
   }
 
   int64_t do_get_num_error_estimator_jacobian_evaluations() const final {
-    return num_err_est_jacobian_reforms_;
+    // When implicit trapezoid is chosen, implicit trapezoid is the error
+    // estimator, and statistics for it are directly reported; otherwise, the
+    // small half-sized steps are propagated and the large step is the error
+    // estimator, so we report error estimator stats by subtracting those of
+    // the small half-sized steps from the total statistics.
+    return use_implicit_trapezoid_error_estimation_
+               ? num_itr_or_half_ie_jacobian_reforms_
+               : (this->get_num_jacobian_evaluations() -
+                  num_itr_or_half_ie_jacobian_reforms_);
   }
 
   int64_t do_get_num_error_estimator_iteration_matrix_factorizations()
       const final {
-    return num_err_est_iter_factorizations_;
+    // When implicit trapezoid is chosen, implicit trapezoid is the error
+    // estimator, and statistics for it are directly reported; otherwise, the
+    // small half-sized steps are propagated and the large step is the error
+    // estimator, so we report error estimator stats by subtracting those of
+    // the small half-sized steps from the total statistics.
+    return use_implicit_trapezoid_error_estimation_
+               ? num_itr_or_half_ie_iter_factorizations_
+               : (this->get_num_iteration_matrix_factorizations() -
+                  num_itr_or_half_ie_iter_factorizations_);
   }
 
   void DoResetImplicitIntegratorStatistics() final;
@@ -148,8 +196,8 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   bool StepImplicitEulerWithGuess(const T& t0, const T& h,
       const VectorX<T>& xt0, const VectorX<T>& xtplus_guess,
       VectorX<T>* xtplus);
-  bool StepHalfImplicitEulers(const T& t0, const T& h, const VectorX<T>& xt0,
-      const VectorX<T>& xtplus_ie, VectorX<T>* xtplus);
+  bool StepHalfSizedImplicitEulers(const T& t0, const T& h,
+      const VectorX<T>& xt0, const VectorX<T>& xtplus_ie, VectorX<T>* xtplus);
   bool StepImplicitTrapezoid(const T& t0, const T& h, const VectorX<T>& xt0,
       const VectorX<T>& dx0, const VectorX<T>& xtplus_ie, VectorX<T>* xtplus);
 
@@ -176,14 +224,15 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   // the requested step size lies below the working step size.
   std::unique_ptr<RungeKutta2Integrator<T>> rk2_;
 
-  // Implicit trapezoid specific statistics.
-  int64_t num_err_est_jacobian_reforms_{0};
-  int64_t num_err_est_iter_factorizations_{0};
-  int64_t num_err_est_function_evaluations_{0};
-  int64_t num_err_est_jacobian_function_evaluations_{0};
-  int64_t num_err_est_nr_iterations_{0};
+  // Statistics specific to implicit trapezoid or the two half-sized steps.
+  int64_t num_itr_or_half_ie_jacobian_reforms_{0};
+  int64_t num_itr_or_half_ie_iter_factorizations_{0};
+  int64_t num_itr_or_half_ie_function_evaluations_{0};
+  int64_t num_itr_or_half_ie_jacobian_function_evaluations_{0};
+  int64_t num_itr_or_half_ie_nr_iterations_{0};
 
-  // Use Implicit Trapezoid instead of step doubling
+  // If set to true, the integrator uses implicit trapezoid instead of two
+  // half-sized steps for error estimation.
   bool use_implicit_trapezoid_error_estimation_{false};
 };
 
