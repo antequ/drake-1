@@ -280,7 +280,7 @@ ImplicitIntegrator<T>::CheckNewtonConvergence(
                 iteration, theta, eta);
 
     // Look for divergence.
-    if (iteration > 0 && theta >= 1) {
+    if (theta > 1) {
       DRAKE_LOGGER_DEBUG("Newton-Raphson divergence detected");
       return ConvergenceStatus::kDiverged;
     }
@@ -291,7 +291,7 @@ ImplicitIntegrator<T>::CheckNewtonConvergence(
     // implicit integrator), p. 121. We select a value halfway in-between.
     const double kappa = 0.05;
     const double k_dot_tol = kappa * this->get_accuracy_in_use();
-    if (theta < 1 && eta * dx_norm < k_dot_tol) {
+    if (eta * dx_norm < k_dot_tol) {
       DRAKE_LOGGER_DEBUG("Newton-Raphson converged; η = {}", eta);
       return ConvergenceStatus::kConverged;
     }
