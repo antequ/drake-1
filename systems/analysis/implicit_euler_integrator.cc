@@ -314,36 +314,21 @@ bool ImplicitEulerIntegrator<T>::StepHalfSizedImplicitEulers(
     // xⁿ.
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
-    if (this->get_jacobian_is_fresh()) {
-      this->set_can_restore_from_cached_jacobians(true);
-    }
 
-    // set jacobian isn't fresh, since the previous half-step succeeded.
-    this->set_jacobian_is_not_fresh();
+    // set that the jacobian isn't fresh, since the previous half-step succeeded.
+    this->set_jacobian_is_fresh(false);
 
     success = StepImplicitEulerWithGuess(t0 + 0.5 * h, 0.5 * h, xthalf,
         xtplus_ie, xtplus);
     if (!success) {
       DRAKE_LOGGER_DEBUG("Second Half IE convergence failed.");
-      // After a failure, the Jacobians were updated, so we either have to
-      // restore the Jacobian from the cache if the cached Jacobian is fresh,
-      // or mark that the current Jacobian is not fresh by setting
+      // After a failure, the Jacobians were updated, so we have to mark that
+      // the current Jacobian is not fresh by setting
       // set_failed_jacobian_is_from_second_small_step().
       if (!this->get_use_full_newton() && this->get_reuse()) {
-        if (this->get_can_restore_from_cached_jacobians()) {
-          std::cout << "Restoring from cached Jacobian, t0 = " << t0
-                    << std::endl;
-          this->get_mutable_jacobian() = this->get_cached_jacobian();
-          ie_iteration_matrix_ = this->get_cached_iteration_matrix();
-        } else {
-          std::cout << "Marking Jacobian stale because it was computed "
-                       "during the second half-step, t0 = " << t0
-                    << std::endl;
-          this->set_failed_jacobian_is_from_second_small_step(true);
-        }
+        this->set_failed_jacobian_is_from_second_small_step(true);
       }
     }
-    this->set_can_restore_from_cached_jacobians(false);
   }
   // Move statistics to half-sized-implicit-Euler-specific statistics.
   num_itr_or_half_ie_jacobian_reforms_ +=
