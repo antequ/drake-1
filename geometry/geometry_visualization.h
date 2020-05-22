@@ -93,7 +93,8 @@ class GeometryVisualizationImpl {
 systems::lcm::LcmPublisherSystem* ConnectDrakeVisualizer(
     systems::DiagramBuilder<double>* builder,
     const SceneGraph<double>& scene_graph,
-    lcm::DrakeLcmInterface* lcm = nullptr, Role role = Role::kIllustration);
+    lcm::DrakeLcmInterface* lcm = nullptr, Role role = Role::kIllustration,
+    double period = 1.0 / 60);
 
 /** Implements ConnectDrakeVisualizer, but using @p pose_bundle_output_port to
  explicitly specify the output port used to get pose bundles for
@@ -109,7 +110,9 @@ systems::lcm::LcmPublisherSystem* ConnectDrakeVisualizer(
     systems::DiagramBuilder<double>* builder,
     const SceneGraph<double>& scene_graph,
     const systems::OutputPort<double>& pose_bundle_output_port,
-    lcm::DrakeLcmInterface* lcm = nullptr, Role role = Role::kIllustration);
+    lcm::DrakeLcmInterface* lcm = nullptr, Role role = Role::kIllustration,
+    double period = 1.0 / 60);
+
 
 /** (Advanced) Explicitly dispatches an LCM load message based on the registered
  geometry. Normally this is done automatically at Simulator initialization. But

@@ -58,8 +58,10 @@ namespace systems {
  * To find a `(qₖ₊₁,yₖ₊₁)` that approximately satisfies (5-6), we linearize
  * the system (5-6) to compute a Newton step. Define
  *
- *     ℓ(y) = f_y(tⁿ⁺¹,qⁿ + h N(qₖ) v,y),            (7)
- *     Jₗ(y) = ∂ℓ(y) / ∂y.                           (8)
+ *     l(y) = f_y(tⁿ⁺¹,qⁿ + h N(qₖ) v,y),            (7)
+ *     Jv(qn, y) = df_y/dy (t, qn, y),
+ *     Jq(qn, y) = df_y/dq (t, qn, y) * N(qn),
+ *     Jₗ(y) = ∂l(y) / ∂y  = Jv(qn, y) + Jq(qn, y) h N(qk) (vdofs)      (8)
  *
  * To advance the Newton step, the velocity-implicit Euler integrator solves
  * the following linear equation for `Δy`:
@@ -150,7 +152,7 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
    * Returns the asymptotic order of the difference between the large and small
    * steps (from which the error estimate is computed), which is 2. That is, the
    * error estimate, `ε* = x̅ⁿ⁺¹ - x̃ⁿ⁺¹` has the property that `‖ε*‖ = O(h²)`,
-   * and it deviates from the true error, `ε`, by `‖ε - ε*‖ = O(h³)`. 
+   * and it deviates from the true error, `ε`, by `‖ε - ε*‖ = O(h³)`.
    *
    * ### Derivation of the asymptotic order
    *
@@ -328,7 +330,8 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   void DoResetImplicitIntegratorStatistics() final;
 
   static void ComputeAndFactorImplicitEulerIterationMatrix(
-      const MatrixX<T>& J, const T& h,
+      const MatrixX<T>& J, const MatrixX<T>& Jfyy, const MatrixX<T>& Jfyq,
+      const T& h,
       typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix);
 
   void DoInitialize() final;
@@ -358,7 +361,7 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
       const T& t0, const T& h, const VectorX<T>& xn,
       const VectorX<T>& xtplus_guess, VectorX<T>* xtplus,
       typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix,
-      MatrixX<T>* Jy, int trial = 1);
+      MatrixX<T>* Jy, MatrixX<T>* Jfyy, MatrixX<T>* Jfyq, int trial = 1);
 
   // Steps the system forward by two half-sized steps of size h/2 using the
   // velocity-implicit Euler method, and keeps track of separate statistics
@@ -382,7 +385,7 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
       const T& t0, const T& h, const VectorX<T>& xn,
       const VectorX<T>& xtplus_guess, VectorX<T>* xtplus,
       typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix,
-      MatrixX<T>* Jy);
+      MatrixX<T>* Jy, MatrixX<T>* Jfyy, MatrixX<T>* Jfyq);
 
   // Takes a large velocity-implicit Euler step (of size h) and two half-sized
   // velocity-implicit Euler steps (of size h/2), if possible.
@@ -423,7 +426,7 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   //       be indeterminate on return.
   void CalcVelocityJacobian(const T& t, const T& h, const VectorX<T>& y,
                             const VectorX<T>& qk, const VectorX<T>& qn,
-                            MatrixX<T>* Jy);
+                            MatrixX<T>* Jy, MatrixX<T>* Jfyy, MatrixX<T>* Jfyq);
 
   // Uses automatic differentiation to compute the Jacobian, Jₗ(y), of the
   // function ℓ(y), used in this integrator's residual computation, with
@@ -500,11 +503,11 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
       const T& t, const VectorX<T>& y, const VectorX<T>& qk,
       const VectorX<T>& qn, const T& h, int trial,
       const std::function<
-          void(const MatrixX<T>& J, const T& h,
-               typename ImplicitIntegrator<T>::IterationMatrix*)>&
+          void(const MatrixX<T>& J, const MatrixX<T>&, const MatrixX<T>&,
+               const T& h, typename ImplicitIntegrator<T>::IterationMatrix*)>&
           compute_and_factor_iteration_matrix,
       typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix,
-      MatrixX<T>* Jy);
+      MatrixX<T>* Jy, MatrixX<T>* Jfyy, MatrixX<T>* Jfyq);
 
   // Computes necessary matrices (Jacobian and iteration matrix) for full
   // Newton-Raphson (NR) iterations, if full Newton-Raphson method is activated
@@ -528,11 +531,11 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
       const T& t, const VectorX<T>& y, const VectorX<T>& qk,
       const VectorX<T>& qn, const T& h,
       const std::function<
-          void(const MatrixX<T>& J, const T& h,
-               typename ImplicitIntegrator<T>::IterationMatrix*)>&
+          void(const MatrixX<T>& J, const MatrixX<T>&, const MatrixX<T>&,
+               const T& h, typename ImplicitIntegrator<T>::IterationMatrix*)>&
           compute_and_factor_iteration_matrix,
       typename ImplicitIntegrator<T>::IterationMatrix* iteration_matrix,
-      MatrixX<T>* Jy);
+      MatrixX<T>* Jy, MatrixX<T>* Jfyy, MatrixX<T>* Jfyq);
 
   // This helper method evaluates the Newton-Raphson residual R(y), defined as
   // the following:
@@ -612,8 +615,23 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
                          BasicVector<U>* qdot, const System<U>& system,
                          Context<U>* context);
 
+  // This helper method evaluates f_y(q, y), defined as the following:
+  //     f_y(q, y) = f_y(tⁿ⁺¹, q, y),
+  // with tⁿ⁺¹, y = (v, z), qₖ, qⁿ, yⁿ, and h passed in.
+  // @param t refers to tⁿ⁺¹, the time at which to compute the residual R(y).
+  // @param y is the generalized velocity and miscellaneous states around which
+  //        to evaluate f_y.
+  // @param q is the generalized position.
+  // @param [out] result is set to f_y(y).
+  // @post The context is set to (tⁿ⁺¹, qⁿ, y).
+  VectorX<T> ComputeFyOfQY(const T& t, const VectorX<T>& y,
+                           const VectorX<T>& q);
+
   // The last computed iteration matrix and factorization.
   typename ImplicitIntegrator<T>::IterationMatrix iteration_matrix_vie_;
+
+  // Iteration matrix cache while computing the second small step.
+  typename ImplicitIntegrator<T>::IterationMatrix iteration_matrix_vie_cached_;
 
   // Vector used in error estimate calculations. At the end of every step, we
   // set this to ε* = x̅ⁿ⁺¹ - x̃ⁿ⁺¹, which is our estimate for ε = x̃ⁿ⁺¹ - xⁿ⁺¹,
@@ -634,6 +652,12 @@ class VelocityImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
 
   // The last computed velocity+misc Jacobian matrix.
   MatrixX<T> Jy_vie_;
+  // The last computed velocity and position jacobians.
+  MatrixX<T> Jfyy_vie_;
+  MatrixX<T> Jfyq_vie_;
+  // Jacobian caches while computing second small step.
+  MatrixX<T> Jfyy_vie_cached_;
+  MatrixX<T> Jfyq_vie_cached_;
 
   // Various statistics.
   int64_t num_nr_iterations_{0};

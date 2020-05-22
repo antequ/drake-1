@@ -67,6 +67,8 @@ DEFINE_double(mbt_dt, 0.0,
 DEFINE_double(penetration_allowance, 1.0e-2, "MBP penetration allowance.");
 
 DEFINE_double(stiction_tolerance, 5.0e-2, "MBP stiction tolerance.");
+DEFINE_bool(visualize, true, "Whether to visualize (true) or not (false).");  
+DEFINE_double(viz_period, 1.0 / 60.0, "Viz period.");
 
 // A simple proportional controller to keep the angular velocity of the joint
 // at a desired rate.
@@ -139,10 +141,11 @@ int do_main() {
   // sense for the scale of our simulation.
   strandbeest.set_penetration_allowance(FLAGS_penetration_allowance);
   strandbeest.set_stiction_tolerance(FLAGS_stiction_tolerance);
-
-  ConnectDrakeVisualizer(&builder, scene_graph);
-  ConnectContactResultsToDrakeVisualizer(&builder, strandbeest);
-
+  if (FLAGS_visualize) {
+    ConnectDrakeVisualizer(&builder, scene_graph, nullptr,
+        geometry::Role::kIllustration, FLAGS_viz_period);
+    ConnectContactResultsToDrakeVisualizer(&builder, strandbeest);
+  }
   // Create a DesiredVelocityMotor where the proportional term is directly
   // proportional to the mass of the model.
   RevoluteJoint<double>& crank_joint_actuated =
