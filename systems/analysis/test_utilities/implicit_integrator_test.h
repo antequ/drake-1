@@ -829,6 +829,8 @@ TYPED_TEST_P(ImplicitIntegratorTest, Reuse) {
   // VelocityImplicitEulerIntegrator, which will recompute on trial 3
   // because it does not reuse Jacobians for different step sizes; hence
   // it will have 3 factorizations and 2 Jacobian evaluations.
+  // TODO(antequ): change GE to EQ (and delete LE) after the
+  // VelocityImplicitEulerIntegrator gains similar Jacobian freshness logic.
   integrator.Initialize();
   ASSERT_FALSE(integrator.IntegrateWithSingleFixedStepToTime(1e-2));
   EXPECT_GE(integrator.get_num_iteration_matrix_factorizations(), 2);

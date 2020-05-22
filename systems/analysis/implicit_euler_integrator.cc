@@ -465,35 +465,35 @@ bool ImplicitEulerIntegrator<T>::AttemptStepPaired(const T& t0, const T& h,
           "size that succeeded on full-sized implicit Euler.");
       return false;
     }
-  }
-
-  // If use_implicit_trapezoid_error_estimation_:
-  // The error estimation process uses the implicit trapezoid method, which
-  // is defined as:
-  // x(t0+h) = x(t0) + h/2 (f(t0, x(t0) + f(t0+h, x(t0+h))
-  // x(t0+h) from the implicit Euler method is presumably a good starting point.
-
-  // The error estimate is derived as follows (thanks to Michael Sherman):
-  // x*(t0+h) = xᵢₑ(t0+h) + O(h²)      [implicit Euler]
-  //          = xₜᵣ(t0+h) + O(h³)      [implicit trapezoid]
-  // where x*(t0+h) is the true (generally unknown) answer that we seek.
-  // This implies:
-  // xᵢₑ(t0+h) + O(h²) = xₜᵣ(t0+h) + O(h³).
-  // Given that the second order term subsumes the third order one, we have:
-  // xᵢₑ(t0+h) - xₜᵣ(t0+h) = O(h²).
-  // Attempt to compute the implicit trapezoid solution.
-  if (StepImplicitTrapezoid(t0, h, xt0, dx0, *xtplus_ie, xtplus_hie)) {
-    // Reset the state to that computed by implicit Euler.
-    // TODO(edrumwri): Explore using the implicit trapezoid method solution
-    //                 instead as *the* solution, rather than the implicit
-    //                 Euler. Refer to [Lambert, 1991], Ch 6.
-    Context<T>* context = this->get_mutable_context();
-    context->SetTimeAndContinuousState(t0 + h, *xtplus_ie);
-    return true;
   } else {
-    DRAKE_LOGGER_DEBUG("Implicit trapezoid approach FAILED with a step"
-        "size that succeeded on implicit Euler.");
-    return false;
+    // In this case, use the implicit trapezoid method, which is defined as:
+    // x(t0+h) = x(t0) + h/2 (f(t0, x(t0) + f(t0+h, x(t0+h))
+    // x(t0+h) from the implicit Euler method is presumably a good starting
+    // point.
+
+    // The error estimate is derived as follows (thanks to Michael Sherman):
+    // x*(t0+h) = xᵢₑ(t0+h) + O(h²)      [implicit Euler]
+    //          = xₜᵣ(t0+h) + O(h³)      [implicit trapezoid]
+    // where x*(t0+h) is the true (generally unknown) answer that we seek.
+    // This implies:
+    // xᵢₑ(t0+h) + O(h²) = xₜᵣ(t0+h) + O(h³).
+    // Given that the second order term subsumes the third order one, we have:
+    // xᵢₑ(t0+h) - xₜᵣ(t0+h) = O(h²).
+
+    // Attempt to compute the implicit trapezoid solution.
+    if (StepImplicitTrapezoid(t0, h, xt0, dx0, *xtplus_ie, xtplus_hie)) {
+      // Reset the state to that computed by implicit Euler.
+      // TODO(edrumwri): Explore using the implicit trapezoid method solution
+      //                 instead as *the* solution, rather than the implicit
+      //                 Euler. Refer to [Lambert, 1991], Ch 6.
+      Context<T>* context = this->get_mutable_context();
+      context->SetTimeAndContinuousState(t0 + h, *xtplus_ie);
+      return true;
+    } else {
+      DRAKE_LOGGER_DEBUG("Implicit trapezoid approach FAILED with a step"
+          "size that succeeded on implicit Euler.");
+      return false;
+    }
   }
 }
 
