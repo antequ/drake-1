@@ -362,33 +362,6 @@ class ImplicitEulerIntegrator final : public ImplicitIntegrator<T> {
   void DoInitialize() final;
   bool AttemptStepPaired(const T& t0, const T& h, const VectorX<T>& xt0,
       VectorX<T>* xtplus_ie, VectorX<T>* xtplus_hie);
-
-  // Performs the bulk of the stepping computation for both implicit Euler and
-  // implicit trapezoid method; all those methods need to do is provide a
-  // residual function (`g`) and an iteration matrix computation and factorization
-  // function (`compute_and_factor_iteration_matrix`) specific to the
-  // particular integrator scheme and this method does the rest.
-  // @param t0 the time at the left end of the integration interval.
-  // @param h the integration step size (> 0) to attempt.
-  // @param xt0 the continuous state at t0.
-  // @param g the particular implicit function to compute the root of.
-  // @param compute_and_factor_iteration_matrix the function for computing and
-  //        factorizing the iteration matrix.
-  // @param xtplus_guess the starting guess for x(t0+h) -- implicit Euler passes
-  //        x(t0) since it has no better guess; implicit trapezoid passes
-  //        implicit Euler's result for x(t0+h).
-  // @param[out] the iteration matrix to be used for the particular integration
-  //             scheme (implicit Euler, implicit trapezoid), which will be
-  //             computed and factored, if necessary.
-  // @param[out] the value for x(t0+h) on return.
-  // @param trial the attempt for this approach (1-4). StepAbstract() uses more
-  //        computationally expensive methods as the trial numbers increase.
-  // @returns `true` if the method was successfully able to take an integration
-  //           step of size h (or `false` otherwise).
-  // @note The time and continuous state in the context are indeterminate upon
-  //       exit.
-  // TODO(edrumwri) Explicitly test this method's fallback logic (i.e., how it
-  //                calls MaybeFreshenMatrices()) in a unit test).
   bool StepAbstract(const T& t0, const T& h, const VectorX<T>& xt0,
                     const std::function<VectorX<T>()>& g,
                     const std::function<
