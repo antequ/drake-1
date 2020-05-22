@@ -315,6 +315,16 @@ bool ImplicitEulerIntegrator<T>::StepHalfSizedImplicitEulers(
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
 
+    // TODO(antequ): One possible optimization is, if the Jacobian is fresh at
+    // this point, we can set a flag to cache the Jacobian if it gets
+    // recomputed, so that if the second substep fails, we simply restore the
+    // cached Jacobian instead of marking it stale. Since the second substep
+    // very rarely fails if the large step and the first substep succeeded,
+    // our tests indicates that this optimization saves only about 2% of the
+    // effort (0-5% in most cases), on a stiff 3-body pile of objects example.
+    // Therefore we omitted this optimization for code simplicity. See
+    // Revision 1 of PR 13224 for an implementation of this optimization.
+
     // Set that the Jacobian isn't fresh, since the first half-step succeeded.
     this->set_jacobian_is_fresh(false);
 
