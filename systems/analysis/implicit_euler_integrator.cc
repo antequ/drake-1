@@ -315,7 +315,7 @@ bool ImplicitEulerIntegrator<T>::StepHalfSizedImplicitEulers(
     std::swap(xtmp, *xtplus);
     const VectorX<T>& xthalf = xtmp;
 
-    // set that the jacobian isn't fresh, since the previous half-step succeeded.
+    // Set that the Jacobian isn't fresh, since the first half-step succeeded.
     this->set_jacobian_is_fresh(false);
 
     success = StepImplicitEulerWithGuess(t0 + 0.5 * h, 0.5 * h, xthalf,
