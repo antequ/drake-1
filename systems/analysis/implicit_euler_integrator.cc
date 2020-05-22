@@ -109,10 +109,10 @@ ComputeAndFactorImplicitTrapezoidIterationMatrix(
 // @param xtplus_guess the starting guess for x(t0+h) -- implicit Euler passes
 //        x(t0) since it has no better guess; implicit trapezoid passes
 //        implicit Euler's result for x(t0+h).
-// @param[out] the iteration matrix to be used for the particular integration
-//             scheme (implicit Euler, implicit trapezoid), which will be
-//             computed and factored, if necessary.
-// @param[out] the value for x(t0+h) on return.
+// @param[out] iteration_matrix the iteration matrix to be used for the
+//             particular integration scheme (implicit Euler, implicit
+//             trapezoid), which will be computed and factored, if necessary.
+// @param[out] xtplus the value for x(t0+h) on return.
 // @param trial the attempt for this approach (1-4). StepAbstract() uses more
 //        computationally expensive methods as the trial numbers increase.
 // @returns `true` if the method was successfully able to take an integration
@@ -233,7 +233,7 @@ bool ImplicitEulerIntegrator<T>::StepAbstract(
 // @param t0 the time at the left end of the integration interval.
 // @param h the maximum time increment to step forward.
 // @param xt0 the continuous state at t0.
-// @param[out] the computed value for `x(t0+h)` on successful return.
+// @param[out] xtplus the computed value for `x(t0+h)` on successful return.
 // @returns `true` if the step of size `h` was successful, `false` otherwise.
 // @note The time and continuous state in the context are indeterminate upon
 //       exit.
@@ -275,6 +275,7 @@ bool ImplicitEulerIntegrator<T>::StepImplicitEulerWithGuess(
 // method, if possible.
 // @param t0 the time at the left end of the integration interval.
 // @param h the maximum time increment to step forward.
+// @param xt0 the continuous state at t0.
 // @param xtplus_ie x(t0+h) computed by the implicit Euler method.
 // @param[out] xtplus x(t0+h) computed by the two half-sized implicit Euler
 //             steps on successful return.
@@ -361,6 +362,7 @@ bool ImplicitEulerIntegrator<T>::StepHalfSizedImplicitEulers(
 // method, if possible.
 // @param t0 the time at the left end of the integration interval.
 // @param h the maximum time increment to step forward.
+// @param xt0 the continuous state at t0.
 // @param dx0 the time derivatives computed at time and state (t0, xt0).
 // @param xtplus_ie x(t0+h) computed by the implicit Euler method.
 // @param[out] xtplus x(t0+h) computed by the implicit trapezoid method on
@@ -498,6 +500,7 @@ bool ImplicitEulerIntegrator<T>::AttemptStepPaired(const T& t0, const T& h,
 }
 
 // Takes a given step of the requested size, if possible.
+// @param h the integration step size to attempt.
 // @returns `true` if successful and `false` otherwise; on `true`, the time
 //          and continuous state will be advanced in the context (e.g., from
 //          t0 to t0 + h). On `false` return, the time and continuous state in
